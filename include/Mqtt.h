@@ -120,7 +120,7 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
  public:
   FromMqtt(NanoString name, Mqtt *mqtt)
       : LambdaFlow<MqttMessage, T>([&](T& t,const MqttMessage &mqttMessage) {
-          DEBUG(" '%s' <>'%s'", mqttMessage.topic.c_str(), _name.c_str());
+          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
           if (mqttMessage.topic != _name) {
             return EINVAL;
           }
@@ -146,6 +146,7 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
           // emit doesn't work as such
           // https://stackoverflow.com/questions/9941987/there-are-no-arguments-that-depend-on-a-template-parameter
         }) {
+          
     std::string topic = name;
     std::string targetTopic;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {

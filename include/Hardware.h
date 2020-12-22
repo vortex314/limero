@@ -119,7 +119,7 @@ public:
     virtual ~Spi();
     virtual Erc init() = 0;
     virtual Erc deInit() = 0;
-    virtual Erc exchange(std::string& in, std::string& out) = 0;
+    virtual Erc exchange(std::string& in,uint32_t inLength, std::string& out) = 0;
     virtual Erc onExchange(FunctionPointer, void*) = 0;
     virtual Erc setClock(uint32_t) = 0;
     virtual Erc setMode(SpiMode) = 0;

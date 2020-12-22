@@ -8,7 +8,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-static struct ESP32 { i2c_port_t _i2c_port; } esp32 = {I2C_NUM_0};
+static struct ESP32
+{
+  i2c_port_t _i2c_port;
+} esp32 = {I2C_NUM_0};
 
 /**********************************************************************
  *
@@ -23,7 +26,8 @@ static struct ESP32 { i2c_port_t _i2c_port; } esp32 = {I2C_NUM_0};
  *
  * *******************************************************************/
 //================================================== DigitalIn =====
-class DigitalIn_ESP8266 : public DigitalIn {
+class DigitalIn_ESP8266 : public DigitalIn
+{
 private:
   PhysicalPin _gpio;
   DigitalIn::Mode _mode = DIN_PULL_UP;
@@ -41,7 +45,8 @@ public:
 
   int read() { return gpio_get_level((gpio_num_t)_gpio); }
 
-  Erc init() {
+  Erc init()
+  {
     esp_err_t erc;
     //       INFO(" DigitalIn Init %d ", _gpio);
     erc = gpio_set_direction((gpio_num_t)_gpio, GPIO_MODE_INPUT);
@@ -52,11 +57,16 @@ public:
     ZERO(io_conf);
 
     gpio_int_type_t interruptType = (gpio_int_type_t)GPIO_INTR_DISABLE;
-    if (_pinChange == DIN_RAISE) {
+    if (_pinChange == DIN_RAISE)
+    {
       interruptType = (gpio_int_type_t)GPIO_INTR_POSEDGE;
-    } else if (_pinChange == DIN_FALL) {
+    }
+    else if (_pinChange == DIN_FALL)
+    {
       interruptType = (gpio_int_type_t)GPIO_INTR_NEGEDGE;
-    } else if (_pinChange == DIN_CHANGE) {
+    }
+    else if (_pinChange == DIN_CHANGE)
+    {
       interruptType = (gpio_int_type_t)GPIO_INTR_ANYEDGE;
     }
     INFO(" interrupType : %d ", interruptType);
@@ -68,9 +78,11 @@ public:
     io_conf.pull_down_en = (gpio_pulldown_t)(_mode == DIN_PULL_DOWN ? 1 : 0);
 
     //#define ESP_INTR_FLAG_DEFAULT 0
-    if (_fp) {
+    if (_fp)
+    {
       // install gpio isr service
-      if (!_isrServiceInstalled) {
+      if (!_isrServiceInstalled)
+      {
         erc = gpio_install_isr_service(0);
         INFO(" gpio_install_isr_service() ", erc);
         if (erc)
@@ -89,11 +101,13 @@ public:
 
   Erc deInit() { return 0; }
 
-  Erc setMode(DigitalIn::Mode m) {
+  Erc setMode(DigitalIn::Mode m)
+  {
     _mode = m;
     return 0;
   }
-  Erc onChange(PinChange pinChange, FunctionPointer fp, void *object) {
+  Erc onChange(PinChange pinChange, FunctionPointer fp, void *object)
+  {
     _pinChange = pinChange;
     _fp = fp;
     _object = object;
@@ -102,7 +116,8 @@ public:
   PhysicalPin getPin() { return _gpio; }
 };
 
-DigitalIn &DigitalIn::create(PhysicalPin pin) {
+DigitalIn &DigitalIn::create(PhysicalPin pin)
+{
   DigitalIn_ESP8266 *ptr = new DigitalIn_ESP8266(pin);
   return *ptr;
 }
@@ -117,18 +132,21 @@ bool DigitalIn_ESP8266::_isrServiceInstalled = false;
  ######      #     ####      #       #    #    #  ###### #######   ####      #
  */
 //================================================== DigitalOu =====
-class DigitalOut_ESP8266 : public DigitalOut {
+class DigitalOut_ESP8266 : public DigitalOut
+{
   PhysicalPin _gpio;
   Mode _mode = DOUT_NONE;
 
 public:
   DigitalOut_ESP8266(uint32_t gpio) : _gpio(gpio) {}
   virtual ~DigitalOut_ESP8266() {}
-  Erc setMode(DigitalOut::Mode m) {
+  Erc setMode(DigitalOut::Mode m)
+  {
     _mode = m;
     return 0;
   }
-  Erc init() {
+  Erc init()
+  {
     //        INFO(" DigitalOut Init %d ", _gpio);
     esp_err_t erc = gpio_set_direction((gpio_num_t)_gpio, GPIO_MODE_OUTPUT);
     if (erc)
@@ -155,7 +173,8 @@ public:
   PhysicalPin getPin() { return _gpio; }
 };
 
-DigitalOut &DigitalOut::create(PhysicalPin pin) {
+DigitalOut &DigitalOut::create(PhysicalPin pin)
+{
   DigitalOut_ESP8266 *ptr = new DigitalOut_ESP8266(pin);
   return *ptr;
 }
@@ -181,7 +200,8 @@ DigitalOut &DigitalOut::create(PhysicalPin pin) {
 #define ACK_VAL 0x0       /*!< I2C ack value */
 #define NACK_VAL 0x1      /*!< I2C nack value */
 
-class I2C_ESP8266 : public I2C {
+class I2C_ESP8266 : public I2C
+{
   std::string _txd;
   std::string _rxd;
 
@@ -200,11 +220,13 @@ public:
   Erc init();
   Erc deInit();
 
-  Erc setClock(uint32_t clock) {
+  Erc setClock(uint32_t clock)
+  {
     _clock = clock;
     return 0;
   }
-  Erc setSlaveAddress(uint8_t slaveAddress) {
+  Erc setSlaveAddress(uint8_t slaveAddress)
+  {
     _slaveAddress = slaveAddress;
     return 0;
   }
@@ -215,18 +237,21 @@ public:
 };
 
 I2C_ESP8266::I2C_ESP8266(PhysicalPin scl, PhysicalPin sda)
-    :  _scl(scl), _sda(sda) {
+    : _scl(scl), _sda(sda)
+{
   _port = esp32._i2c_port;
   _clock = 100000;
   _slaveAddress = 0x1E; // HMC 5883L
 }
 
-I2C_ESP8266::~I2C_ESP8266() {
+I2C_ESP8266::~I2C_ESP8266()
+{
   esp_err_t erc = i2c_driver_delete(_port);
   INFO(" erc : %d ", erc);
 }
 
-Erc I2C_ESP8266::init() {
+Erc I2C_ESP8266::init()
+{
   INFO(" I2C init : scl:%d ,sda :%d ", _scl, _sda);
   i2c_config_t conf;
   conf.mode = I2C_MODE_MASTER;
@@ -234,7 +259,7 @@ Erc I2C_ESP8266::init() {
   conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
   conf.scl_io_num = (gpio_num_t)_scl;
   conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
- // conf.master.clk_speed = _clock;
+  // conf.master.clk_speed = _clock;
   esp_err_t erc = i2c_param_config(_port, &conf);
   if (erc)
     WARN("i2c_param_config() : %d", erc);
@@ -246,7 +271,8 @@ Erc I2C_ESP8266::init() {
 
 Erc I2C_ESP8266::deInit() { return 0; }
 
-Erc I2C_ESP8266::write(uint8_t *data, uint32_t size) {
+Erc I2C_ESP8266::write(uint8_t *data, uint32_t size)
+{
   esp_err_t erc;
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   erc = i2c_master_start(cmd);
@@ -271,15 +297,18 @@ Erc I2C_ESP8266::write(uint8_t *data, uint32_t size) {
 
 Erc I2C_ESP8266::write(uint8_t b) { return write(&b, 1); }
 
-Erc I2C_ESP8266::read(uint8_t *data, uint32_t size) {
-  if (size == 0) {
+Erc I2C_ESP8266::read(uint8_t *data, uint32_t size)
+{
+  if (size == 0)
+  {
     return 0;
   }
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   i2c_master_start(cmd);
   i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_READ,
                         ACK_CHECK_EN);
-  if (size > 1) {
+  if (size > 1)
+  {
     i2c_master_read(cmd, data, size - 1, (i2c_ack_type_t)ACK_VAL);
   }
   i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL);
@@ -289,7 +318,8 @@ Erc I2C_ESP8266::read(uint8_t *data, uint32_t size) {
   return ret;
 }
 
-I2C &I2C::create(PhysicalPin scl, PhysicalPin sda) {
+I2C &I2C::create(PhysicalPin scl, PhysicalPin sda)
+{
   I2C_ESP8266 *ptr = new I2C_ESP8266(scl, sda);
   return *ptr;
 }
@@ -403,31 +433,36 @@ ADC &ADC::create(PhysicalPin pin) {
 #include "driver/spi.h"
 #include "esp_system.h"
 
-class SPI_ESP8266 : public Spi {
+class SPI_ESP8266 : public Spi
+{
 protected:
   FunctionPointer _onExchange;
   uint32_t _clock;
   uint32_t _mode;
-  bool _lsbFirst;
+  bool _lsbBitFirst;
+  bool _lsbByteFirst;
   PhysicalPin _miso, _mosi, _sck, _cs;
   void *_object = 0;
-  spi_host_t  _spi;
+  spi_host_t _spi;
 
 public:
   SPI_ESP8266(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck, PhysicalPin cs)
-      : _miso(12), _mosi(13), _sck(14), _cs(15) { // don't care here
-    _clock = 100000;
+      : _miso(12), _mosi(13), _sck(14), _cs(15)
+  { // don't care here
+    _clock = SPI_CLOCK_1M;
     _mode = 0;
-    _lsbFirst = true;
+    _lsbBitFirst = true;
+    _lsbByteFirst = true;
     _spi = HSPI_HOST;
     _onExchange = 0;
   }
 
-  Erc init() {
-    INFO(" SPI_ESP8266 : miso : %d, mosi : %d , sck : %d , cs : %d ", _miso,
+  Erc init()
+  {
+    INFO(" SPI : miso : %d, mosi : %d , sck : %d , cs : %d ", _miso,
          _mosi, _sck, _cs);
 
-/*
+    /*
     spi_bus_config_t buscfg;
     bzero(&buscfg, sizeof(buscfg));
     buscfg.miso_io_num = _miso;
@@ -444,74 +479,110 @@ public:
       return EIO;
     }*/
 
-	    spi_config_t spi_config;
+    spi_config_t spi_config;
+    BZERO(spi_config);
     // Load default interface parameters
     // CS_EN:1, MISO_EN:1, MOSI_EN:1, BYTE_TX_ORDER:1, BYTE_TX_ORDER:1, BIT_RX_ORDER:0, BIT_TX_ORDER:0, CPHA:0, CPOL:0
-    spi_config.interface.val = SPI_DEFAULT_INTERFACE;
+    // spi_config.interface.val = SPI_DEFAULT_INTERFACE;
+    spi_config.interface.cpol = (_mode == SPI_MODE_PHASE0_POL0 || _mode == SPI_MODE_PHASE1_POL0) ? SPI_CPOL_LOW : SPI_CPOL_HIGH;
+    spi_config.interface.cpha = (_mode == SPI_MODE_PHASE0_POL0 || _mode == SPI_MODE_PHASE0_POL1) ? SPI_CPHA_LOW : SPI_CPHA_HIGH;
+    spi_config.interface.bit_tx_order = _lsbBitFirst ? SPI_BIT_ORDER_LSB_FIRST : SPI_BIT_ORDER_MSB_FIRST;
+    spi_config.interface.bit_rx_order = _lsbBitFirst ? SPI_BIT_ORDER_LSB_FIRST : SPI_BIT_ORDER_MSB_FIRST;
+    spi_config.interface.byte_tx_order = _lsbByteFirst ? SPI_BYTE_ORDER_LSB_FIRST : SPI_BYTE_ORDER_MSB_FIRST;
+    spi_config.interface.byte_rx_order = _lsbByteFirst ? SPI_BYTE_ORDER_LSB_FIRST : SPI_BYTE_ORDER_MSB_FIRST;
 
+    spi_config.interface.mosi_en = true;
+    spi_config.interface.miso_en = true;
+    spi_config.interface.cs_en = true;
     // Load default interrupt enable
     // TRANS_DONE: true, WRITE_STATUS: false, READ_STATUS: false, WRITE_BUFFER: false, READ_BUFFER: false
-    spi_config.intr_enable.val = SPI_MASTER_DEFAULT_INTR_ENABLE;    
+    spi_config.intr_enable.val = SPI_MASTER_DEFAULT_INTR_ENABLE;
     spi_config.mode = SPI_MASTER_MODE; // Set SPI to master mode , ESP8266 Only support half-duplex
-    spi_config.clk_div = SPI_20MHz_DIV;     // Set the SPI clock frequency division factor
-    spi_config.event_cb = NULL; // Register SPI event callback function
-    spi_init(HSPI_HOST, &spi_config);
+    spi_clk_div_t div = SPI_80MHz_DIV;
+    div = _clock == Spi::SPI_CLOCK_1M ? (spi_clk_div_t)80 : div;
+    div = _clock == Spi::SPI_CLOCK_10M ? SPI_10MHz_DIV : div;
+    div = _clock == Spi::SPI_CLOCK_500K ? (spi_clk_div_t)160 : div;
 
-    return 0;
+    if (div == SPI_80MHz_DIV)
+      WARN(" clock rate set unknown for SPI ");
+
+    spi_config.clk_div = div;   // Set the SPI clock frequency division factor
+    spi_config.event_cb = NULL; // Register SPI event callback function
+    esp_err_t rc = spi_init(HSPI_HOST, &spi_config);
+    INFO(" spi_init()=%d ", rc);
+    return rc == ESP_OK ? 0 : EIO;
   };
 
-  Erc deInit() {
-    esp_err_t ret = spi_deinit(_spi);
-    if (ret) {
-      ERROR("spi_bus_remove_device(_spi) = %d ", ret);
+  Erc deInit()
+  {
+    esp_err_t rc = spi_deinit(HSPI_HOST);
+    if (rc != ESP_OK )
+    {
+      ERROR("spi_deinit() = %d ", rc);
       return EIO;
     }
     return 0;
   }
 
-  Erc exchange(std::string &in, std::string &out) {
+  Erc exchange(std::string &in, uint32_t length, std::string &out)
+  {
+    spi_trans_t trans;
+    uint32_t len = out.length();
+    uint32_t inData[16], outData[16];
+    memcpy(outData, out.data(), out.length());
+    memcpy(inData, out.data(), out.length());
+    INFO(" exchange(in:%d,out=%d)",length,out.length());
 
-	      spi_trans_t trans;
-	uint32_t len =  out.length();
-	uint32_t inData[16],outData[16];
-	memcpy(outData,out.data(),out.length());
+    BZERO(trans);
 
-	BZERO(trans);
-
-    if (len > 16) {
-        WARN("ESP8266 only support transmit 64bytes(16 * sizeof(uint32_t)) one time");
-        return EINVAL;
+    if (len > 64)
+    {
+      WARN("ESP8266 only support transmit 64bytes(16 * sizeof(uint32_t)) one time");
+      return EINVAL;
     }
-
-    memset(&trans, 0x0, sizeof(trans));
-    trans.bits.val = 0;            // clear all bit
-
-	trans.mosi = outData;
+    trans.bits.val = 0; // clear all bit
+    trans.mosi = outData;
     trans.miso = inData;
-	trans.bits.mosi =  out.length()*8;
-	trans.bits.miso = in.length()*8;
+    trans.bits.mosi = out.length() * 8;
+    trans.bits.miso = 0;
     trans.bits.cmd = 0;
-    trans.bits.addr = 0;     
+    trans.bits.addr = 0;
     trans.cmd = NULL;
     trans.addr = NULL;
+    INFO(" spi_trans(in bits = %d, out bits = %d ) ", trans.bits.miso, trans.bits.mosi);
 
-	spi_trans(HSPI_HOST, &trans); 
-
-    return 0; // Should have had no issues.
+    esp_err_t rc = spi_trans(HSPI_HOST, &trans);
+    INFO(" spi_trans() = %d ", rc);
+    if (rc == ESP_OK)
+    {
+      //TODO copy memory to in string
+    }
+    return rc == ESP_OK ? 0 : EIO; // Should have had no issues.
   };
 
-  Erc setClock(uint32_t clock) {
+  Erc setClock(uint32_t clock)
+  {
     _clock = clock;
-    return 0;
+    spi_clk_div_t div = SPI_80MHz_DIV;
+    div = _clock == Spi::SPI_CLOCK_1M ? (spi_clk_div_t)80 : div;
+    div = _clock == Spi::SPI_CLOCK_10M ? SPI_10MHz_DIV : div;
+    div = _clock == SPI_CLOCK_500K ? (spi_clk_div_t)160 : div;
+    if (div == SPI_80MHz_DIV)
+      WARN(" clock rate set unknown for SPI ");
+    esp_err_t rc = spi_set_clk_div(HSPI_HOST, &div);
+    INFO(" spi_set_clk_div()=%d ", rc);
+    return rc == ESP_OK ? 0 : EIO;
   }
 
-  Erc setMode(SpiMode mode) {
+  Erc setMode(SpiMode mode)
+  {
     _mode = mode;
     return 0;
   }
 
-  Erc setLsbFirst(bool f) {
-    _lsbFirst = f;
+  Erc setLsbFirst(bool f)
+  {
+    _lsbBitFirst = f;
     return true;
   }
 
@@ -523,7 +594,8 @@ public:
 Spi::~Spi() {}
 
 Spi &Spi::create(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck,
-                 PhysicalPin cs) {
+                 PhysicalPin cs)
+{
   SPI_ESP8266 *ptr = new SPI_ESP8266(miso, mosi, sck, cs);
   return *ptr;
 }
@@ -840,7 +912,8 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
    _physicalPins[LP_SCK] = 34;
    _physicalPins[LP_CS] = 35;
    }*/
-  if (idx == 1) {
+  if (idx == 1)
+  {
     _physicalPins[LP_TXD] = 19;
     _physicalPins[LP_RXD] = 36;
     _physicalPins[LP_SCL] = 25;
@@ -849,7 +922,9 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
     _physicalPins[LP_MOSI] = 23;
     _physicalPins[LP_SCK] = 17;
     _physicalPins[LP_CS] = 32;
-  } else if (idx == 2) {
+  }
+  else if (idx == 2)
+  {
     _physicalPins[LP_TXD] = 18;
     _physicalPins[LP_RXD] = 39;
     _physicalPins[LP_SCL] = 27;
@@ -868,16 +943,18 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
   _adc = 0;
 }
 
-const char *sLogicalPin[] = {"TXD",  "RXD",  "SCL", "SDA",
+const char *sLogicalPin[] = {"TXD", "RXD", "SCL", "SDA",
                              "MISO", "MOSI", "SCK", "CS"};
 
-PhysicalPin Connector::toPin(uint32_t logicalPin) {
+PhysicalPin Connector::toPin(uint32_t logicalPin)
+{
   DEBUG(" UEXT%d %s[%d] => GPIO_%d", _connectorIdx, sLogicalPin[logicalPin],
         logicalPin, _physicalPins[logicalPin]);
   return _physicalPins[logicalPin];
 }
 
-const char *Connector::uextPin(uint32_t logicalPin) {
+const char *Connector::uextPin(uint32_t logicalPin)
+{
   return sLogicalPin[logicalPin];
 }
 /*
@@ -888,16 +965,18 @@ UART &Connector::getUART() {
   return *_uart;
 }*/
 
-Spi &Connector::getSPI() {
+Spi &Connector::getSPI()
+{
   _spi = new SPI_ESP8266(toPin(LP_MISO), toPin(LP_MOSI), toPin(LP_SCK),
-                       toPin(LP_CS));
+                         toPin(LP_CS));
   lockPin(LP_MISO);
   lockPin(LP_MOSI);
   lockPin(LP_SCK);
   lockPin(LP_CS);
   return *_spi;
 }
-I2C &Connector::getI2C() {
+I2C &Connector::getI2C()
+{
   lockPin(LP_SDA);
   lockPin(LP_SCL);
   _i2c = new I2C_ESP8266(toPin(LP_SCL), toPin(LP_SDA));
@@ -910,23 +989,29 @@ ADC &Connector::getADC(LogicalPin pin) {
   return *adc;
 }*/
 
-DigitalOut &Connector::getDigitalOut(LogicalPin lp) {
+DigitalOut &Connector::getDigitalOut(LogicalPin lp)
+{
   lockPin(lp);
   DigitalOut *_out = new DigitalOut_ESP8266(toPin(lp));
   return *_out;
 }
 
-DigitalIn &Connector::getDigitalIn(LogicalPin lp) {
+DigitalIn &Connector::getDigitalIn(LogicalPin lp)
+{
   lockPin(lp);
   DigitalIn *_in = new DigitalIn_ESP8266(toPin(lp));
   return *_in;
 }
 
-void Connector::lockPin(LogicalPin lp) {
-  if (_pinsUsed & (1 << lp)) {
+void Connector::lockPin(LogicalPin lp)
+{
+  if (_pinsUsed & (1 << lp))
+  {
     ERROR(" PIN in use %d : %s  >>>>>>>>>>>>>>>>>> %X", lp, sLogicalPin[lp],
           _pinsUsed);
-  } else {
+  }
+  else
+  {
     DEBUG(" PIN locked : %d :%s ,%X", lp, sLogicalPin[lp], _pinsUsed);
     _pinsUsed |= (1 << lp);
   }
