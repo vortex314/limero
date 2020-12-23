@@ -1,13 +1,17 @@
-#ifndef NANOAKKA_H
-#define NANOAKKA_H
+#ifndef LIMERO_H
+#define LIMERO_H
 
 #include <errno.h>
+#include <Sys.h>
+#include <functional>
+#include <unordered_map>
+#include <vector>
 
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
 // ------------------------------------------------- Linux
-#ifdef __linux__
-#include <mqueue.h>
+#ifdef X86_LINUX
+// #include <mqueue.h>
 
 #include <string>
 #include <thread>
@@ -74,11 +78,7 @@ typedef String NanoString;
 #endif
 #undef min
 #undef max
-#include <Sys.h>
 
-#include <functional>
-#include <unordered_map>
-#include <vector>
 
 typedef struct
 {
@@ -359,14 +359,17 @@ class TimerSource;
 //____________________________________________________________________ THREAD __
 class Thread : public Named
 {
-#ifdef __linux__
+#ifdef X86_LINUX
   int _pipeFd[2];
   int _writePipe = 0;
   int _readPipe = 0;
-#elif defined(FREERTOS)
+
+#elif defined(FREERTOS) 
   QueueHandle_t _workQueue = 0;
-#else
+
+#elif defined(ARDUINO)
   ArrayQueue<Invoker *, 10> _workQueue;
+
 #endif
   uint32_t queueOverflow = 0;
   void createQueue();

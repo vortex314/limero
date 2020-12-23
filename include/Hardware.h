@@ -22,22 +22,22 @@ typedef enum {
 class Driver
 {
 public:
-    virtual Erc init() = 0;
-    virtual Erc deInit() = 0;
+    virtual int init() = 0;
+    virtual int deInit() = 0;
 };
 
 class UART : public Driver
 {
 public:
     static UART& create(uint32_t module,PhysicalPin txd, PhysicalPin rxd);
-    virtual Erc mode(const char*)=0;
-    virtual Erc init() = 0;
-    virtual Erc deInit() = 0;
-    virtual Erc setClock(uint32_t clock) = 0;
+    virtual int mode(const char*)=0;
+    virtual int init() = 0;
+    virtual int deInit() = 0;
+    virtual int setClock(uint32_t clock) = 0;
 
-    virtual Erc write(const uint8_t* data, uint32_t length) = 0;
-    virtual Erc write(uint8_t b) = 0;
-    virtual Erc read(std::string& bytes) = 0;
+    virtual int write(const uint8_t* data, uint32_t length) = 0;
+    virtual int write(uint8_t b) = 0;
+    virtual int read(std::string& bytes) = 0;
     virtual uint8_t read() = 0;
     virtual void onRxd(FunctionPointer, void*) = 0;
     virtual void onTxd(FunctionPointer, void*) = 0;
@@ -55,11 +55,11 @@ public:
     typedef enum { DIN_PULL_UP = 1, DIN_PULL_DOWN = 2 } Mode;
     static DigitalIn& create(PhysicalPin pin);
     virtual int read() = 0;
-    virtual Erc init() = 0;
-    virtual Erc deInit() = 0;
-    virtual Erc onChange(PinChange pinChange, FunctionPointer fp,
+    virtual int init() = 0;
+    virtual int deInit() = 0;
+    virtual int onChange(PinChange pinChange, FunctionPointer fp,
                          void* object) = 0;
-    virtual Erc setMode(Mode m) = 0;
+    virtual int setMode(Mode m) = 0;
     virtual PhysicalPin getPin() = 0;
 };
 //===================================================== GPIO DigitalOut
@@ -68,11 +68,11 @@ class DigitalOut : public Driver
 public:
     typedef enum { DOUT_NONE, DOUT_PULL_UP = 1, DOUT_PULL_DOWN = 2 } Mode;
     static DigitalOut& create(PhysicalPin pin);
-    virtual Erc init() = 0;
-    virtual Erc deInit() = 0;
-    virtual Erc write(int) = 0;
+    virtual int init() = 0;
+    virtual int deInit() = 0;
+    virtual int write(int) = 0;
     virtual PhysicalPin getPin() = 0;
-    virtual Erc setMode(Mode m)=0;
+    virtual int setMode(Mode m)=0;
 };
 //===================================================== I2C ===
 
@@ -83,13 +83,13 @@ class I2C : public Driver
 {
 public:
     static I2C& create(PhysicalPin scl, PhysicalPin sda);
-    virtual Erc init() = 0;
-    virtual Erc deInit() = 0;
-    virtual Erc setClock(uint32_t) = 0;
-    virtual Erc setSlaveAddress(uint8_t address) = 0;
-    virtual Erc write(uint8_t* data, uint32_t size) = 0;
-    virtual Erc write(uint8_t data) = 0;
-    virtual Erc read(uint8_t* data, uint32_t size) = 0;
+    virtual int init() = 0;
+    virtual int deInit() = 0;
+    virtual int setClock(uint32_t) = 0;
+    virtual int setSlaveAddress(uint8_t address) = 0;
+    virtual int write(uint8_t* data, uint32_t size) = 0;
+    virtual int write(uint8_t data) = 0;
+    virtual int read(uint8_t* data, uint32_t size) = 0;
 };
 
 class Spi : public Driver
@@ -116,15 +116,15 @@ public:
 
     static Spi& create(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck,
                        PhysicalPin cs);
-    virtual ~Spi();
-    virtual Erc init() = 0;
-    virtual Erc deInit() = 0;
-    virtual Erc exchange(std::string& in, std::string& out) = 0;
-    virtual Erc onExchange(FunctionPointer, void*) = 0;
-    virtual Erc setClock(uint32_t) = 0;
-    virtual Erc setMode(SpiMode) = 0;
-    virtual Erc setLsbFirst(bool) = 0;
-    virtual Erc setHwSelect(bool) = 0;
+    virtual ~Spi(){};
+    virtual int init() = 0;
+    virtual int deInit() = 0;
+    virtual int exchange(std::string& in,  std::string& out) = 0;
+    virtual int onExchange(FunctionPointer, void*) = 0;
+    virtual int setClock(uint32_t) = 0;
+    virtual int setMode(SpiMode) = 0;
+    virtual int setLsbFirst(bool) = 0;
+    virtual int setHwSelect(bool) = 0;
 };
 
 class ADC
@@ -133,7 +133,7 @@ class ADC
 public:
     static ADC& create(PhysicalPin pin);
 
-    virtual Erc init() = 0;
+    virtual int init() = 0;
     virtual int getValue() = 0;
 };
 
