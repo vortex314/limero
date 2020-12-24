@@ -1,7 +1,2 @@
-#
-# "main" pseudo-component makefile.
-#
-# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
+# Component makefile for extras/rboot-ota
 
-COMPONENT_ADD_INCLUDEDIRS= .  #relative
-COMPONENT_PRIV_INCLUDEDIRS=  ../include  ../../ArduinoJson/src  
