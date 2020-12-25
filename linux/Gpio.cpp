@@ -12,6 +12,7 @@
 #endif
 
 Gpio *gpio[40];
+#ifdef HAS_GPIO
 
 #define HANDLER(_X_)                                     \
   void handler##_X_(void)                                \
@@ -19,8 +20,9 @@ Gpio *gpio[40];
     INFO(" pin interrupt : %d : 0x%X ", _X_, gpio[_X_]); \
     for (int i = 0; i < 30; i++)                         \
       INFO(" gpio[%d]=%X", i, gpio[i]);                  \
-    gpio[_X_]->value = digitalRead(_X_);                 \
+    gpio[_X_]->value = digitalRead(_X_);              \
   }
+
 
 static uint8_t gpioRaspberry[] = {4, 9, 10, 17, 18, 22, 23, 24, 25, 27};
 HANDLER(0);
@@ -58,6 +60,7 @@ Handler handler[] = {handler0, handler1, handler2, handler3, handler4, handler5,
                      handler16, handler17, handler18, handler19, handler20,
                      handler21, handler22, handler23, handler24, handler25,
                      handler26, handler27};
+#endif
 
 void Gpio::init()
 {
@@ -85,7 +88,7 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
       pinMode(_pin, OUTPUT);
     mode = _mode == M_INPUT ? "INPUT" : "OUTPUT";
 #else
-    INFO(" stub GPIO %d mode %s ", pin, _mode.c_str());
+    INFO(" stub GPIO %d mode %s ", pin, mode().c_str());
 #endif
   };
 

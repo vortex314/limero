@@ -1,7 +1,9 @@
 #ifndef _GPIO_H_
 #define _GPIO_H_
 #include <limero.h>
+#ifdef HAS_GPIO
 #include <wiringPi.h>
+#endif
 
 
 
@@ -23,10 +25,6 @@ class Gpio {
   TimerSource _pollTimer;
 };
 
-extern Gpio* gpio[];
 typedef void (*Handler)(void);
 
-template < int P> 
-void GpioIsr(void) {
-  gpio[P]->value = digitalRead(gpio[P]->_pin);};
 #endif
