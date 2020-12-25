@@ -11,9 +11,7 @@
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
 // ------------------------------------------------- Linux
-#if defined(X86_LINUX) || defined(RASPI)
-// #include <mqueue.h>
-
+#if defined(LINUX) 
 #include <string>
 #include <thread>
 typedef std::string NanoString;
@@ -30,7 +28,7 @@ typedef std::string NanoString;
 typedef std::string NanoString;
 #endif
 //-------------------------------------------------- ESP32
-#if defined(ESP32_IDF) || defined(ESP8266_IDF)
+#if defined(ESP32_IDF) 
 #include <string>
 typedef std::string NanoString;
 #define FREERTOS
@@ -360,7 +358,7 @@ class TimerSource;
 //____________________________________________________________________ THREAD __
 class Thread : public Named
 {
-#ifdef X86_LINUX
+#ifdef LINUX
   int _pipeFd[2];
   int _writePipe = 0;
   int _readPipe = 0;

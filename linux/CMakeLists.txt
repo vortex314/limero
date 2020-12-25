@@ -9,6 +9,7 @@ ADD_LIBRARY(limero limero.cpp MqttPaho.cpp Sys.cpp ../common/Base64.cpp ../commo
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 set(GCC_FLAGS "-DX86_LINUX")
+set(CMAKE_BUILD_TYPE Debug)
 include(CPack)
 
 add_definitions(${GCC_FLAGS})
