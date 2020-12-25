@@ -8,7 +8,12 @@ ADD_LIBRARY(limero limero.cpp MqttPaho.cpp Sys.cpp ../common/Base64.cpp ../commo
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-set(GCC_FLAGS "-DX86_LINUX")
+EXECUTE_PROCESS( COMMAND arch OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE )
+if ( ${ARCH} STREQUAL "armv6l" )
+	set(GCC_FLAGS "-DLINUX -DHAS_GPIO")
+else()
+	set(GCC_FLAGS "-DLINUX")
+endif()
 set(CMAKE_BUILD_TYPE Debug)
 include(CPack)
 
