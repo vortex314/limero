@@ -1,5 +1,5 @@
 #include <Gpio.h>
-#ifdef RPI
+#ifdef RASPI
 #include <wiringPi.h>
 #else
 #define INPUT "INPUT"
@@ -12,7 +12,7 @@
 #endif
 
 void Gpio::init() {
-#ifdef RPI
+#ifdef RASPI
   wiringPiSetupGpio();
 #endif
 }

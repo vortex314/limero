@@ -11,7 +11,7 @@
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
 // ------------------------------------------------- Linux
-#ifdef X86_LINUX
+#if defined(X86_LINUX) || defined(RASPI)
 // #include <mqueue.h>
 
 #include <string>

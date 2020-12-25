@@ -15,6 +15,7 @@ void Gpio::init() {
 #ifdef RPI
   wiringPiSetupGpio();
 #endif
+  INFO(" this GPIO doesn't do anything !);
 }
 
 Gpio::Gpio(int pin) {
