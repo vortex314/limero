@@ -111,7 +111,7 @@ int MqttPaho::connect() {
   conn_opts.onSuccess = onConnectSuccess;
   conn_opts.onFailure = onConnectFailure;
   conn_opts.context = this;
-  will_opts.message = _lastWillTopic.c_str();
+  will_opts.message = _lastWillMessage.c_str();
   will_opts.topicName = _lastWillTopic.c_str();
   will_opts.qos = _lastWillQos;
   will_opts.retained = _lastWillRetain;

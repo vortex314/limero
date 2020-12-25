@@ -21,22 +21,40 @@ Gpio *gpio[40];
   }
 
 static uint8_t gpioRaspberry[] = {4, 9, 10, 17, 18, 22, 23, 24, 25, 27};
+HANDLER(0);
+HANDLER(1);
+HANDLER(2);
+HANDLER(3);
 HANDLER(4);
+HANDLER(5);
+HANDLER(6);
+HANDLER(7);
+HANDLER(8);
 HANDLER(9);
 HANDLER(10);
+HANDLER(11);
+HANDLER(12);
+HANDLER(13);
+HANDLER(14);
+HANDLER(15);
+HANDLER(16);
 HANDLER(17);
 HANDLER(18);
+HANDLER(19);
+HANDLER(20);
+HANDLER(21);
 HANDLER(22);
 HANDLER(23);
 HANDLER(24);
 HANDLER(25);
+HANDLER(26);
 HANDLER(27);
 
-Handler handler[] = {(Handler)0, (Handler)1, (Handler)2, (Handler)3, handler4, (Handler)5, (Handler)6, (Handler)7,
-                     (Handler)8, handler9, handler10,
-                     (Handler)11, (Handler)12, (Handler)13, (Handler)14, (Handler)15, handler17, handler18,
-                     (Handler)19, (Handler)20, (Handler)21, handler22, handler23, handler24, handler25,
-                     (Handler)26, handler27};
+Handler handler[] = {handler0, handler1, handler2, handler3, handler4, handler5, handler6, handler7,
+                     handler8, handler9, handler10,
+                     handler11, handler12, handler13, handler14, handler15, handler17, handler18,
+                     handler19, handler20, handler21, handler22, handler23, handler24, handler25,
+                     handler26, handler27};
 
 void Gpio::init()
 {
