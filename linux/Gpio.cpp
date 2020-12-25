@@ -13,11 +13,13 @@
 
 Gpio *gpio[40];
 
-#define HANDLER(_X_)                     \
-  void handler##_X_(void)                \
-  {                                      \
-    INFO(" pin interrupt : %d ", _X_);   \
-    gpio[_X_]->value = digitalRead(_X_); \
+#define HANDLER(_X_)                                     \
+  void handler##_X_(void)                                \
+  {                                                      \
+    INFO(" pin interrupt : %d : 0x%X ", _X_, gpio[_X_]); \
+    for (int i = 0; i < 30; i++)                         \
+      INFO(" gpio[%d]=%X", i, gpio[i]);                  \
+    gpio[_X_]->value = digitalRead(_X_);                 \
   }
 
 static uint8_t gpioRaspberry[] = {4, 9, 10, 17, 18, 22, 23, 24, 25, 27};
@@ -50,10 +52,11 @@ HANDLER(25);
 HANDLER(26);
 HANDLER(27);
 
-Handler handler[] = {handler0, handler1, handler2, handler3, handler4, handler5, handler6, handler7,
-                     handler8, handler9, handler10,
-                     handler11, handler12, handler13, handler14, handler15, handler17, handler18,
-                     handler19, handler20, handler21, handler22, handler23, handler24, handler25,
+Handler handler[] = {handler0, handler1, handler2, handler3, handler4, handler5,
+                     handler6, handler7, handler8, handler9, handler10,
+                     handler11, handler12, handler13, handler14, handler15,
+                     handler16, handler17, handler18, handler19, handler20,
+                     handler21, handler22, handler23, handler24, handler25,
                      handler26, handler27};
 
 void Gpio::init()
