@@ -109,7 +109,6 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
       value = digitalRead(_pin);
     else
       value = _value;
-    INFO(" GPIO %d read %d ", _pin, value());
 #else
     INFO(" stub GPIO %d read %d ", pin, _value);
 #endif
