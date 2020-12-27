@@ -1,4 +1,4 @@
-#include "NanoAkka.h"
+#include "limero.h"
 
 NanoStats stats;
 /*
@@ -20,7 +20,7 @@ void Thread::start()
 {
     xTaskCreate([](void* task) {
         ((Thread*)task)->run();
-    }, _name.c_str(), 20000, this, tskIDLE_PRIORITY, NULL);
+    }, name(), 20000, this, tskIDLE_PRIORITY, NULL);
     /*
     	xTaskCreatePinnedToCore([](void* task) {
     		((Thread*)task)->run();
@@ -33,7 +33,7 @@ int Thread::enqueue(Invoker* invoker)
     if (_workQueue)
         if (xQueueSend(_workQueue, &invoker, (TickType_t)0) != pdTRUE) {
             stats.threadQueueOverflow++;
-            WARN("Thread '%s' queue overflow [%X]",_name.c_str(),invoker);
+            WARN("Thread '%s' queue overflow [%X]",name(),invoker);
             return ENOBUFS;
         }
     return 0;
@@ -52,7 +52,7 @@ int Thread::enqueueFromIsr(Invoker* invoker)
 
 void Thread::run()
 {
-    INFO("Thread '%s' started ",_name.c_str());
+    INFO("Thread '%s' started ",name());
     uint32_t noWaits=0;
     while(true) {
         uint64_t now = Sys::millis();
@@ -68,7 +68,7 @@ void Thread::run()
         int32_t waitTime = (expTime-now); // ESP_OPEN_RTOS seems to double sleep time ?
 
 //		INFO(" waitTime : %d ",waitTime);
-        if ( noWaits % 1000 == 999 ) WARN(" noWaits : %d in thread %s waitTime %d ",noWaits,_name.c_str(),waitTime);
+        if ( noWaits % 1000 == 999 ) WARN(" noWaits : %d in thread %s waitTime %d ",noWaits,name(),waitTime);
         if ( waitTime > 0 ) {
             Invoker *prq;
             TickType_t tickWaits  = pdMS_TO_TICKS(waitTime) ;
@@ -77,18 +77,18 @@ void Thread::run()
                 uint64_t start=Sys::millis();
                 prq->invoke();
                 uint32_t delta=Sys::millis()-start;
-                if ( delta > 50 ) WARN("Invoker [%X] slow %d msec invoker on thread '%s'.",prq,delta,_name.c_str());
+                if ( delta > 50 ) WARN("Invoker [%X] slow %d msec invoker on thread '%s'.",prq,delta,name());
             } else {
                 noWaits=0;
             }
         } else {
             noWaits++;
             if (expiredTimer) {
-                if ( -waitTime>100 ) INFO("Timer[%X] already expired by %u msec on thread '%s'.",expiredTimer,-waitTime,_name.c_str());
+                if ( -waitTime>100 ) INFO("Timer[%X] already expired by %u msec on thread '%s'.",expiredTimer,-waitTime,name());
                 uint64_t start=Sys::millis();
                 expiredTimer->request();
                 uint32_t deltaExec=Sys::millis()-start;
-                if ( deltaExec > 50 ) WARN("Timer [%X] request slow %d msec on thread '%s'",expiredTimer,deltaExec,_name.c_str());
+                if ( deltaExec > 50 ) WARN("Timer [%X] request slow %d msec on thread '%s'",expiredTimer,deltaExec,name());
             }
         }
     }

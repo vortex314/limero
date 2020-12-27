@@ -149,7 +149,6 @@ int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event) {
       static std::string data;
       if (event->current_data_offset == 0) {
         me._lastTopic = std::string(event->topic, event->topic_len);
-        me._lastTopic = me._lastTopic.substr(me.srcPrefix.length());
       }
       bool isOtaData = me._lastTopic.find("/ota") != std::string::npos;
       /*     INFO(" MQTT_EVENT_DATA %s offset:%d length:%d total:%d ",

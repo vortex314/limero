@@ -56,13 +56,13 @@ void MqttSerial::init() {
 void MqttSerial::request() {}
 
 void MqttSerial::onRxd(void* me) {
-  static Bytes bytes(100);
+  static std::string bytes;
   MqttSerial* mqttSerial = (MqttSerial*)me;
   while (mqttSerial->_uart.hasData()) {
     bytes.clear();
     mqttSerial->_uart.read(bytes);
-    bytes.offset(0);
-    while (bytes.hasData()) mqttSerial->handleSerialByte(bytes.read());
+    for(int i=0;i<bytes.length();i++)
+    mqttSerial->handleSerialByte(bytes[i]);
   }
 }
 

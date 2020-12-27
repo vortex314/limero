@@ -41,7 +41,7 @@ public:
 
   int read() { return gpio_get_level((gpio_num_t)_gpio); }
 
-  Erc init() {
+  int init() {
     esp_err_t erc;
     //       INFO(" DigitalIn Init %d ", _gpio);
     erc = gpio_set_direction((gpio_num_t)_gpio, GPIO_MODE_INPUT);
@@ -87,17 +87,17 @@ public:
     return gpio_config(&io_conf);
   }
 
-  Erc deInit() { return E_OK; }
+  int deInit() { return 0; }
 
-  Erc setMode(DigitalIn::Mode m) {
+  int setMode(DigitalIn::Mode m) {
     _mode = m;
-    return E_OK;
+    return 0;
   }
-  Erc onChange(PinChange pinChange, FunctionPointer fp, void *object) {
+  int onChange(PinChange pinChange, FunctionPointer fp, void *object) {
     _pinChange = pinChange;
     _fp = fp;
     _object = object;
-    return E_OK;
+    return 0;
   }
   PhysicalPin getPin() { return _gpio; }
 };
@@ -124,11 +124,11 @@ class DigitalOut_ESP32 : public DigitalOut {
 public:
   DigitalOut_ESP32(uint32_t gpio) : _gpio(gpio) {}
   virtual ~DigitalOut_ESP32() {}
-  Erc setMode(DigitalOut::Mode m) {
+  int setMode(DigitalOut::Mode m) {
     _mode = m;
-    return E_OK;
+    return 0;
   }
-  Erc init() {
+  int init() {
     //        INFO(" DigitalOut Init %d ", _gpio);
     esp_err_t erc = gpio_set_direction((gpio_num_t)_gpio, GPIO_MODE_OUTPUT);
     if (erc)
@@ -148,9 +148,9 @@ public:
     return gpio_config(&io_conf);
   }
 
-  Erc deInit() { return E_OK; }
+  int deInit() { return 0; }
 
-  Erc write(int x) { return gpio_set_level((gpio_num_t)_gpio, x ? 1 : 0); }
+  int write(int x) { return gpio_set_level((gpio_num_t)_gpio, x ? 1 : 0); }
 
   PhysicalPin getPin() { return _gpio; }
 };
@@ -182,8 +182,8 @@ DigitalOut &DigitalOut::create(PhysicalPin pin) {
 #define NACK_VAL 0x1      /*!< I2C nack value */
 
 class I2C_ESP32 : public I2C {
-  Bytes _txd;
-  Bytes _rxd;
+  std::string _txd;
+  std::string _rxd;
 
   PhysicalPin _scl;
   PhysicalPin _sda;
@@ -197,25 +197,25 @@ class I2C_ESP32 : public I2C {
 public:
   I2C_ESP32(PhysicalPin scl, PhysicalPin sda);
   ~I2C_ESP32();
-  Erc init();
-  Erc deInit();
+  int init();
+  int deInit();
 
-  Erc setClock(uint32_t clock) {
+  int setClock(uint32_t clock) {
     _clock = clock;
-    return E_OK;
+    return 0;
   }
-  Erc setSlaveAddress(uint8_t slaveAddress) {
+  int setSlaveAddress(uint8_t slaveAddress) {
     _slaveAddress = slaveAddress;
-    return E_OK;
+    return 0;
   }
 
-  Erc write(uint8_t *data, uint32_t size);
-  Erc read(uint8_t *data, uint32_t size);
-  Erc write(uint8_t data);
+  int write(uint8_t *data, uint32_t size);
+  int read(uint8_t *data, uint32_t size);
+  int write(uint8_t data);
 };
 
 I2C_ESP32::I2C_ESP32(PhysicalPin scl, PhysicalPin sda)
-    : _txd(16), _rxd(16), _scl(scl), _sda(sda) {
+    :  _scl(scl), _sda(sda) {
   _port = esp32._i2c_port;
   _clock = 100000;
   _slaveAddress = 0x1E; // HMC 5883L
@@ -226,7 +226,7 @@ I2C_ESP32::~I2C_ESP32() {
   INFO(" erc : %d ", erc);
 }
 
-Erc I2C_ESP32::init() {
+int I2C_ESP32::init() {
   INFO(" I2C init : scl:%d ,sda :%d ", _scl, _sda);
   i2c_config_t conf;
   conf.mode = I2C_MODE_MASTER;
@@ -244,9 +244,9 @@ Erc I2C_ESP32::init() {
   return erc;
 }
 
-Erc I2C_ESP32::deInit() { return E_OK; }
+int I2C_ESP32::deInit() { return 0; }
 
-Erc I2C_ESP32::write(uint8_t *data, uint32_t size) {
+int I2C_ESP32::write(uint8_t *data, uint32_t size) {
   esp_err_t erc;
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   erc = i2c_master_start(cmd);
@@ -269,11 +269,11 @@ Erc I2C_ESP32::write(uint8_t *data, uint32_t size) {
   return erc;
 }
 
-Erc I2C_ESP32::write(uint8_t b) { return write(&b, 1); }
+int I2C_ESP32::write(uint8_t b) { return write(&b, 1); }
 
-Erc I2C_ESP32::read(uint8_t *data, uint32_t size) {
+int I2C_ESP32::read(uint8_t *data, uint32_t size) {
   if (size == 0) {
-    return E_OK;
+    return 0;
   }
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   i2c_master_start(cmd);
@@ -314,7 +314,7 @@ I2C &I2C::create(PhysicalPin scl, PhysicalPin sda) {
 esp_adc_cal_characteristics_t _characteristics;
 
 #define V_REF 1100
-
+/*
 static void check_efuse() {
   // Check TP is burned into eFuse
   if (esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_TP) == ESP_OK) {
@@ -330,7 +330,7 @@ static void check_efuse() {
     WARN("eFuse Vref: NOT supported");
   }
 }
-
+*/
 typedef enum { ADC1 = 1, ADC2, ADC3, ADC4, ADC5, ADC6 } AdcUnit;
 
 struct AdcEntry {
@@ -375,7 +375,7 @@ public:
     }
     ERROR("ADC channel not found for pin %d", pin);
   }
-  Erc init() {
+  int init() {
     //        check_efuse();
     INFO(" ADC init() pin %d ", _pin);
     if (_channel == (adc1_channel_t)UINT32_MAX)
@@ -400,7 +400,7 @@ public:
         ERROR("adc2_config_channel_atten():%d:%s", erc, esp_err_to_name(erc));
     }
 
-    return E_OK;
+    return 0;
   }
 
   int getValue() {
@@ -467,7 +467,7 @@ public:
     _onExchange = 0;
   }
 
-  Erc init() {
+  int init() {
     INFO(" SPI_ESP32 : miso : %d, mosi : %d , sck : %d , cs : %d ", _miso,
          _mosi, _sck, _cs);
 
@@ -503,10 +503,10 @@ public:
       ERROR("spi_bus_add_device(HSPI_HOST, &devcfg, &_spi) = %d ", ret);
       return EIO;
     }
-    return E_OK;
+    return 0;
   };
 
-  Erc deInit() {
+  int deInit() {
     esp_err_t ret = spi_bus_remove_device(_spi);
     if (ret) {
       ERROR("spi_bus_remove_device(_spi) = %d ", ret);
@@ -517,15 +517,15 @@ public:
       ERROR("spi_bus_free(HSPI_HOST) = %d ", ret);
       return EIO;
     }
-    return E_OK;
+    return 0;
   }
 
-  Erc exchange(Bytes &in, Bytes &out) {
+  int exchange(std::string &in, std::string &out) {
     uint8_t inData[100];
     esp_err_t ret;
     spi_transaction_t t, *pTrans;
     if (out.length() == 0)
-      return E_INVAL;         // no need to send anything
+      return EINVAL;         // no need to send anything
     memset(&t, 0, sizeof(t)); // Zero out the transaction
     t.length = out.length() * 8;
     // Len is in bytes, transaction length is in bits.
@@ -554,32 +554,31 @@ public:
     }
     in.clear();
     for (int i = 0; i < out.length(); i++) {
-      in.write(inData[i]);
+      in+=((char)inData[i]);
     }
-    return E_OK; // Should have had no issues.
+    return 0; // Should have had no issues.
   };
 
-  Erc setClock(uint32_t clock) {
+  int setClock(uint32_t clock) {
     _clock = clock;
-    return E_OK;
+    return 0;
   }
 
-  Erc setMode(SpiMode mode) {
+  int setMode(SpiMode mode) {
     _mode = mode;
-    return E_OK;
+    return 0;
   }
 
-  Erc setLsbFirst(bool f) {
+  int setLsbFirst(bool f) {
     _lsbFirst = f;
     return true;
   }
 
-  Erc onExchange(FunctionPointer p, void *ptr) { return E_OK; }
+  int onExchange(FunctionPointer p, void *ptr) { return 0; }
 
-  Erc setHwSelect(bool b) { return E_OK; }
+  int setHwSelect(bool b) { return 0; }
 };
 
-Spi::~Spi() {}
 
 Spi &Spi::create(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck,
                  PhysicalPin cs) {
@@ -651,7 +650,7 @@ public:
 
   virtual ~UART_ESP32() {}
 
-  Erc mode(const char *m) {
+  int mode(const char *m) {
     if (m[0] == '8')
       uart_config.data_bits = UART_DATA_8_BITS;
     else if (m[0] == '7')
@@ -676,10 +675,10 @@ public:
       uart_config.stop_bits = UART_STOP_BITS_2;
     else
       return EINVAL;
-    return E_OK;
+    return 0;
   }
 
-  Erc init() {
+  int init() {
     uart_config.baud_rate = _baudrate;
     uart_config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     //       uart_config.use_ref_tick = false;
@@ -706,36 +705,36 @@ public:
     string_format(taskName, "uart_event_task_%d", _driver);
     xTaskCreate(uart_event_task, taskName.c_str(), 3120, this,
                 tskIDLE_PRIORITY + 5, &_taskHandle);
-    return E_OK;
+    return 0;
   }
 
-  Erc deInit() {
+  int deInit() {
     int rc = uart_driver_delete(_uartNum);
     vTaskDelete(_taskHandle);
-    return rc == ESP_OK ? E_OK : EIO;
+    return rc == ESP_OK ? 0 : EIO;
   }
 
-  Erc setClock(uint32_t clock) {
+  int setClock(uint32_t clock) {
     _baudrate = clock;
-    return E_OK;
+    return 0;
   }
 
-  Erc write(const uint8_t *data, uint32_t length) {
+  int write(const uint8_t *data, uint32_t length) {
     if (uart_write_bytes(_uartNum, (const char *)data, length) == length)
-      return E_OK;
+      return 0;
     return EIO;
   }
 
-  Erc write(uint8_t b) {
+  int write(uint8_t b) {
     if (uart_write_bytes(_uartNum, (const char *)&b, 1) == 1)
-      return E_OK;
-    return E_OK;
+      return 0;
+    return 0;
   }
 
-  Erc read(Bytes &bytes) {
-    while (_rxdBuf.hasData() && bytes.hasSpace(1))
-      bytes.write(_rxdBuf.read());
-    return E_OK;
+  int read(std::string &bytes) {
+    while (_rxdBuf.hasData() )
+      bytes+=_rxdBuf.read();
+    return 0;
   }
 
   uint8_t read() { return _rxdBuf.read(); }
@@ -752,7 +751,7 @@ public:
     return;
   }
 
-  uint32_t hasSpace() { return E_OK; }
+  uint32_t hasSpace() { return 0; }
 
   uint32_t hasData() { return _rxdBuf.hasData(); }
 

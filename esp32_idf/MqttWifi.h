@@ -16,7 +16,7 @@ extern "C" {
 //#include "mqtt_client.h"
 #include "mqtt_client.h"
 }
-#include <NanoAkka.h>
+#include <limero.h>
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 
 #include <ArduinoJson.h>
