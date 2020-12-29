@@ -84,6 +84,8 @@ void MqttWifi::init()
     mqttPublish(m.topic.c_str(), m.message.c_str());
   });
 
+  subscriptions.emplace(dstPrefix + "#");
+
   keepAliveTimer.interval(1000);
   keepAliveTimer.repeat(true);
   keepAliveTimer >> [&](const TimerMsg &tm) {
@@ -116,7 +118,7 @@ void MqttWifi::onNext(const TimerMsg &tm)
 }
 //________________________________________________________________________
 //
-    static std::string data;
+static std::string data;
 
 int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event)
 {
@@ -138,6 +140,8 @@ int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event)
     esp_mqtt_client_publish(me._mqttClient, "src/limero/systems",
                             Sys::hostname(), 0, 1, 0);
     INFO("publish done ");
+    for (auto &subscription : me->subscriptions)
+      me.subscribe(subscription);
     topics = "dst/";
     topics += Sys::hostname();
     me.mqttSubscribe(topics.c_str());
@@ -164,13 +168,13 @@ int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event)
     break;
   case MQTT_EVENT_DATA:
   {
-//    INFO("MQTT_EVENT_DATA 0x%X 0x%X ",event,event->user_context);
+    //    INFO("MQTT_EVENT_DATA 0x%X 0x%X ",event,event->user_context);
     if (event->current_data_offset == 0)
     {
       me._lastTopic = std::string(event->topic, event->topic_len);
     }
     bool isOtaData = me._lastTopic.find("/ota") != std::string::npos;
- /*        INFO(" MQTT_EVENT_DATA %s offset:%d length:%d total:%d ",
+    /*        INFO(" MQTT_EVENT_DATA %s offset:%d length:%d total:%d ",
                 me._lastTopic.c_str(), event->current_data_offset,
          event->data_len, event->total_data_len);*/
     if (isOtaData)

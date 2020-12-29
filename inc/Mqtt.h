@@ -4,6 +4,7 @@
 #define ARDUINOJSON_USE_LONG_LONG 1
 #define ARDUINOJSON_ENABLE_STD_STRING 1
 #include <ArduinoJson.h>
+#include <set>
 
 class Mqtt;
 template <class T>
@@ -43,7 +44,7 @@ class Mqtt : public Actor {
  public:
   std::string dstPrefix;
   std::string srcPrefix;
-  std::vector<std::string> subscriptions;
+  std::set<std::string> subscriptions;
   QueueFlow<MqttMessage, 20> incoming;
   Sink<MqttMessage, 10> outgoing;
   ValueFlow<MqttBlock> blocks;
@@ -59,7 +60,7 @@ class Mqtt : public Actor {
   };
   ~Mqtt(){};
   void init();
-  void addSubscription();
+  void addSubscription(std::string& topic);
   template <class T>
   Subscriber<T> &toTopic(const char *name) {
     auto flow = new ToMqtt<T>(name, this);
@@ -120,7 +121,7 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
  public:
   FromMqtt(NanoString name, Mqtt *mqtt)
       : LambdaFlow<MqttMessage, T>([&](T& t,const MqttMessage &mqttMessage) {
-          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
+//          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
           if (mqttMessage.topic != _name) {
             return EINVAL;
           }
@@ -152,7 +153,7 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
       INFO(" no prefix for %s ", name.c_str());
       _name = name;
-      mqtt->subscriptions.push_back(_name);
+      mqtt->subscriptions.emplace(_name);
     } else {
       INFO(" adding prefix %s to %s ", mqtt->dstPrefix.c_str(), name.c_str());
       _name = mqtt->dstPrefix + name;

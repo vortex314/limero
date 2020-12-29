@@ -79,6 +79,9 @@ void MqttWifi::init() {
     mqttPublish(m.topic.c_str(), m.message.c_str());
   });
 
+    subscriptions.emplace(dstPrefix + "#");
+
+
   keepAliveTimer.interval(1000);
   keepAliveTimer.repeat(true);
   keepAliveTimer >> [&](const TimerMsg &tm) {
@@ -123,9 +126,10 @@ int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event) {
                               Sys::hostname(), 0, 1, 0);
       topics = "dst/";
       topics += Sys::hostname();
-      me.mqttSubscribe(topics.c_str());
       topics += "/#";
       me.mqttSubscribe(topics.c_str());
+          for (auto &subscription : me->subscriptions)
+      me.subscribe(subscription);
       me.connected = true;
       break;
     }

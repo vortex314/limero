@@ -16,6 +16,30 @@ uint64_t Sys::_upTime;
 #include <time.h>
 #include <unistd.h>
 
+
+const char* Sys::cpu() {
+  static char* _cpu = 0;
+  if (_cpu != 0) return _cpu;
+  FILE* cpuinfo = fopen("/proc/cpuinfo", "rb");
+  char* arg = 0;
+  size_t size = 0;
+  while (getdelim(&arg, &size, 0, cpuinfo) != -1) {
+    std::string line = arg;
+    if (line.find("model name") >= 0) {
+      int keyOffset = line.find("model name");
+      int startValue = line.find(":", keyOffset);
+      int endValue = line.find("\n", keyOffset);
+      std::string cpu =
+          line.substr(startValue + 1, (endValue - startValue) - 1);
+      _cpu = (char*)malloc(cpu.length() + 1);
+      strcpy(_cpu, cpu.c_str());
+    }
+  }
+  free(arg);
+  fclose(cpuinfo);
+  return _cpu;
+}
+
 uint64_t Sys::millis()  // time in msec since boot, only increasing
 {
   struct timespec deadline;
@@ -23,6 +47,8 @@ uint64_t Sys::millis()  // time in msec since boot, only increasing
   Sys::_upTime = deadline.tv_sec * 1000 + deadline.tv_nsec / 1000000;
   return _upTime;
 }
+
+
 
 void Sys::init() { gethostname(_hostname, 30); }
 
