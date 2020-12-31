@@ -47,7 +47,7 @@ class MqttWifi : public Mqtt {
   void init();
 
   void mqttPublish(const char* topic, const char* message);
-  void mqttSubscribe(const char* topic);
+  void mqttSubscribe(std::string& topic);
   void mqttConnect();
   void mqttDisconnect();
 

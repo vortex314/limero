@@ -1,4 +1,3 @@
-#include <CircBuf.h>
 #include <Hardware.h>
 #include <Log.h>
 #include <driver/gpio.h>
@@ -8,7 +7,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-static struct ESP32 { i2c_port_t _i2c_port; } esp32 = {I2C_NUM_0};
+static struct ESP32
+{
+  i2c_port_t _i2c_port;
+} esp32 = {I2C_NUM_0};
 
 /**********************************************************************
  *
@@ -23,7 +25,8 @@ static struct ESP32 { i2c_port_t _i2c_port; } esp32 = {I2C_NUM_0};
  *
  * *******************************************************************/
 //================================================== DigitalIn =====
-class DigitalIn_ESP32 : public DigitalIn {
+class DigitalIn_ESP32 : public DigitalIn
+{
 private:
   PhysicalPin _gpio;
   Mode _mode = DIN_PULL_UP;
@@ -41,7 +44,8 @@ public:
 
   int read() { return gpio_get_level((gpio_num_t)_gpio); }
 
-  int init() {
+  int init()
+  {
     esp_err_t erc;
     //       INFO(" DigitalIn Init %d ", _gpio);
     erc = gpio_set_direction((gpio_num_t)_gpio, GPIO_MODE_INPUT);
@@ -52,11 +56,16 @@ public:
     ZERO(io_conf);
 
     gpio_int_type_t interruptType = (gpio_int_type_t)GPIO_PIN_INTR_DISABLE;
-    if (_pinChange == DIN_RAISE) {
+    if (_pinChange == DIN_RAISE)
+    {
       interruptType = (gpio_int_type_t)GPIO_PIN_INTR_POSEDGE;
-    } else if (_pinChange == DIN_FALL) {
+    }
+    else if (_pinChange == DIN_FALL)
+    {
       interruptType = (gpio_int_type_t)GPIO_PIN_INTR_NEGEDGE;
-    } else if (_pinChange == DIN_CHANGE) {
+    }
+    else if (_pinChange == DIN_CHANGE)
+    {
       interruptType = (gpio_int_type_t)GPIO_INTR_ANYEDGE;
     }
     INFO(" interrupType : %d ", interruptType);
@@ -68,9 +77,11 @@ public:
     io_conf.pull_down_en = (gpio_pulldown_t)(_mode == DIN_PULL_DOWN ? 1 : 0);
 
     //#define ESP_INTR_FLAG_DEFAULT 0
-    if (_fp) {
+    if (_fp)
+    {
       // install gpio isr service
-      if (!_isrServiceInstalled) {
+      if (!_isrServiceInstalled)
+      {
         erc = gpio_install_isr_service(ESP_INTR_FLAG_LOWMED);
         INFO(" gpio_install_isr_service() ", erc);
         if (erc)
@@ -89,11 +100,13 @@ public:
 
   int deInit() { return 0; }
 
-  int setMode(DigitalIn::Mode m) {
+  int setMode(DigitalIn::Mode m)
+  {
     _mode = m;
     return 0;
   }
-  int onChange(PinChange pinChange, FunctionPointer fp, void *object) {
+  int onChange(PinChange pinChange, FunctionPointer fp, void *object)
+  {
     _pinChange = pinChange;
     _fp = fp;
     _object = object;
@@ -102,7 +115,8 @@ public:
   PhysicalPin getPin() { return _gpio; }
 };
 
-DigitalIn &DigitalIn::create(PhysicalPin pin) {
+DigitalIn &DigitalIn::create(PhysicalPin pin)
+{
   DigitalIn_ESP32 *ptr = new DigitalIn_ESP32(pin);
   return *ptr;
 }
@@ -117,18 +131,21 @@ bool DigitalIn_ESP32::_isrServiceInstalled = false;
  ######      #     ####      #       #    #    #  ###### #######   ####      #
  */
 //================================================== DigitalOu =====
-class DigitalOut_ESP32 : public DigitalOut {
+class DigitalOut_ESP32 : public DigitalOut
+{
   PhysicalPin _gpio;
   Mode _mode = DOUT_NONE;
 
 public:
   DigitalOut_ESP32(uint32_t gpio) : _gpio(gpio) {}
   virtual ~DigitalOut_ESP32() {}
-  int setMode(DigitalOut::Mode m) {
+  int setMode(DigitalOut::Mode m)
+  {
     _mode = m;
     return 0;
   }
-  int init() {
+  int init()
+  {
     //        INFO(" DigitalOut Init %d ", _gpio);
     esp_err_t erc = gpio_set_direction((gpio_num_t)_gpio, GPIO_MODE_OUTPUT);
     if (erc)
@@ -155,7 +172,8 @@ public:
   PhysicalPin getPin() { return _gpio; }
 };
 
-DigitalOut &DigitalOut::create(PhysicalPin pin) {
+DigitalOut &DigitalOut::create(PhysicalPin pin)
+{
   DigitalOut_ESP32 *ptr = new DigitalOut_ESP32(pin);
   return *ptr;
 }
@@ -181,7 +199,8 @@ DigitalOut &DigitalOut::create(PhysicalPin pin) {
 #define ACK_VAL 0x0       /*!< I2C ack value */
 #define NACK_VAL 0x1      /*!< I2C nack value */
 
-class I2C_ESP32 : public I2C {
+class I2C_ESP32 : public I2C
+{
   std::string _txd;
   std::string _rxd;
 
@@ -200,11 +219,13 @@ public:
   int init();
   int deInit();
 
-  int setClock(uint32_t clock) {
+  int setClock(uint32_t clock)
+  {
     _clock = clock;
     return 0;
   }
-  int setSlaveAddress(uint8_t slaveAddress) {
+  int setSlaveAddress(uint8_t slaveAddress)
+  {
     _slaveAddress = slaveAddress;
     return 0;
   }
@@ -215,18 +236,21 @@ public:
 };
 
 I2C_ESP32::I2C_ESP32(PhysicalPin scl, PhysicalPin sda)
-    :  _scl(scl), _sda(sda) {
+    : _scl(scl), _sda(sda)
+{
   _port = esp32._i2c_port;
   _clock = 100000;
   _slaveAddress = 0x1E; // HMC 5883L
 }
 
-I2C_ESP32::~I2C_ESP32() {
+I2C_ESP32::~I2C_ESP32()
+{
   esp_err_t erc = i2c_driver_delete(_port);
   INFO(" erc : %d ", erc);
 }
 
-int I2C_ESP32::init() {
+int I2C_ESP32::init()
+{
   INFO(" I2C init : scl:%d ,sda :%d ", _scl, _sda);
   i2c_config_t conf;
   conf.mode = I2C_MODE_MASTER;
@@ -246,7 +270,8 @@ int I2C_ESP32::init() {
 
 int I2C_ESP32::deInit() { return 0; }
 
-int I2C_ESP32::write(uint8_t *data, uint32_t size) {
+int I2C_ESP32::write(uint8_t *data, uint32_t size)
+{
   esp_err_t erc;
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   erc = i2c_master_start(cmd);
@@ -271,15 +296,18 @@ int I2C_ESP32::write(uint8_t *data, uint32_t size) {
 
 int I2C_ESP32::write(uint8_t b) { return write(&b, 1); }
 
-int I2C_ESP32::read(uint8_t *data, uint32_t size) {
-  if (size == 0) {
+int I2C_ESP32::read(uint8_t *data, uint32_t size)
+{
+  if (size == 0)
+  {
     return 0;
   }
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   i2c_master_start(cmd);
   i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_READ,
                         ACK_CHECK_EN);
-  if (size > 1) {
+  if (size > 1)
+  {
     i2c_master_read(cmd, data, size - 1, (i2c_ack_type_t)ACK_VAL);
   }
   i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL);
@@ -289,7 +317,8 @@ int I2C_ESP32::read(uint8_t *data, uint32_t size) {
   return ret;
 }
 
-I2C &I2C::create(PhysicalPin scl, PhysicalPin sda) {
+I2C &I2C::create(PhysicalPin scl, PhysicalPin sda)
+{
   I2C_ESP32 *ptr = new I2C_ESP32(scl, sda);
   return *ptr;
 }
@@ -331,9 +360,18 @@ static void check_efuse() {
   }
 }
 */
-typedef enum { ADC1 = 1, ADC2, ADC3, ADC4, ADC5, ADC6 } AdcUnit;
+typedef enum
+{
+  ADC1 = 1,
+  ADC2,
+  ADC3,
+  ADC4,
+  ADC5,
+  ADC6
+} AdcUnit;
 
-struct AdcEntry {
+struct AdcEntry
+{
   PhysicalPin pin;
   uint32_t channel;
   AdcUnit unit;
@@ -351,23 +389,27 @@ struct AdcEntry {
     {13, ADC2_CHANNEL_4,
      ADC2}, // ATTENTION ! ADC2 cannot be used while wifi is active
     {14, ADC2_CHANNEL_5,
-     ADC2}, // ATTENTION ! ADC2 cannot be used while wifi is active
+     ADC2},                     // ATTENTION ! ADC2 cannot be used while wifi is active
     {15, ADC2_CHANNEL_6, ADC2}, //
     {25, ADC2_CHANNEL_8, ADC2}  //
 };                              // INCOMPLETE !!
 
-class ADC_ESP32 : public ADC {
+class ADC_ESP32 : public ADC
+{
   PhysicalPin _pin;
   uint32_t _channel;
   AdcUnit _unit;
 
 public:
-  ADC_ESP32(PhysicalPin pin) {
+  ADC_ESP32(PhysicalPin pin)
+  {
     _pin = pin;
     _channel = (adc1_channel_t)UINT32_MAX;
     uint32_t channels = sizeof(AdcTable) / sizeof(struct AdcEntry);
-    for (int i = 0; i < channels; i++) {
-      if (AdcTable[i].pin == _pin) {
+    for (int i = 0; i < channels; i++)
+    {
+      if (AdcTable[i].pin == _pin)
+      {
         _channel = AdcTable[i].channel;
         _unit = AdcTable[i].unit;
         return;
@@ -375,13 +417,15 @@ public:
     }
     ERROR("ADC channel not found for pin %d", pin);
   }
-  int init() {
+  int init()
+  {
     //        check_efuse();
     INFO(" ADC init() pin %d ", _pin);
     if (_channel == (adc1_channel_t)UINT32_MAX)
       return EINVAL;
     esp_err_t erc;
-    if (_unit == ADC1) {
+    if (_unit == ADC1)
+    {
       erc = adc1_config_width(ADC_WIDTH_BIT_10);
       if (erc)
         ERROR("adc1_config_width(): %d", erc);
@@ -392,7 +436,9 @@ public:
       /*           esp_adc_cal_get_characteristics(V_REF, ADC_ATTEN_DB_11,
        ADC_WIDTH_BIT_12,
        &_characteristics);*/
-    } else if (_unit == ADC2) {
+    }
+    else if (_unit == ADC2)
+    {
       //    erc = adc2_config_channel_atten((adc2_channel_t)_channel,
       //    ADC_ATTEN_DB_11);
       erc = adc2_config_channel_atten(ADC2_CHANNEL_3, ADC_ATTEN_DB_11);
@@ -403,30 +449,40 @@ public:
     return 0;
   }
 
-  int getValue() {
-    if (_unit == ADC1) {
+  int getValue()
+  {
+    if (_unit == ADC1)
+    {
       uint32_t voltage = adc1_get_raw((adc1_channel_t)_channel);
       //   uint32_t voltage = adc1_to_voltage((adc1_channel_t)_channel,
       //   &_characteristics);
       return voltage;
-    } else if (_unit == ADC2) {
+    }
+    else if (_unit == ADC2)
+    {
       int voltage;
       esp_err_t r =
           adc2_get_raw((adc2_channel_t)_channel, ADC_WIDTH_10Bit, &voltage);
-      if (r == ESP_OK) {
+      if (r == ESP_OK)
+      {
         return voltage;
-      } else {
+      }
+      else
+      {
         ERROR(" adc2_get_raw() failed : %d ", r);
         return -1;
       }
-    } else {
+    }
+    else
+    {
       ERROR(" invalid ADC unit %d ", _unit);
       return -2;
     }
   }
 };
 
-ADC &ADC::create(PhysicalPin pin) {
+ADC &ADC::create(PhysicalPin pin)
+{
   ADC_ESP32 *ptr = new ADC_ESP32(pin);
   return *ptr;
 }
@@ -447,7 +503,8 @@ ADC &ADC::create(PhysicalPin pin) {
 #include "driver/spi_master.h"
 #include "esp_system.h"
 
-class SPI_ESP32 : public Spi {
+class SPI_ESP32 : public Spi
+{
 protected:
   FunctionPointer _onExchange;
   uint32_t _clock;
@@ -459,7 +516,8 @@ protected:
 
 public:
   SPI_ESP32(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck, PhysicalPin cs)
-      : _miso(miso), _mosi(mosi), _sck(sck), _cs(cs) {
+      : _miso(miso), _mosi(mosi), _sck(sck), _cs(cs)
+  {
     _clock = 100000;
     _mode = 0;
     _lsbFirst = true;
@@ -467,7 +525,8 @@ public:
     _onExchange = 0;
   }
 
-  int init() {
+  int init()
+  {
     INFO(" SPI_ESP32 : miso : %d, mosi : %d , sck : %d , cs : %d ", _miso,
          _mosi, _sck, _cs);
 
@@ -484,7 +543,8 @@ public:
 
     // Initialize the SPI bus
     ret = spi_bus_initialize(HSPI_HOST, &buscfg, 1);
-    if (ret) {
+    if (ret)
+    {
       ERROR("spi_bus_initialize(HSPI_HOST, &buscfg, 1) = %d ", ret);
       return EIO;
     }
@@ -499,33 +559,38 @@ public:
     devcfg.pre_cb = 0;
     // Specify pre-transfer callback to handle D/C line
     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &_spi);
-    if (ret) {
+    if (ret)
+    {
       ERROR("spi_bus_add_device(HSPI_HOST, &devcfg, &_spi) = %d ", ret);
       return EIO;
     }
     return 0;
   };
 
-  int deInit() {
+  int deInit()
+  {
     esp_err_t ret = spi_bus_remove_device(_spi);
-    if (ret) {
+    if (ret)
+    {
       ERROR("spi_bus_remove_device(_spi) = %d ", ret);
       return EIO;
     }
     ret = spi_bus_free(HSPI_HOST);
-    if (ret) {
+    if (ret)
+    {
       ERROR("spi_bus_free(HSPI_HOST) = %d ", ret);
       return EIO;
     }
     return 0;
   }
 
-  int exchange(std::string &in, std::string &out) {
+  int exchange(std::string &in, std::string &out)
+  {
     uint8_t inData[100];
     esp_err_t ret;
     spi_transaction_t t, *pTrans;
     if (out.length() == 0)
-      return EINVAL;         // no need to send anything
+      return EINVAL;          // no need to send anything
     memset(&t, 0, sizeof(t)); // Zero out the transaction
     t.length = out.length() * 8;
     // Len is in bytes, transaction length is in bits.
@@ -533,43 +598,52 @@ public:
     t.rx_buffer = inData;
     //    t.flags = SPI_TRANS_USE_RXDATA;
     t.user = (void *)1; // D/C needs to be set to 1
-    if (true) {
+    if (true)
+    {
       ret = spi_device_polling_transmit(_spi, &t);
-      if (ret) {
+      if (ret)
+      {
         ERROR("spi_device_polling_transmit(_spi, &t) = %d ", ret);
         return EIO;
       }
-
-    } else {
+    }
+    else
+    {
       ret = spi_device_queue_trans(_spi, &t, 1000);
-      if (ret) {
+      if (ret)
+      {
         ERROR("spi_device_queue_trans(_spi, &t, 1000) = %d ", ret);
         return EIO;
       }
       ret = spi_device_get_trans_result(_spi, &pTrans, 1000);
-      if (ret) {
+      if (ret)
+      {
         ERROR("spi_device_get_trans_result(_spi, &pTrans, 1000) = %d ", ret);
         return EIO;
       }
     }
     in.clear();
-    for (int i = 0; i < out.length(); i++) {
-      in+=((char)inData[i]);
+    for (int i = 0; i < out.length(); i++)
+    {
+      in += ((char)inData[i]);
     }
     return 0; // Should have had no issues.
   };
 
-  int setClock(uint32_t clock) {
+  int setClock(uint32_t clock)
+  {
     _clock = clock;
     return 0;
   }
 
-  int setMode(SpiMode mode) {
+  int setMode(SpiMode mode)
+  {
     _mode = mode;
     return 0;
   }
 
-  int setLsbFirst(bool f) {
+  int setLsbFirst(bool f)
+  {
     _lsbFirst = f;
     return true;
   }
@@ -579,9 +653,9 @@ public:
   int setHwSelect(bool b) { return 0; }
 };
 
-
 Spi &Spi::create(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck,
-                 PhysicalPin cs) {
+                 PhysicalPin cs)
+{
   SPI_ESP32 *ptr = new SPI_ESP32(miso, mosi, sck, cs);
   return *ptr;
 }
@@ -596,14 +670,15 @@ Spi &Spi::create(PhysicalPin miso, PhysicalPin mosi, PhysicalPin sck,
   @@@@@  @     @ @     @    @
 
  */
-
+#include <deque>
 #define RX_BUF_SIZE 1024
 #define TX_BUF_SIZE 1024
 
 #define TAG "uart0"
 #define PATTERN_CHR_NUM 1
 
-class UART_ESP32 : public UART {
+class UART_ESP32 : public UART
+{
   FunctionPointer _onRxd;
   FunctionPointer _onTxd;
   void *_onRxdVoid = 0;
@@ -614,25 +689,30 @@ class UART_ESP32 : public UART {
   uint32_t _pinRxd;
   uint32_t _baudrate;
   QueueHandle_t _queue = 0;
-  CircBuf _rxdBuf;
+  std::deque<uint8_t> _rxdBuf;
   uint32_t _driver;
   uart_config_t uart_config;
   TaskHandle_t _taskHandle;
 
 public:
   UART_ESP32(uint32_t driver, PhysicalPin txd, PhysicalPin rxd)
-      : _pinTxd(txd), _pinRxd(rxd), _rxdBuf(300) {
+      : _pinTxd(txd), _pinRxd(rxd)
+  {
     _driver = driver;
-    switch (driver) {
-    case 0: {
+    switch (driver)
+    {
+    case 0:
+    {
       _uartNum = UART_NUM_0;
       break;
     }
-    case 1: {
+    case 1:
+    {
       _uartNum = UART_NUM_1;
       break;
     }
-    case 2: {
+    case 2:
+    {
       _uartNum = UART_NUM_2;
       break;
     }
@@ -650,7 +730,8 @@ public:
 
   virtual ~UART_ESP32() {}
 
-  int mode(const char *m) {
+  int mode(const char *m)
+  {
     if (m[0] == '8')
       uart_config.data_bits = UART_DATA_8_BITS;
     else if (m[0] == '7')
@@ -678,7 +759,8 @@ public:
     return 0;
   }
 
-  int init() {
+  int init()
+  {
     uart_config.baud_rate = _baudrate;
     uart_config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     //       uart_config.use_ref_tick = false;
@@ -688,10 +770,13 @@ public:
     if (rc)
       ERROR(" uart_param_config() failed : %d  ", rc);
 
-    if (_uartNum == UART_NUM_0) {
+    if (_uartNum == UART_NUM_0)
+    {
       uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE,
                    UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); // no CTS,RTS
-    } else {
+    }
+    else
+    {
       uart_set_pin(_uartNum, _pinTxd, _pinRxd, UART_PIN_NO_CHANGE,
                    UART_PIN_NO_CHANGE); // no CTS,RTS
     }
@@ -708,44 +793,59 @@ public:
     return 0;
   }
 
-  int deInit() {
+  int deInit()
+  {
     int rc = uart_driver_delete(_uartNum);
     vTaskDelete(_taskHandle);
     return rc == ESP_OK ? 0 : EIO;
   }
 
-  int setClock(uint32_t clock) {
+  int setClock(uint32_t clock)
+  {
     _baudrate = clock;
     return 0;
   }
 
-  int write(const uint8_t *data, uint32_t length) {
+  int write(const uint8_t *data, uint32_t length)
+  {
     if (uart_write_bytes(_uartNum, (const char *)data, length) == length)
       return 0;
     return EIO;
   }
 
-  int write(uint8_t b) {
+  int write(uint8_t b)
+  {
     if (uart_write_bytes(_uartNum, (const char *)&b, 1) == 1)
       return 0;
     return 0;
   }
 
-  int read(std::string &bytes) {
-    while (_rxdBuf.hasData() )
-      bytes+=_rxdBuf.read();
+  int read(std::string &bytes)
+  {
+    while (_rxdBuf.size())
+    {
+      bytes += _rxdBuf.front();
+      _rxdBuf.pop_front();
+    }
     return 0;
   }
 
-  uint8_t read() { return _rxdBuf.read(); }
+  uint8_t read()
+  {
+    uint8_t b = _rxdBuf.front();
+    _rxdBuf.pop_front();
+    return b;
+  }
 
-  void onRxd(FunctionPointer fr, void *pv) {
+  void onRxd(FunctionPointer fr, void *pv)
+  {
     _onRxd = fr;
     _onRxdVoid = pv;
     return;
   }
 
-  void onTxd(FunctionPointer fw, void *pv) {
+  void onTxd(FunctionPointer fw, void *pv)
+  {
     _onTxd = fw;
     _onTxdVoid = pv;
     return;
@@ -753,32 +853,39 @@ public:
 
   uint32_t hasSpace() { return 0; }
 
-  uint32_t hasData() { return _rxdBuf.hasData(); }
+  uint32_t hasData() { return _rxdBuf.size(); }
 
-  static void uart_event_task(void *pvParameters) {
+  static void uart_event_task(void *pvParameters)
+  {
     UART_ESP32 *uartEsp32 = (UART_ESP32 *)pvParameters;
     uartEsp32->event_task();
   }
-  void event_task() {
+  void event_task()
+  {
     uart_event_t event;
     size_t buffered_size;
     uint8_t *dtmp = (uint8_t *)malloc(RX_BUF_SIZE);
     INFO(" uart%d task started ", _uartNum);
-    for (;;) {
+    for (;;)
+    {
       // Waiting for UART event.
-      if (xQueueReceive(_queue, (void *)&event, (portTickType)portMAX_DELAY)) {
+      if (xQueueReceive(_queue, (void *)&event, (portTickType)portMAX_DELAY))
+      {
         bzero(dtmp, RX_BUF_SIZE);
-        switch (event.type) {
+        switch (event.type)
+        {
         // Event of UART receving data
         /*We'd better handler data event fast, there would be much more
          data events than other types of events. If we take too much time
          on data event, the queue might be full.*/
-        case UART_DATA: {
+        case UART_DATA:
+        {
           int n = uart_read_bytes(_uartNum, dtmp, event.size, portMAX_DELAY);
           if (n < 0)
             ERROR("uart_read_bytes() failed.");
-          for (uint32_t i = 0; i < event.size; i++) {
-            _rxdBuf.write(dtmp[i]);
+          for (uint32_t i = 0; i < event.size; i++)
+          {
+            _rxdBuf.push_back(dtmp[i]);
             //						INFO(" RXD
             // 0x%X", dtmp[i]);
           }
@@ -818,19 +925,23 @@ public:
           WARN("uart frame error");
           break;
         // UART_PATTERN_DET
-        case UART_PATTERN_DET: {
+        case UART_PATTERN_DET:
+        {
           uart_get_buffered_data_len(_uartNum, &buffered_size);
           int pos = uart_pattern_pop_pos(_uartNum);
           INFO("[UART PATTERN DETECTED] pos: %d, buffered size: %d", pos,
                buffered_size);
-          if (pos == -1) {
+          if (pos == -1)
+          {
             // There used to be a UART_PATTERN_DET event, but the
             // pattern position queue is full so that it can not
             // record the position. We should set a larger queue
             // size. As an example, we directly flush the rx buffer
             // here.
             uart_flush_input(_uartNum);
-          } else {
+          }
+          else
+          {
             int n =
                 uart_read_bytes(_uartNum, dtmp, pos, 100 / portTICK_PERIOD_MS);
             if (n < 0)
@@ -860,7 +971,8 @@ public:
   }
 };
 
-UART &UART::create(uint32_t module, PhysicalPin txd, PhysicalPin rxd) {
+UART &UART::create(uint32_t module, PhysicalPin txd, PhysicalPin rxd)
+{
   UART_ESP32 *ptr = new UART_ESP32(module, txd, rxd);
   return *ptr;
 }
@@ -906,7 +1018,8 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
    _physicalPins[LP_SCK] = 34;
    _physicalPins[LP_CS] = 35;
    }*/
-  if (idx == 1) {
+  if (idx == 1)
+  {
     _physicalPins[LP_TXD] = 19;
     _physicalPins[LP_RXD] = 36;
     _physicalPins[LP_SCL] = 25;
@@ -915,7 +1028,9 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
     _physicalPins[LP_MOSI] = 23;
     _physicalPins[LP_SCK] = 17;
     _physicalPins[LP_CS] = 32;
-  } else if (idx == 2) {
+  }
+  else if (idx == 2)
+  {
     _physicalPins[LP_TXD] = 18;
     _physicalPins[LP_RXD] = 39;
     _physicalPins[LP_SCL] = 27;
@@ -934,27 +1049,31 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
   _adc = 0;
 }
 
-const char *sLogicalPin[] = {"TXD",  "RXD",  "SCL", "SDA",
+const char *sLogicalPin[] = {"TXD", "RXD", "SCL", "SDA",
                              "MISO", "MOSI", "SCK", "CS"};
 
-PhysicalPin Connector::toPin(uint32_t logicalPin) {
+PhysicalPin Connector::toPin(uint32_t logicalPin)
+{
   DEBUG(" UEXT%d %s[%d] => GPIO_%d", _connectorIdx, sLogicalPin[logicalPin],
         logicalPin, _physicalPins[logicalPin]);
   return _physicalPins[logicalPin];
 }
 
-const char *Connector::uextPin(uint32_t logicalPin) {
+const char *Connector::uextPin(uint32_t logicalPin)
+{
   return sLogicalPin[logicalPin];
 }
 
-UART &Connector::getUART() {
+UART &Connector::getUART()
+{
   lockPin(LP_TXD);
   lockPin(LP_RXD);
   _uart = new UART_ESP32(_connectorIdx, toPin(LP_TXD), toPin(LP_RXD));
   return *_uart;
 }
 
-Spi &Connector::getSPI() {
+Spi &Connector::getSPI()
+{
   _spi = new SPI_ESP32(toPin(LP_MISO), toPin(LP_MOSI), toPin(LP_SCK),
                        toPin(LP_CS));
   lockPin(LP_MISO);
@@ -963,36 +1082,44 @@ Spi &Connector::getSPI() {
   lockPin(LP_CS);
   return *_spi;
 }
-I2C &Connector::getI2C() {
+I2C &Connector::getI2C()
+{
   lockPin(LP_SDA);
   lockPin(LP_SCL);
   _i2c = new I2C_ESP32(toPin(LP_SCL), toPin(LP_SDA));
   return *_i2c;
 }
 
-ADC &Connector::getADC(LogicalPin pin) {
+ADC &Connector::getADC(LogicalPin pin)
+{
   lockPin(LP_SDA);
   ADC *adc = new ADC_ESP32(toPin(pin));
   return *adc;
 }
 
-DigitalOut &Connector::getDigitalOut(LogicalPin lp) {
+DigitalOut &Connector::getDigitalOut(LogicalPin lp)
+{
   lockPin(lp);
   DigitalOut *_out = new DigitalOut_ESP32(toPin(lp));
   return *_out;
 }
 
-DigitalIn &Connector::getDigitalIn(LogicalPin lp) {
+DigitalIn &Connector::getDigitalIn(LogicalPin lp)
+{
   lockPin(lp);
   DigitalIn *_in = new DigitalIn_ESP32(toPin(lp));
   return *_in;
 }
 
-void Connector::lockPin(LogicalPin lp) {
-  if (_pinsUsed & (1 << lp)) {
+void Connector::lockPin(LogicalPin lp)
+{
+  if (_pinsUsed & (1 << lp))
+  {
     ERROR(" PIN in use %d : %s  >>>>>>>>>>>>>>>>>> %X", lp, sLogicalPin[lp],
           _pinsUsed);
-  } else {
+  }
+  else
+  {
     DEBUG(" PIN locked : %d :%s ,%X", lp, sLogicalPin[lp], _pinsUsed);
     _pinsUsed |= (1 << lp);
   }

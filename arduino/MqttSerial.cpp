@@ -1,13 +1,14 @@
+
 #include <MqttSerial.h>
 
-MqttSerial::MqttSerial(Thread &thr)
-    : Mqtt(thr),
-      _uart(UART::create(UART_NUM_0, 1, 3)),
+MqttSerial::MqttSerial(Thread &thr, HardwareSerial &serial)
+    : Mqtt(thr), _serial(serial),
       connected(false),
-      keepAliveTimer(thr, 500, true, "keepAlive"),
-      connectTimer(thr, 3000, true, "connect")
+      keepAliveTimer(thr, 1000, true),
+      connectTimer(thr, 1000, true)
 {
   _rxdString.reserve(256);
+  incoming.async(thr);
 }
 MqttSerial::~MqttSerial() {}
 
@@ -23,7 +24,8 @@ void MqttSerial::init()
   dstPrefix += Sys::hostname();
   dstPrefix += "/";
 
-  _loopbackTopic +=  dstPrefix + "system/loopback";
+  _lwt_topic = srcPrefix + "system/alive";
+  _loopbackTopic += dstPrefix + "system/loopback";
   _loopbackReceived = 0;
 
   outgoing.async(thread(), [&](const MqttMessage &m) {
@@ -33,45 +35,41 @@ void MqttSerial::init()
     }
   });
 
+  // Sink<TimerMsg, 3> &me = *this;
   keepAliveTimer >> [&](const TimerMsg &tm) {
-    publish(_loopbackTopic, std::string("true"));
-    outgoing.on({srcPrefix+"system/alive", "true"});
+    if (connected())
+      outgoing.on({_lwt_topic, "true"});
   };
   connectTimer >> [&](const TimerMsg &tm) {
-    if (Sys::millis() > (_loopbackReceived + 2000))
+    INFO(" connectTimer ");
+    if (Sys::millis() > (_loopbackReceived + 3000))
     {
       connected = false;
-      std::string topic;
-      string_format(topic, "dst/%s/#", Sys::hostname());
-      for (auto &subscription : subscriptions)
-        subscribe(subscription);
+      subscribe(dstPrefix + "#");
       publish(_loopbackTopic, "true");
     }
     else
     {
       connected = true;
     }
+    publish(_loopbackTopic, "true");
   };
-  _uart.setClock(115200);
-  _uart.onRxd(onRxd, this);
-  _uart.mode("8N1");
-  _uart.init();
-  subscriptions.emplace(dstPrefix + "#");
+  _serial.setTimeout(0);
 }
 
 void MqttSerial::request() {}
 
 void MqttSerial::onRxd(void *me)
 {
-  static std::string bytes;
   MqttSerial *mqttSerial = (MqttSerial *)me;
-  while (mqttSerial->_uart.hasData())
-  {
-    bytes.clear();
-    mqttSerial->_uart.read(bytes);
-    for (int i = 0; i < bytes.length(); i++)
-      mqttSerial->handleSerialByte(bytes[i]);
+  String s;
+  while (mqttSerial->_serial.available() ){
+    char inChar = ( char) mqttSerial->_serial.read();
+    s+= inChar;
   }
+ // INFO(" RXD >> %d", s.length());
+  for (uint32_t i = 0; i < s.length(); i++)
+    mqttSerial->handleSerialByte(s.charAt(i));
 }
 
 void MqttSerial::handleSerialByte(uint8_t b)
@@ -80,10 +78,9 @@ void MqttSerial::handleSerialByte(uint8_t b)
   {
     if (_rxdString.length() > 0)
     {
-      DEBUG(" RXD : %s ", _rxdString.c_str());
       rxdSerial(_rxdString);
     }
-    _rxdString.clear();
+    _rxdString = "";
   }
   else
   {
@@ -101,10 +98,16 @@ void MqttSerial::rxdSerial(std::string &rxdString)
     {
       _loopbackReceived = Sys::millis();
       connected = true;
+      std::string topic = array[1];
+      std::string arg = array[2];
+      INFO(" RXD >>> %s : %s ", topic.c_str(), arg.c_str());
     }
     else
     {
-      incoming.on({array[1], array[2]});
+      std::string topic = array[1];
+      std::string arg = array[2];
+      INFO(" RXD >>> %s : %s ", topic.c_str(), arg.c_str());
+      incoming.on({topic, arg});
     }
   }
   else
@@ -132,7 +135,8 @@ void MqttSerial::subscribe(std::string topic)
 
 void MqttSerial::txdSerial(JsonDocument &txd)
 {
-  std::string output = "";
+  String output = "";
   serializeJson(txd, output);
-  printf("%s\n", output.c_str());
+  Serial.println(output.c_str());
+  Serial.flush();
 }

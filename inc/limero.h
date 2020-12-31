@@ -7,14 +7,13 @@
 #include <functional>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
 // ------------------------------------------------- Linux
 #if defined(LINUX) 
-#include <string>
 #include <thread>
-typedef std::string NanoString;
 #endif
 //--------------------------------------------------  ESP8266
 #if defined(ESP_OPEN_RTOS) || defined(ESP_PLATFORM) // ESP_PLATFORM for ESP8266_RTOS_SDK
@@ -23,14 +22,9 @@ typedef std::string NanoString;
 #include <FreeRTOS.h>
 #include <queue.h>
 #include <task.h>
-
-#include <string>
-typedef std::string NanoString;
 #endif
 //-------------------------------------------------- ESP32
 #if defined(ESP32_IDF) 
-#include <string>
-typedef std::string NanoString;
 #define FREERTOS
 #include <FreeRTOS.h>
 #include <freertos/queue.h>
@@ -45,16 +39,19 @@ typedef std::string NanoString;
 #endif
 //-------------------------------------------------- ARDUINO
 #ifdef ARDUINO
-#define NO_ATOMIC
+//#define NO_ATOMIC
 #include <Arduino.h>
-#include <printf.h>
+//#include <printf.h>
 #include <stdarg.h>
-typedef String NanoString;
+#undef INFO
+#undef WARN
+using cstr = const char* const;
+
 #define INFO(fmt, ...)                                                      \
   {                                                                         \
     char line[256];                                                         \
-    int len = snprintf(line, sizeof(line), "I %06llu | %.12s:%.3d | ",      \
-                       Sys::millis(), __FILE__, __LINE__);                  \
+    int len = snprintf(line, sizeof(line), "I %lu | %.12s:%.3d | ",      \
+                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);                  \
     snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__); \
     Serial.println(line);                                                   \
     Serial.flush();                                                         \
@@ -62,8 +59,8 @@ typedef String NanoString;
 #define WARN(fmt, ...)                                                      \
   {                                                                         \
     char line[256];                                                         \
-    int len = snprintf(line, sizeof(line), "W %06llu | %.12s:%.3d | ",      \
-                       Sys::millis(), __FILE__, __LINE__);                  \
+    int len = snprintf(line, sizeof(line), "W %lu | %.12s:%.3d | ",      \
+                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);                  \
     snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__); \
     Serial.println(line);                                                   \
     Serial.flush();                                                         \
@@ -480,7 +477,7 @@ public:
 class TimerMsg
 {
 public:
-  const char *name;
+  TimerSource* source;
 };
 
 class TimerSource : public Source<TimerMsg>, public Named
@@ -532,7 +529,7 @@ public:
         setNewExpireTime();
       else
         _expireTime = Sys::millis() + UINT32_MAX;
-      TimerMsg tm = {name()};
+      TimerMsg tm = {this};
       this->emit(tm);
     }
   }
@@ -766,7 +763,7 @@ template <class T>
 class ValueFlow : public Flow<T, T>
 {
   T _t;
-  bool _pass = false;
+  bool _pass = true;
 
 public:
   ValueFlow(){};

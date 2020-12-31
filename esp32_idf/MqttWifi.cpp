@@ -13,7 +13,7 @@
 #error "check MQTT_HOST definition "
 #endif
 #ifndef MQTT_PORT
-#error "check MQTT_PORT definition"
+#error "check MQTT_PORT definition" 
 #endif
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
@@ -23,9 +23,7 @@
 //________________________________________________________________________
 //
 MqttWifi::MqttWifi(Thread &thread)
-    : Mqtt(thread),
-      _reportTimer(thread,  500, true),
-      _keepAliveTimer(thread) {
+    : Mqtt(thread), _reportTimer(thread, 500, true), _keepAliveTimer(thread) {
   _lwt_message = "false";
   incoming.async(thread);
 }
@@ -75,12 +73,11 @@ void MqttWifi::init() {
     }
   });
 
-    outgoing.async(thread(), [&](const MqttMessage& m) {
+  outgoing.async(thread(), [&](const MqttMessage &m) {
     mqttPublish(m.topic.c_str(), m.message.c_str());
   });
 
-    subscriptions.emplace(dstPrefix + "#");
-
+  subscriptions.emplace(dstPrefix + "#");
 
   keepAliveTimer.interval(1000);
   keepAliveTimer.repeat(true);
@@ -103,7 +100,7 @@ void MqttWifi::onNext(const MqttMessage &m) {
 //________________________________________________________________________
 //
 void MqttWifi::onNext(const TimerMsg &tm) {
-  if ( connected()) {
+  if (connected()) {
     onNext({_lwt_topic.c_str(), "true"});
   }
 }
@@ -128,8 +125,8 @@ int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event) {
       topics += Sys::hostname();
       topics += "/#";
       me.mqttSubscribe(topics.c_str());
-          for (auto &subscription : me->subscriptions)
-      me.subscribe(subscription);
+      for (auto &subscription : me.subscriptions)
+        me.mqttSubscribe(subscription.c_str());
       me.connected = true;
       break;
     }

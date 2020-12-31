@@ -1,8 +1,6 @@
 #ifndef MQTTSERIAL_H
 #define MQTTSERIAL_H
-#undef min
-#undef max
-#include <Hardware.h>
+#include <Arduino.h>
 #include <Mqtt.h>
 #include <limero.h>
 
@@ -23,9 +21,7 @@ class MqttSerial : public Mqtt {
   std::string  _address;
   std::string  _lwt_topic;
   std::string  _lwt_message;
-#ifdef ESP32_IDF
-  UART &_uart;
-#endif
+  HardwareSerial& _serial;
 
  private:
   StaticJsonDocument<256> txd;
@@ -48,7 +44,7 @@ class MqttSerial : public Mqtt {
   ValueSource<bool> connected;
   TimerSource keepAliveTimer;
   TimerSource connectTimer;
-  MqttSerial(Thread &thr);
+  MqttSerial(Thread &thr,HardwareSerial& serial);
   ~MqttSerial();
   void init();
 

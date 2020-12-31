@@ -15,8 +15,8 @@ template <class T>
 class MqttFlow;
 
 typedef struct MqttMessage {
-  NanoString topic;
-  NanoString message;
+  std::string topic;
+  std::string message;
 } MqttMessage;
 
 class MqttBlock {
@@ -60,7 +60,6 @@ class Mqtt : public Actor {
   };
   ~Mqtt(){};
   void init();
-  void addSubscription(std::string& topic);
   template <class T>
   Subscriber<T> &toTopic(const char *name) {
     auto flow = new ToMqtt<T>(name, this);
@@ -86,12 +85,12 @@ class Mqtt : public Actor {
 //
 template <class T>
 class ToMqtt : public LambdaFlow<T, MqttMessage> {
-  NanoString _name;
+  std::string _name;
 
  public:
-  ToMqtt(NanoString name, Mqtt *mqtt)
+  ToMqtt(std::string name, Mqtt *mqtt)
       : LambdaFlow<T, MqttMessage>([&](MqttMessage& msg,const T &event) {
-          NanoString s;
+          std::string s;
           DynamicJsonDocument doc(100);
           JsonVariant variant = doc.to<JsonVariant>();
           variant.set(event);
@@ -116,10 +115,10 @@ class ToMqtt : public LambdaFlow<T, MqttMessage> {
 //
 template <class T>
 class FromMqtt : public LambdaFlow<MqttMessage, T> {
-  NanoString _name;
+  std::string _name;
 
  public:
-  FromMqtt(NanoString name, Mqtt *mqtt)
+  FromMqtt(std::string name, Mqtt *mqtt)
       : LambdaFlow<MqttMessage, T>([&](T& t,const MqttMessage &mqttMessage) {
 //          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
           if (mqttMessage.topic != _name) {

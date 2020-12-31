@@ -140,13 +140,8 @@ int MqttWifi::mqtt_event_handler(esp_mqtt_event_t *event)
     esp_mqtt_client_publish(me._mqttClient, "src/limero/systems",
                             Sys::hostname(), 0, 1, 0);
     INFO("publish done ");
-    for (auto &subscription : me->subscriptions)
-      me.subscribe(subscription);
-    topics = "dst/";
-    topics += Sys::hostname();
-    me.mqttSubscribe(topics.c_str());
-    topics += "/#";
-    me.mqttSubscribe(topics.c_str());
+    for (auto subscription : me.subscriptions)
+      me.mqttSubscribe(subscription);
     me.connected = true;
     break;
   }
@@ -239,10 +234,10 @@ void MqttWifi::mqttPublish(const char *topic, const char *message)
 }
 //________________________________________________________________________
 //
-void MqttWifi::mqttSubscribe(const char *topic)
+void MqttWifi::mqttSubscribe(std::string& topic)
 {
-  INFO("Subscribing to topic %s.", topic);
-  int id = esp_mqtt_client_subscribe(_mqttClient, topic, 1);
+  INFO("Subscribing to topic %s.", topic.c_str());
+  int id = esp_mqtt_client_subscribe(_mqttClient, topic.c_str(), 1);
   if (id < 0)
     WARN("esp_mqtt_client_subscribe() failed.");
 }
