@@ -39,7 +39,7 @@ class MqttWifi : public Mqtt {
   MqttOta mqttOta;
 
  public:
-  Sink<bool, 2> wifiConnected;
+  Sink<bool> wifiConnected;
   ValueSource<bool> connected;
   TimerSource keepAliveTimer;
   MqttWifi(Thread& thread);

@@ -45,12 +45,12 @@ class Mqtt : public Actor {
   std::string dstPrefix;
   std::string srcPrefix;
   std::set<std::string> subscriptions;
-  QueueFlow<MqttMessage, 20> incoming;
-  Sink<MqttMessage, 10> outgoing;
+  QueueFlow<MqttMessage> incoming;
+  Sink<MqttMessage> outgoing;
   ValueFlow<MqttBlock> blocks;
   ValueSource<bool> connected;
   TimerSource keepAliveTimer;
-  Mqtt(Thread &thr) : Actor(thr),outgoing("mqtt.outgoing") {
+  Mqtt(Thread &thr) : Actor(thr),incoming(4),outgoing(4) {
     dstPrefix = "dst/";
     dstPrefix += Sys::hostname();
     dstPrefix += "/";
@@ -120,7 +120,7 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
  public:
   FromMqtt(std::string name, Mqtt *mqtt)
       : LambdaFlow<MqttMessage, T>([&](T& t,const MqttMessage &mqttMessage) {
-//          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
+          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
           if (mqttMessage.topic != _name) {
             return EINVAL;
           }

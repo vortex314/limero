@@ -103,9 +103,9 @@ int Base64::decode(std::string& out, std::string &in) {
 	uint8_t i = 0, j;
 	out.clear();
 
-	for (uint32_t i = 0; i < in.length(); i++) {
-		buff2[i] = in.at(i);
-		if (buff2[i] == '=')
+	for (uint32_t idx = 0; idx < in.length(); idx++) {
+		buff2[i++] = in.at(idx);
+		if (buff2[idx] == '=')
 			break;
 		if (++i == 4) {
 			for (i = 0; i != 4; i++)

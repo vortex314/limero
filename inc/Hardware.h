@@ -26,6 +26,7 @@ public:
     virtual int deInit() = 0;
 };
 
+
 class UART : public Driver
 {
 public:

@@ -24,7 +24,7 @@
 MqttWifi::MqttWifi(Thread &thread)
     : Mqtt(thread),
       _reportTimer(thread, 1000, true, "mqtt.report"),
-      _keepAliveTimer(thread, "mqtt.keepAlive"), wifiConnected("MqttWifi.connected")
+      _keepAliveTimer(thread, "mqtt.keepAlive"), wifiConnected(1)
 {
   _lwt_message = "false";
   incoming.async(thread);

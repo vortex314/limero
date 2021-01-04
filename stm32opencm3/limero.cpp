@@ -10,34 +10,29 @@ NanoStats stats;
 */
 int Thread::_id=0;
 
-
-Thread::Thread(const char *name) : Named(name)
-{
-    _queueSize = 20;
-    _stackSize = 5000;
-    _priority = configMAX_PRIORITIES - 1;
+Thread::Thread(ThreadProperties props) : Named(props.name) {
+    _queueSize=props.queueSize ? props.queueSize : 20;
+    _stackSize = props.stackSize ? props.stackSize : 256;
+    _priority = props.priority ? props.priority : configMAX_PRIORITIES - 1;
 }
 
 void Thread::createQueue()
 {
-    _workQueue = xQueueCreate(20, sizeof(Invoker *));
+    _workQueue = xQueueCreate(_queueSize, sizeof(Invoker *));
     if ( _workQueue== NULL) WARN("Queue creation failed ");
 }
 
 void Thread::start()
 {
+    createQueue();
     xTaskCreate([](void* task) {
         ((Thread*)task)->run();
-    }, name(), 20000, this, tskIDLE_PRIORITY, NULL);
-    /*
-    	xTaskCreatePinnedToCore([](void* task) {
-    		((Thread*)task)->run();
-    	}, _name.c_str(), 20000, this, 17, NULL, PRO_CPU);*/
+    }, name(), _stackSize, this,_priority , NULL);
 }
 
 int Thread::enqueue(Invoker* invoker)
 {
-//	INFO("Thread '%s' >>> '%s'",_name.c_str(),symbols(invoker));
+//	INFO("Thread '%s' >>> ",name());
     if (_workQueue)
         if (xQueueSend(_workQueue, &invoker, (TickType_t)0) != pdTRUE) {
             stats.threadQueueOverflow++;
@@ -60,7 +55,7 @@ int Thread::enqueueFromIsr(Invoker* invoker)
 
 void Thread::run()
 {
-    INFO("Thread '%s' started ",name());
+ //   INFO("Thread '%s' started ",name());
     uint32_t noWaits=0;
     while(true) {
         uint64_t now = Sys::millis();
@@ -75,7 +70,7 @@ void Thread::run()
         }
         int32_t waitTime = (expTime-now); // ESP_OPEN_RTOS seems to double sleep time ?
 
-//		INFO(" waitTime : %d ",waitTime);
+		//INFO(" waitTime : %d ",waitTime);
         if ( noWaits % 1000 == 999 ) WARN(" noWaits : %d in thread %s waitTime %d ",noWaits,name(),waitTime);
         if ( waitTime > 0 ) {
             Invoker *prq;

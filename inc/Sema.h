@@ -7,6 +7,7 @@ class Sema {
 		static Sema& create();
 		virtual void wait() = 0;
 		virtual void release() = 0;
+		virtual bool taken() =0;
 };
 
 #endif

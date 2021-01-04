@@ -53,6 +53,16 @@ class LinuxSemaphore : public Sema {
 				printf("connect: Unable to post semaphore  errno : %d : %s ", errno, strerror(errno));
 			}
 		}
+
+		bool taken() {
+			int value;
+			if (::sem_getvalue(&sema,&value) != 0) { /* V operation */
+				printf("connect: Unable to post semaphore  errno : %d : %s ", errno, strerror(errno));
+				return value <= 0;
+			}
+			return true;
+			
+		}
 };
 
 Sema& Sema::create() {return *new LinuxSemaphore();}

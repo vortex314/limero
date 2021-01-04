@@ -1,12 +1,15 @@
 #ifndef MQTTSERIAL_H
 #define MQTTSERIAL_H
+#undef min
+#undef max
+#include <Hardware.h>
 #include <Mqtt.h>
 #include <limero.h>
+#include <Usb.h>
+#include <ArduinoJson.h>
 
 #include <string>
-#ifdef ESP32_IDF
-#include "driver/uart.h"
-#endif
+
 
 #define QOS 0
 #define TIMEOUT 10000L
@@ -20,9 +23,8 @@ class MqttSerial : public Mqtt {
   std::string  _address;
   std::string  _lwt_topic;
   std::string  _lwt_message;
-  HardwareSerial& _serial;
 
- private:
+ protected:
   StaticJsonDocument<256> txd;
   StaticJsonDocument<256> rxd;
   std::string  _rxdString;
@@ -32,18 +34,18 @@ class MqttSerial : public Mqtt {
   enum { CMD_SUBSCRIBE = 0, CMD_PUBLISH };
 
   void handleSerialByte(uint8_t);
-  void rxdSerial(std::string  &);
-  void txdSerial(JsonDocument &);
+  void rxdSerial(const std::string  &);
+  void txdSerial();
   void publish(std::string  topic, std::string  message);
   void subscribe(std::string topic);
 
  public:
-  static void onRxd(void *);
-
   ValueSource<bool> connected;
   TimerSource keepAliveTimer;
   TimerSource connectTimer;
-  MqttSerial(Thread &thr,HardwareSerial& serial);
+  Sink<std::string> rxdLine;
+  ValueSource<std::string> txdLine;
+  MqttSerial(Thread &thr);
   ~MqttSerial();
   void init();
 

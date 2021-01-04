@@ -23,7 +23,7 @@ MqttPaho::MqttPaho(Thread &thread)
 }
 //________________________________________________________________________
 //
-MqttPaho::~MqttPaho() {}
+MqttPaho::~MqttPaho()   {}
 
 void MqttPaho::config(JsonObject &conf)
 {
@@ -172,7 +172,7 @@ int MqttPaho::subscribe(std::string topic)
   }
   else
   {
-    INFO(" subscribe send ");
+    INFO(" subscribe success ");
   }
   return 0;
 }
@@ -186,7 +186,7 @@ void MqttPaho::onConnectionLost(void *context, char *cause)
 int MqttPaho::onMessage(void *context, char *topicName, int topicLen,
                         MQTTAsync_message *message)
 {
-  //  INFO(" receiving message %s[%d] context %X", topicName, topicLen, context);
+  INFO(" receiving message %s[%d] ", topicName, topicLen);
   MqttPaho *me = (MqttPaho *)context;
   std::string msg((char *)message->payload, message->payloadlen);
   std::string topic(topicName, topicLen);
@@ -221,7 +221,7 @@ void MqttPaho::onConnectSuccess(void *context,
   MqttPaho *me = (MqttPaho *)context;
   me->state(MS_CONNECTED);
   INFO("MQTT_EVENT_CONNECTED to %s", me->_connection.c_str());
-  for (auto& subscription : me->subscriptions)
+  for (auto& subscription : me->subscriptions) 
     me->subscribe(subscription);
 }
 
@@ -245,7 +245,7 @@ int MqttPaho::publish(std::string topic, std::string message, int qos,
   {
     return 0;
   }
-  DEBUG(" MQTT PUB : %s = %s ", topic.c_str(), message.c_str());
+  INFO(" MQTT PUB : %s = %s ", topic.c_str(), message.c_str());
 
   qos = 1;
   MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;

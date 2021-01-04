@@ -23,7 +23,7 @@
 //________________________________________________________________________
 //
 MqttWifi::MqttWifi(Thread &thread)
-    : Mqtt(thread), _reportTimer(thread, 500, true), _keepAliveTimer(thread) {
+    : Mqtt(thread), _reportTimer(thread, 500, true), _keepAliveTimer(thread),wifiConnected(1) {
   _lwt_message = "false";
   incoming.async(thread);
 }

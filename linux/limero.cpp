@@ -61,6 +61,10 @@ int readPipe(int readFd, void* data, int size, uint32_t timeout) {
   return ECOMM;
 }
 
+Thread::Thread(const char* name) : Named(name) {
+  createQueue();
+}
+
 void Thread::createQueue() {
   int rc = pipe(_pipeFd);
   _writePipe = _pipeFd[1];
@@ -77,9 +81,9 @@ void SetThreadName(std::thread* thread, const char* threadName) {
 }
 
 void Thread::start() {
-  INFO("");
-  std::thread thr = std::thread([=]() { run(); });
-  SetThreadName(&thr, name());
+  INFO("Thread %s started",name());
+  std::thread* thr = new std::thread(&Thread::run,this);
+  SetThreadName(thr, name());
 }
 
 int Thread::enqueue(Invoker* invoker) {
