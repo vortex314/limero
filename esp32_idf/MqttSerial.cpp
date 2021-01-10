@@ -34,8 +34,9 @@ void MqttSerial::init()
   });
 
   keepAliveTimer >> [&](const TimerMsg &tm) {
-    publish(_loopbackTopic, std::string("true"));
-    outgoing.on({srcPrefix+"system/alive", "true"});
+    std::string s="true";
+    publish(_loopbackTopic, s);
+    outgoing.on({srcPrefix+"system/alive", s});
   };
   connectTimer >> [&](const TimerMsg &tm) {
     if (Sys::millis() > (_loopbackReceived + 2000))

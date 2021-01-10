@@ -1,13 +1,13 @@
 #ifndef LIMERO_H
 #define LIMERO_H
-#include <stdint.h>
-#include <errno.h>
-#include <Sys.h>
 #include <Log.h>
+#include <Sys.h>
+#include <errno.h>
 #include <functional>
+#include <stdint.h>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
 
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
@@ -16,7 +16,8 @@
 #include <thread>
 #endif
 //--------------------------------------------------  ESP8266
-#if defined(ESP_OPEN_RTOS) || defined(ESP_PLATFORM) // ESP_PLATFORM for ESP8266_RTOS_SDK
+#if defined(ESP_OPEN_RTOS) ||                                                  \
+    defined(ESP8266_RTOS_SDK) // ESP_PLATFORM for ESP8266_RTOS_SDK
 #define FREERTOS
 #define NO_ATOMIC
 #include <FreeRTOS.h>
@@ -54,23 +55,23 @@
 #undef WARN
 using cstr = const char *const;
 
-#define INFO(fmt, ...)                                                      \
-  {                                                                         \
-    char line[256];                                                         \
-    int len = snprintf(line, sizeof(line), "I %lu | %.12s:%.3d | ",         \
-                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);  \
-    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__); \
-    Serial.println(line);                                                   \
-    Serial.flush();                                                         \
+#define INFO(fmt, ...)                                                         \
+  {                                                                            \
+    char line[256];                                                            \
+    int len = snprintf(line, sizeof(line), "I %lu | %.12s:%.3d | ",            \
+                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);     \
+    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__);    \
+    Serial.println(line);                                                      \
+    Serial.flush();                                                            \
   }
-#define WARN(fmt, ...)                                                      \
-  {                                                                         \
-    char line[256];                                                         \
-    int len = snprintf(line, sizeof(line), "W %lu | %.12s:%.3d | ",         \
-                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);  \
-    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__); \
-    Serial.println(line);                                                   \
-    Serial.flush();                                                         \
+#define WARN(fmt, ...)                                                         \
+  {                                                                            \
+    char line[256];                                                            \
+    int len = snprintf(line, sizeof(line), "W %lu | %.12s:%.3d | ",            \
+                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);     \
+    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__);    \
+    Serial.println(line);                                                      \
+    Serial.flush();                                                            \
   }
 #else
 #include <Log.h>
@@ -82,8 +83,7 @@ using cstr = const char *const;
 #undef min
 #undef max
 
-typedef struct
-{
+typedef struct {
   uint32_t bufferOverflow = 0;
   uint32_t bufferPushBusy = 0;
   uint32_t bufferPopBusy = 0;
@@ -98,17 +98,14 @@ extern NanoStats stats;
 // INTERFACES nanoAkka
 //
 
-template <class T>
-class AbstractQueue
-{
+template <class T> class AbstractQueue {
 public:
   virtual bool pop(T &t) = 0;
   virtual bool push(const T &t) = 0; // const to be able to do something like
-                                    // push({"topic","message"});
+                                     // push({"topic","message"});
 };
 //--------------- give an object a name, useful for debugging
-class Named
-{
+class Named {
   std::string _name = "no-name";
 
 public:
@@ -116,24 +113,19 @@ public:
   const char *name() { return _name.c_str(); }
 };
 //--------------- something that can be invoked or execute something
-class Invoker
-{
+class Invoker {
 public:
   virtual void invoke() = 0;
 };
 //-------------- handler class for certain messages or events
-template <class T>
-class Subscriber
-{
+template <class T> class Subscriber {
 public:
   virtual void on(const T &t) = 0;
   virtual ~Subscriber(){};
 };
 #include <bits/atomic_word.h>
 //------------- handler function for certain messages or events
-template <class T>
-class SubscriberFunction : public Subscriber<T>
-{
+template <class T> class SubscriberFunction : public Subscriber<T> {
   std::function<void(const T &t)> _func;
 
 public:
@@ -141,21 +133,17 @@ public:
   void on(const T &t) { _func(t); }
 };
 //------------ generator of messages
-template <class T>
-class Publisher
-{
+template <class T> class Publisher {
 public:
   virtual void subscribe(Subscriber<T> *listener) = 0;
   void operator>>(Subscriber<T> &listener) { subscribe(&listener); }
   void operator>>(Subscriber<T> *listener) { subscribe(listener); }
-  void operator>>(std::function<void(const T &t)> func)
-  {
+  void operator>>(std::function<void(const T &t)> func) {
     subscribe(new SubscriberFunction<T>(func));
   }
 };
 //-----------------  can be prooked to publish something
-class Requestable
-{
+class Requestable {
 public:
   virtual void request() = 0;
 };
@@ -164,31 +152,28 @@ public:
 //
 #define BUSY (1 << 15) // busy read or write ptr
 
-#if defined(ESP_OPEN_RTOS) || defined(ESP8266_IDF) || defined(ESP_PLATFORM)
+#if defined(ESP_OPEN_RTOS) || defined(ESP8266_IDF)
 // Set Interrupt Level
 // level (0-15),
 // level 15 will disable ALL interrupts,
 // level 0 will enable ALL interrupts
 //
-#define xt_rsil(level)                               \
-  (__extension__({                                   \
-    uint32_t state;                                  \
-    __asm__ __volatile__("rsil %0," STRINGIFY(level) \
-                         : "=a"(state));             \
-    state;                                           \
+#define xt_rsil(level)                                                         \
+  (__extension__({                                                             \
+    uint32_t state;                                                            \
+    __asm__ __volatile__("rsil %0," STRINGIFY(level) : "=a"(state));           \
+    state;                                                                     \
   }))
-#define xt_wsr_ps(state)                               \
-  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) \
-                       : "memory")
+#define xt_wsr_ps(state)                                                       \
+  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) : "memory")
 #define interrupts() xt_rsil(0)
 #define noInterrupts() xt_rsil(15)
 #endif
 //#pragma GCC diagnostic ignored "-Warray-bounds"
 
 #ifdef NO_ATOMIC
-template <class T>
-class ArrayQueue : public AbstractQueue<T>
-{
+dfsdjhfks qfkqsljfh template <class T>
+class ArrayQueue : public AbstractQueue<T> {
   T *_array;
   int _size;
   int _readPtr;
@@ -196,19 +181,16 @@ class ArrayQueue : public AbstractQueue<T>
   inline int next(int idx) { return (idx + 1) % _size; }
 
 public:
-  ArrayQueue(int size) :_size(size)
-  {
+  ArrayQueue(int size) : _size(size) {
     _readPtr = _writePtr = 0;
-    _array=(T*)(malloc(size*sizeof(T*)));
+    _array = (T *)(malloc(size * sizeof(T *)));
   }
-  bool push(const T &t)
-  {
+  bool push(const T &t) {
     //    INFO("push %X", this);
     noInterrupts();
     int expected = _writePtr;
     int desired = next(expected);
-    if (desired == _readPtr)
-    {
+    if (desired == _readPtr) {
       stats.bufferOverflow++;
       interrupts();
       return false;
@@ -219,14 +201,12 @@ public:
     return true;
   }
 
-  bool pop(T &t)
-  {
+  bool pop(T &t) {
     //    INFO("pop %X", this);
     noInterrupts();
     int expected = _readPtr;
     int desired = next(expected);
-    if (expected == _writePtr)
-    {
+    if (expected == _writePtr) {
       interrupts();
       return false;
     }
@@ -241,28 +221,54 @@ public:
 
 #include <atomic>
 #include <cstdint>
+#include <stdlib.h>
 
 #if defined(STM32_OPENCM3)
-#define INDEX_TYPE uint16_t
-template <typename T, size_t cache_line_size = 16>
+#define INDEX_TYPE uint32_t
+template <typename T, size_t cache_line_size = 32>
+#elif defined(ESP32_IDF)
+#include <malloc.h>
+#define INDEX_TYPE uint32_t
+template <typename T, size_t cache_line_size = 4>
 #else
 template <typename T, size_t cache_line_size = 64>
 #define INDEX_TYPE uint64_t
 #endif
 
-class ArrayQueue
-{
+class ArrayQueue {
+private:
+  struct alignas(cache_line_size) Item {
+    T value;
+    std::atomic<INDEX_TYPE> version;
+  };
+
+  struct alignas(cache_line_size) AlignedAtomicU64
+      : public std::atomic<INDEX_TYPE> {
+    using std::atomic<INDEX_TYPE>::atomic;
+  };
+
+  Item *m_items;
+  size_t m_capacity;
+
+  // Make sure each index is on a different cache line
+  AlignedAtomicU64 m_head;
+  AlignedAtomicU64 m_tail;
+
 public:
   explicit ArrayQueue(size_t capacity)
 #if defined(STM32_OPENCM3) || defined(ESP8266_RTOS_SDK)
-      : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))), m_capacity(capacity), m_head(0), m_tail(0)
+      : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))),
+        m_capacity(capacity), m_head(0), m_tail(0)
 #else
-      : m_items(static_cast<Item *>(aligned_alloc(sizeof(Item) * capacity, cache_line_size))), m_capacity(capacity), m_head(0), m_tail(0)
+      //      : m_items(static_cast<Item
+      //      *>(aligned_alloc(cache_line_size,sizeof(Item) * capacity ))),
+      //      m_capacity(capacity), m_head(0), m_tail(0)
+      : m_capacity(capacity), m_head(0), m_tail(0)
 
 #endif
   {
-    for (size_t i = 0; i < capacity; ++i)
-    {
+    m_items = new Item[capacity];
+    for (size_t i = 0; i < capacity; ++i) {
       m_items[i].version = i;
     }
   }
@@ -275,316 +281,68 @@ public:
   ArrayQueue<T> &operator=(const ArrayQueue<T> &) = delete;
   ArrayQueue<T> &operator=(const ArrayQueue<T> &&) = delete;
 
-  bool push(const T &value)
-  {
+  bool push(const T &value) {
     INDEX_TYPE tail = m_tail.load(std::memory_order_relaxed);
 
-    if (m_items[tail % m_capacity].version.load(std::memory_order_acquire) != tail)
-    {
+    if (m_items[tail % m_capacity].version.load(std::memory_order_acquire) !=
+        tail) {
       return false;
     }
 
-    if (!m_tail.compare_exchange_strong(tail, tail + 1, std::memory_order_relaxed))
-    {
+    if (!m_tail.compare_exchange_strong(tail, tail + 1,
+                                        std::memory_order_relaxed)) {
       return false;
     }
 
     m_items[tail % m_capacity].value = value;
 
-    // Release operation, all reads/writes before this store cannot be reordered past it
-    // Writing version to tail + 1 signals reader threads when to read payload
-    m_items[tail % m_capacity].version.store(tail + 1, std::memory_order_release);
-
+    // Release operation, all reads/writes before this store cannot be reordered
+    // past it Writing version to tail + 1 signals reader threads when to read
+    // payload
+    m_items[tail % m_capacity].version.store(tail + 1,
+                                             std::memory_order_release);
     return true;
   }
 
-  bool pop(T &out)
-  {
+  bool pop(T &out) {
     INDEX_TYPE head = m_head.load(std::memory_order_relaxed);
 
-    // Acquire here makes sure read of m_data[head].value is not reordered before this
-    // Also makes sure side effects in try_enqueue are visible here
-    if (m_items[head % m_capacity].version.load(std::memory_order_acquire) != (head + 1))
-    {
+    // Acquire here makes sure read of m_data[head].value is not reordered
+    // before this Also makes sure side effects in try_enqueue are visible here
+    if (m_items[head % m_capacity].version.load(std::memory_order_acquire) !=
+        (head + 1)) {
       return false;
     }
 
-    if (!m_head.compare_exchange_strong(head, head + 1, std::memory_order_relaxed))
-    {
+    if (!m_head.compare_exchange_strong(head, head + 1,
+                                        std::memory_order_relaxed)) {
       return false;
     }
-
     out = m_items[head % m_capacity].value;
 
-    // This signals to writer threads that they can now write something to this index
-    m_items[head % m_capacity].version.store(head + m_capacity, std::memory_order_release);
-
+    // This signals to writer threads that they can now write something to this
+    // index
+    m_items[head % m_capacity].version.store(head + m_capacity,
+                                             std::memory_order_release);
     return true;
   }
 
   size_t capacity() const { return m_capacity; }
-
-private:
-  struct alignas(cache_line_size) Item
-  {
-    std::atomic<INDEX_TYPE> version;
-    T value;
-  };
-
-  struct alignas(cache_line_size) AlignedAtomicU64 : public std::atomic<INDEX_TYPE>
-  {
-    using std::atomic<INDEX_TYPE>::atomic;
-  };
-
-  Item *m_items;
-  size_t m_capacity;
-
-  // Make sure each index is on a different cache line
-  AlignedAtomicU64 m_head;
-  AlignedAtomicU64 m_tail;
 };
-/*
-typedef enum
-{
-  FREE = 0,
-  ACQUIRED,
-  READY
-} CellState; //
 
-#include <errno.h>
-template <class T, int SIZE>
-class ArrayQueue : public AbstractQueue<T>
-{
-  T _array[SIZE];
-  std::atomic<uint64_t> freeCells;
-  std::atomic<uint64_t> readyCells;
-
-public:
-  ArrayQueue()
-  {
-    freeCells = UINT64_MAX;
-    readyCells = 0;
-    if (SIZE > 64)
-      WARN(" incorrect size ");
-  }
-  int findCell(std::atomic<uint64_t> &cells) // 1 value
-  {
-    while (true)
-    {
-      uint64_t expected = cells;
-      if (expected == 0)
-        break;
-      uint64_t desired;
-      uint64_t mask = 1;
-      int idx;
-      for (idx = 0; idx < SIZE; idx++)
-      {
-        if (expected & mask)
-        {
-          desired = expected & ~mask;
-          if (cells.compare_exchange_strong(expected, desired,
-                                            std::memory_order_seq_cst,
-                                            std::memory_order_seq_cst))
-          {
-            return idx;
-          }
-        }
-        mask <<= 1;
-      }
-    }
-    return -1;
-  }
-
-  void setCell(std::atomic<uint64_t> &cells, int idx)
-  {
-    while (1)
-    {
-      uint64_t value = 1;
-      value <<= idx;
-      uint64_t expected = cells;
-      uint64_t desired = expected | value;
-      if (expected & value)
-        WARN(" cell already set ");
-      if (cells.compare_exchange_strong(expected, desired,
-                                        std::memory_order_seq_cst,
-                                        std::memory_order_seq_cst))
-        break;
-    };
-  }
-  void clrCell(std::atomic<uint64_t> &cells, int idx)
-  {
-    while (1)
-    {
-      uint64_t value = 1;
-      value <<= idx;
-      value = ~value;
-      uint64_t expected = cells;
-      uint64_t desired = expected & value;
-      if (expected & value == 0)
-        WARN(" cell already cleared ");
-      if (cells.compare_exchange_strong(expected, desired,
-                                        std::memory_order_seq_cst,
-                                        std::memory_order_seq_cst))
-        break;
-    }
-  }
-  int push(const T &t)
-  {
-    int idx;
-    idx = findCell(freeCells);
-    if (idx < 0)
-    {
-      WARN(" no cells free");
-      return ENOSPC;
-    }
-    _array[idx] = t;
-    setCell(readyCells, idx);
-    return 0;
-  }
-  int pop(T &t)
-  {
-    int idx = findCell(readyCells);
-    if (idx < 0)
-    {
-      WARN(" no cells ready");
-      return ENODATA;
-    }
-    t = _array[idx];STM32_OPENCM3
-    std::atomic<int> _readPtr;
-    std::atomic<int> _writePtr;
-    inline int next(int idx) { return (idx + 1) % SIZE; }
-
-  public:
-    ArrayQueue() { _readPtr = _writePtr = 0; }
-
-    int push(const T &t)
-    {
-      int cnt = 0;
-      int expected = 0;
-      int desired = 0;
-      while (cnt++ < 5)
-      {
-        expected = _writePtr;
-        if (expected & BUSY)
-        {
-          stats.bufferPushBusy++;
-          WARN("BUSY");
-          return ENODATA;
-        }
-        desired = next(expected);
-        if (desired == _readPtr % SIZE)
-        {
-          return ENOBUFS;
-        }
-        desired |= BUSY;
-        if (_writePtr.compare_exchange_strong(expected, desired,
-                                              std::memory_order_seq_cst,
-                                              std::memory_order_seq_cst))
-        {
-          expected = desired;
-          desired &= ~BUSY;
-          _array[desired] = t;
-          //        _array[desired] = std::move(t);
-          while (_writePtr.compare_exchange_strong(
-                     expected, desired, std::memory_order_seq_cst,
-                     std::memory_order_seq_cst) == false)
-          {
-            WARN("writePtr<%s,%d> remove busy failed %u:%u:%u", S(T), SIZE,
-                 expected, _writePtr.load(), desired);
-            stats.bufferCasRetries++;
-#ifdef FREERTOS
-            vTaskDelay(1);
-#endif
-          }
-          return 0;
-        }
-        else
-        {
-          stats.bufferCasRetries++;
-#ifdef FREERTOS
-          vTaskDelay(1);
-#endif
-        }
-      }
-      WARN("writePtr<%s,%d> update failed %u:%u:%u", S(T), SIZE, expected,
-           _writePtr.load(), desired);
-      stats.bufferPushCasFailed++;
-      return -1;
-    }
-
-    int pop(T &t)
-    {
-      int cnt = 0;
-      int expected = 0;
-      int desired = 0;
-      while (cnt++ < 5)
-      {
-        expected = _readPtr.load();
-        if (expected & BUSY)
-        {
-          stats.bufferPopBusy++;
-          WARN("BUSY");
-          return ENODATA;
-        }
-        desired = next(expected);
-        if (expected == _writePtr % SIZE)
-        {
-          //				WARN("EMPTY");
-          return ENOBUFS;
-        }
-
-        desired |= BUSY;
-        if (_readPtr.compare_exchange_strong(expected, desired,
-                                             std::memory_order_seq_cst,
-                                             std::memory_order_seq_cst))
-        {
-          expected = desired;
-          desired &= ~BUSY;
-          //       t = std::move(_array[desired]);
-          t = _array[desired];
-          while (_readPtr.compare_exchange_strong(
-                     expected, desired, std::memory_order_seq_cst,
-                     std::memory_order_seq_cst) == false)
-          {
-            stats.bufferCasRetries++;
-#ifdef FREERTOS
-            vTaskDelay(1);
-#endif
-            WARN("readPtr<%s,%d> remove busy failed %u:%u:%u", S(T), SIZE,
-                 expected, _readPtr.load(), desired);
-          }
-          return 0;
-        }
-        else
-        {
-          stats.bufferCasRetries++;
-#ifdef FREERTOS
-          vTaskDelay(1);
-#endif
-        }
-      }
-      WARN("readPtr<%s,%d> update failed %u:%u:%u", S(T), SIZE, expected,
-           _readPtr.load(), desired);
-      stats.bufferPopCasFailed++;
-      return -1;
-    }
-  };
-  */
 #endif
 
 // STREAMS
 class TimerSource;
 //____________________________________________________________________ THREAD __
-struct ThreadProperties
-{
+struct ThreadProperties {
   const char *name = "noName";
   int stackSize = 0;
   int queueSize = 0;
   int priority = 0;
 };
 
-class Thread : public Named
-{
+class Thread : public Named {
 #ifdef LINUX
   int _pipeFd[2];
   int _writePipe = 0;
@@ -617,19 +375,15 @@ public:
 
 //_____________________________________________________________________ SOURCE _
 //
-template <class T>
-class Source : public Publisher<T>, public Requestable
-{
+template <class T> class Source : public Publisher<T>, public Requestable {
   std::vector<Subscriber<T> *> _listeners;
   T _last;
 
 public:
   void subscribe(Subscriber<T> *listener) { _listeners.push_back(listener); }
-  void emit(const T &t)
-  {
+  void emit(const T &t) {
     _last = t;
-    for (Subscriber<T> *listener : _listeners)
-    {
+    for (Subscriber<T> *listener : _listeners) {
       listener->on(t);
     }
   }
@@ -638,9 +392,7 @@ public:
 };
 //____________________________________________________________ LAMBDASOURCE
 //
-template <class T>
-class LambdaSource : public Source<T>
-{
+template <class T> class LambdaSource : public Source<T> {
   std::function<T()> _handler;
 
 public:
@@ -649,17 +401,14 @@ public:
 };
 //__________________________________________________________________________
 //
-template <class T>
-class RefSource : public Source<T>
-{
+template <class T> class RefSource : public Source<T> {
   T &_t;
   bool _pass = true;
 
 public:
   RefSource(T &t) : _t(t){};
   void request() { this->emit(_t); }
-  void operator=(T t)
-  {
+  void operator=(T t) {
     _t = t;
     if (_pass)
       this->emit(_t);
@@ -669,9 +418,7 @@ public:
 };
 //__________________________________________________________________________
 //
-template <class T>
-class ValueSource : public Source<T>
-{
+template <class T> class ValueSource : public Source<T> {
   T _t;
   bool _pass = true;
 
@@ -679,8 +426,7 @@ public:
   ValueSource(){};
   ValueSource(T t) { _t = t; }
   void request() { this->emit(_t); }
-  void operator=(T t)
-  {
+  void operator=(T t) {
     _t = t;
     if (_pass)
       this->emit(_t);
@@ -699,20 +445,17 @@ public:
 //	start : restart timer from now+interval
 //_______________________________________________________________ TimerSource
 //
-class TimerMsg
-{
+class TimerMsg {
 public:
   TimerSource *source;
 };
 
-class TimerSource : public Source<TimerMsg>, public Named
-{
+class TimerSource : public Source<TimerMsg>, public Named {
   uint32_t _interval = UINT32_MAX;
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
 
-  void setNewExpireTime()
-  {
+  void setNewExpireTime() {
     uint64_t now = Sys::millis();
     _expireTime += _interval;
     if (_expireTime < now && _repeat)
@@ -720,36 +463,36 @@ class TimerSource : public Source<TimerMsg>, public Named
   }
 
 public:
-  TimerSource(Thread &thr, uint32_t interval, bool repeat, const char *name = "unknownTimer1") : Named(name)
-  {
+  TimerSource(Thread &thr, uint32_t interval, bool repeat,
+              const char *name = "unknownTimer1")
+      : Named(name) {
     _interval = interval;
     _repeat = repeat;
     if (repeat)
       start();
     thr.addTimer(this);
   }
-  TimerSource(Thread &thr, const char *name = "unknownTimer2") : TimerSource(thr, UINT32_MAX, false, name)
-  {
+  TimerSource(Thread &thr, const char *name = "unknownTimer2")
+      : TimerSource(thr, UINT32_MAX, false, name) {
     thr.addTimer(this);
   }
 
-  TimerSource(const char *name = "unknownTimer3") : Named(name) { _expireTime = Sys::now() + _interval; };
+  TimerSource(const char *name = "unknownTimer3") : Named(name) {
+    _expireTime = Sys::now() + _interval;
+  };
   ~TimerSource() { WARN(" timer destructor. Really ? "); }
 
   void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
   void start() { _expireTime = Sys::millis() + _interval; }
-  void start(uint32_t interval)
-  {
+  void start(uint32_t interval) {
     _interval = interval;
     start();
   }
   void stop() { _expireTime = UINT64_MAX; }
   void interval(uint32_t i) { _interval = i; }
-  void request()
-  {
-    if (Sys::millis() >= _expireTime)
-    {
+  void request() {
+    if (Sys::millis() >= _expireTime) {
       if (_repeat)
         setNewExpireTime();
       else
@@ -764,54 +507,51 @@ public:
 };
 //____________________________________  SINK ______________________
 template <class T>
-class Sink : public Subscriber<T>, public Invoker, public Named
-{
+class Sink : public Subscriber<T>, public Invoker, public Named {
   ArrayQueue<T> _queue;
   std::function<void(const T &)> _func;
   Thread *_thread = 0;
   T _lastValue;
 
 public:
-  Sink(int capacity, const char *name = "unknown") : Named(name), _queue(capacity)
-  {
-    _func = [&](const T &t) { (void)t;WARN(" no handler attached to this sink "); };
+  Sink(int capacity, const char *name = "unknown")
+      : Named(name), _queue(capacity) {
+    _func = [&](const T &t) {
+      (void)t;
+      WARN(" no handler attached to this sink ");
+    };
   }
   ~Sink() { WARN(" Sink destructor. Really ? "); }
-  Sink(int capacity,std::function<void(const T &)> handler, const char *name = "unknownSink") : Named(name),_queue(capacity), _func(handler){};
+  Sink(int capacity, std::function<void(const T &)> handler,
+       const char *name = "unknown")
+      : Named(name), _queue(capacity), _func(handler){};
 
-  void on(const T &t)
-  {
-    if (_thread)
-    {
+  void on(const T &t) {
+    if (_thread) {
       if (_queue.push(t))
         _thread->enqueue(this);
-      else
+      else {
+        WARN("push failed");
         stats.bufferOverflow++;
-    }
-    else
-    {
+      }
+    } else {
       _func(t);
     }
   }
-  /*
-  virtual void request() {
-    invoke();
-  }*/
-  void invoke()
-  {
-    if (_queue.pop(_lastValue))
+
+  virtual void request() { invoke(); }
+  void invoke() {
+    if (_queue.pop(_lastValue)) {
       _func(_lastValue);
-    else
+    } else
       WARN(" no data in queue");
   }
 
-  void async(Thread &thread, std::function<void(const T &)> func)
-  {
+  void async(Thread &thread, std::function<void(const T &)> func) {
     _func = func;
     _thread = &thread;
   }
-  void sync(std::function<void(const T &)> func)
-  {
+  void sync(std::function<void(const T &)> func) {
     _thread = 0;
     _func = func;
   }
@@ -821,19 +561,16 @@ public:
 //_________________________________________________ Flow ________________
 //
 template <class IN, class OUT>
-class Flow : public Subscriber<IN>, public Source<OUT>
-{
+class Flow : public Subscriber<IN>, public Source<OUT> {
 public:
-  void operator==(Flow<OUT, IN> &flow)
-  {
+  void operator==(Flow<OUT, IN> &flow) {
     this->subscribe(&flow);
     flow.subscribe(this);
   };
 };
 // -------------------------------------------------------- Cache
 template <class T>
-class Cache : public Flow<T, T>, public Subscriber<TimerMsg>
-{
+class Cache : public Flow<T, T>, public Subscriber<TimerMsg> {
   Thread &_thread;
   uint32_t _min, _max;
   bool _unsendValue = false;
@@ -843,36 +580,29 @@ class Cache : public Flow<T, T>, public Subscriber<TimerMsg>
 
 public:
   Cache(Thread &thread, uint32_t min, uint32_t max, bool request = false)
-      : _thread(thread), _min(min), _max(max), _timerSource(thread)
-  {
+      : _thread(thread), _min(min), _max(max), _timerSource(thread) {
     _timerSource.interval(min);
     _timerSource.start();
     _timerSource.subscribe(this);
   }
-  void on(const T &t)
-  {
+  void on(const T &t) {
     _t = t;
     uint64_t now = Sys::millis();
     _unsendValue = true;
-    if (_lastSend + _min < now)
-    {
+    if (_lastSend + _min < now) {
       this->emit(t);
       _unsendValue = false;
       _lastSend = now;
     }
   }
-  void on(const TimerMsg &tm)
-  {
+  void on(const TimerMsg &tm) {
     uint64_t now = Sys::millis();
-
-    if (_unsendValue)
-    {
+    if (_unsendValue) {
       this->emit(_t);
       _unsendValue = false;
       _lastSend = now;
     }
-    if (now > _lastSend + _max)
-    {
+    if (now > _lastSend + _max) {
       this->emit(_t);
       _unsendValue = false;
       _lastSend = now;
@@ -881,8 +611,7 @@ public:
   }
   void request() { this->emit(_t); }
 
-  static Cache<T> &nw(Thread &t, uint32_t min, uint32_t max)
-  {
+  static Cache<T> &nw(Thread &t, uint32_t min, uint32_t max) {
     auto cache = new Cache<T>(t, min, max);
     return *cache;
   }
@@ -890,39 +619,31 @@ public:
 //_____________________________________________________________________________
 //
 template <class T>
-class QueueFlow : public Flow<T, T>, public Invoker
-{
+class QueueFlow : public Flow<T, T>, public Invoker, public Named {
   ArrayQueue<T> _queue;
-  std::function<void(const T &)> _func;
   Thread *_thread = 0;
 
 public:
-  QueueFlow(size_t capacity) : _queue(capacity){};
-  void on(const T &t)
-  {
-    if (_thread)
-    {
+  QueueFlow(size_t capacity, const char *name = "QueueFlow")
+      : Named(name), _queue(capacity){};
+  void on(const T &t) {
+    if (_thread) {
       if (_queue.push(t))
         _thread->enqueue(this);
       else
         WARN(" push failed");
-    }
-    else
-    {
+    } else {
       this->emit(t);
     }
   }
   void request() { invoke(); }
-  void invoke()
-  {
+  void invoke() {
     T value;
-    if (_queue.pop(value))
-    {
-      WARN(" no data ");
-    }
-    else
-    {
+    INFO("invoked");
+    if (_queue.pop(value)) {
       this->emit(value);
+    } else {
+      WARN(" no data ");
     }
   }
 
@@ -933,14 +654,11 @@ public:
 //________________________________________________________________
 //
 
-template <class IN, class OUT>
-class LambdaFlow : public Flow<IN, OUT>
-{
+template <class IN, class OUT> class LambdaFlow : public Flow<IN, OUT> {
   std::function<int(OUT &, const IN &)> _func;
 
 public:
-  LambdaFlow()
-  {
+  LambdaFlow() {
     _func = [](OUT &out, const IN &in) {
       WARN("no handler for this flow");
       return ENODATA;
@@ -948,15 +666,14 @@ public:
   };
   LambdaFlow(std::function<int(OUT &, const IN &)> func) : _func(func){};
   void lambda(std::function<int(OUT &, const IN &)> func) { _func = func; }
-  virtual void on(const IN &in)
-  {
+  virtual void on(const IN &in) {
     OUT out;
-    if (_func(out, in) == 0)
+    if (_func(out, in) == 0) {
       this->emit(out);
+    }
   }
   void request(){};
-  static LambdaFlow<IN, OUT> &nw(std::function<int(OUT &, const IN &)> func)
-  {
+  static LambdaFlow<IN, OUT> &nw(std::function<int(OUT &, const IN &)> func) {
     auto lf = new LambdaFlow(func);
     return *lf;
   }
@@ -965,17 +682,14 @@ public:
 //________________________________________________________________
 //
 template <class IN, class OUT>
-Source<OUT> &operator>>(Publisher<OUT> &publisher, Flow<IN, OUT> &flow)
-{
+Source<OUT> &operator>>(Publisher<OUT> &publisher, Flow<IN, OUT> &flow) {
   publisher.subscribe(&flow);
   return flow;
 }
 
 //________________________________________________________________
 //
-template <class T>
-class ValueFlow : public Flow<T, T>
-{
+template <class T> class ValueFlow : public Flow<T, T> {
   T _t;
   bool _pass = true;
 
@@ -983,15 +697,13 @@ public:
   ValueFlow(){};
   ValueFlow(T t) { _t = std::move(t); }
   void request() { this->emit(_t); }
-  void operator=(T t)
-  {
+  void operator=(T t) {
     _t = std::move(t);
     if (_pass)
       this->emit(_t);
   }
   T &operator()() { return _t; }
-  void on(const T &in)
-  {
+  void on(const T &in) {
     _t = std::move(in);
     this->emit(_t);
   }
@@ -999,8 +711,7 @@ public:
 };
 //______________________________________ Actor __________________________
 //
-class Actor
-{
+class Actor {
   Thread &_thread;
 
 public:

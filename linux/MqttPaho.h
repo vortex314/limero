@@ -51,7 +51,6 @@ class MqttPaho : public Mqtt {
   static void onDeliveryComplete(void* context, MQTTAsync_token response);
 
  public:
-  ValueSource<bool> connected;
   TimerSource keepAliveTimer;
   MqttPaho(Thread& thread);
   ~MqttPaho();

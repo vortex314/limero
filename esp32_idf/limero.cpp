@@ -14,13 +14,13 @@ int Thread::_id=0;
 Thread::Thread(const char *name) : Named(name)
 {
     _queueSize = 20;
-    _stackSize = 5000;
+    _stackSize = 10000;
     _priority = configMAX_PRIORITIES - 1;
 }
 
 void Thread::createQueue()
 {
-    _workQueue = xQueueCreate(20, sizeof(Invoker *));
+    _workQueue = xQueueCreate(20, sizeof(Invoker *)); 
     if ( _workQueue== NULL) WARN("Queue creation failed ");
 }
 
@@ -61,6 +61,7 @@ int Thread::enqueueFromIsr(Invoker* invoker)
 void Thread::run()
 {
     INFO("Thread '%s' started ",name());
+    createQueue();
     uint32_t noWaits=0;
     while(true) {
         uint64_t now = Sys::millis();

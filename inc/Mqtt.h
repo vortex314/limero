@@ -7,20 +7,17 @@
 #include <set>
 
 class Mqtt;
-template <class T>
-class ToMqtt;
-template <class T>
-class FromMqtt;
-template <class T>
-class MqttFlow;
+template <class T> class ToMqtt;
+template <class T> class FromMqtt;
+template <class T> class MqttFlow;
 
-typedef struct MqttMessage {
+struct MqttMessage {
   std::string topic;
   std::string message;
-} MqttMessage;
+};
 
 class MqttBlock {
- public:
+public:
   std::string topic;
   //  Bytes data;
   uint32_t offset;
@@ -41,7 +38,7 @@ class MqttBlock {
 //____________________________________________________________________________________________________________
 //
 class Mqtt : public Actor {
- public:
+public:
   std::string dstPrefix;
   std::string srcPrefix;
   std::set<std::string> subscriptions;
@@ -50,7 +47,8 @@ class Mqtt : public Actor {
   ValueFlow<MqttBlock> blocks;
   ValueSource<bool> connected;
   TimerSource keepAliveTimer;
-  Mqtt(Thread &thr) : Actor(thr),incoming(4),outgoing(4) {
+  Mqtt(Thread &thr)
+      : Actor(thr), incoming(4, "incoming"), outgoing(4, "outgoing") {
     dstPrefix = "dst/";
     dstPrefix += Sys::hostname();
     dstPrefix += "/";
@@ -60,20 +58,17 @@ class Mqtt : public Actor {
   };
   ~Mqtt(){};
   void init();
-  template <class T>
-  Subscriber<T> &toTopic(const char *name) {
+  template <class T> Subscriber<T> &toTopic(const char *name) {
     auto flow = new ToMqtt<T>(name, this);
     *flow >> outgoing;
     return *flow;
   }
-  template <class T>
-  Source<T> &fromTopic(const char *name) {
+  template <class T> Source<T> &fromTopic(const char *name) {
     auto newSource = new FromMqtt<T>(name, this);
     incoming >> *newSource;
     return *newSource;
   }
-  template <class T>
-  Flow<T, T> &topic(const char *name) {
+  template <class T> Flow<T, T> &topic(const char *name) {
     auto flow = new MqttFlow<T>(name, this);
     incoming >> flow->fromMqtt;
     flow->toMqtt >> outgoing;
@@ -83,24 +78,25 @@ class Mqtt : public Actor {
 
 //____________________________________________________________________________________________________________
 //
-template <class T>
-class ToMqtt : public LambdaFlow<T, MqttMessage> {
+template <class T> class ToMqtt : public LambdaFlow<T, MqttMessage> {
   std::string _name;
+  Mqtt *_mqtt;
 
- public:
+public:
   ToMqtt(std::string name, Mqtt *mqtt)
-      : LambdaFlow<T, MqttMessage>([&](MqttMessage& msg,const T &event) {
-          std::string s;
+      : LambdaFlow<T, MqttMessage>([&](MqttMessage &msg, const T &event) {
+          if (!_mqtt->connected())
+            return ENOTCONN;
           DynamicJsonDocument doc(100);
           JsonVariant variant = doc.to<JsonVariant>();
           variant.set(event);
-          serializeJson(doc, s);
-          msg = {_name, s};
+          serializeJson(doc, msg.message);
+          msg.topic = _name;
           return 0;
         }),
         _name(name) {
+    _mqtt = mqtt;
     std::string topic = name;
-    std::string targetTopic;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
       INFO(" no prefix for %s ", name.c_str());
       _name = name;
@@ -113,14 +109,14 @@ class ToMqtt : public LambdaFlow<T, MqttMessage> {
 };
 //_______________________________________________________________________________________________________________
 //
-template <class T>
-class FromMqtt : public LambdaFlow<MqttMessage, T> {
+template <class T> class FromMqtt : public LambdaFlow<MqttMessage, T> {
   std::string _name;
 
- public:
+public:
   FromMqtt(std::string name, Mqtt *mqtt)
-      : LambdaFlow<MqttMessage, T>([&](T& t,const MqttMessage &mqttMessage) {
-          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(), mqttMessage.message.c_str(),_name.c_str());
+      : LambdaFlow<MqttMessage, T>([&](T &t, const MqttMessage &mqttMessage) {
+          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(),
+               mqttMessage.message.c_str(), _name.c_str());
           if (mqttMessage.topic != _name) {
             return EINVAL;
           }
@@ -141,12 +137,12 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
                  mqttMessage.message.c_str());
             return ENODATA;
           }
-        t=  variant.as<T>();
+          t = variant.as<T>();
           return 0;
           // emit doesn't work as such
           // https://stackoverflow.com/questions/9941987/there-are-no-arguments-that-depend-on-a-template-parameter
         }) {
-          
+
     std::string topic = name;
     std::string targetTopic;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
@@ -163,17 +159,15 @@ class FromMqtt : public LambdaFlow<MqttMessage, T> {
 
 //____________________________________________________________________________________________________________
 //
-template <class T>
-class MqttFlow : public Flow<T, T> {
- public:
+template <class T> class MqttFlow : public Flow<T, T> {
+public:
   ToMqtt<T> toMqtt;
   FromMqtt<T> fromMqtt;
   MqttFlow(const char *topic, Mqtt *mqtt)
-      : toMqtt(topic, mqtt),
-        fromMqtt(topic, mqtt){
+      : toMqtt(topic, mqtt), fromMqtt(topic, mqtt){
 
-            //       INFO(" created MqttFlow : %s ",topic);
-        };
+                                 //       INFO(" created MqttFlow : %s ",topic);
+                             };
   void request() { fromMqtt.request(); };
   void on(const T &t) { toMqtt.on(t); }
   void subscribe(Subscriber<T> *tl) { fromMqtt.subscribe(tl); };

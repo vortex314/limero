@@ -1,5 +1,5 @@
 /*
- * LOg.cpp
+ * Log.cpp
  *
  *  Created on: Jul 3, 2016
  *      Author: lieven
@@ -12,26 +12,6 @@ extern "C" {
 }
 
 char Log::_logLevel[7] = {'T', 'D', 'I', 'W', 'E', 'F', 'N'};
-
-#ifdef ARDUINO
-#include <Arduino.h>
-#include <WString.h>
-#endif
-
-#ifdef STM32_OPENCM3
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/usart.h>
-#endif
-
-#ifdef LM4F_OPENCM3
-#include <libopencm3/lm4f/uart.h>
-#endif
-
-#ifdef ESP32_IDF
-#endif
-#ifdef ESP_OPEN_RTOS
-#endif
 
 std::string& string_format(std::string& str, const char* fmt, ...) {
     int size = strlen(fmt) * 2 + 50; // Use a rubric appropriate for your code
@@ -65,23 +45,9 @@ void bytesToHex(std::string& ret, uint8_t* input, uint32_t length, char sep) {
 }
 
 void Log::serialLog(char* start, uint32_t length) {
-#ifdef ARDUINO
-    Serial.write((const uint8_t*)start, length);
-    Serial.write("\r\n");
-#endif
-#if defined(STM32_OPENCM3) || defined(LM4F_OPENCM3)
-    *(start + length) = '\0';
-    char* s = start;
-    while (*s) {
-        uart_send_blocking(0, *(s++));
-    }
-#endif
-#if defined(__linux__) || defined(ESP_OPEN_RTOS) || defined(ESP8266_RTOS_SDK) || defined(ESP32_IDF) ||      \
-    defined(__APPLE__)
     *(start + length) = '\0';
     fprintf(stdout, "%s\n", start);
     fflush(stdout);
-#endif
 }
 
 Log::Log(uint32_t size)
@@ -122,12 +88,6 @@ void Log::writer(LogFunction function) { _logFunction = function; }
 
 LogFunction Log::writer() { return _logFunction; }
 
-#ifdef ESP8266
-extern "C" {
-#include <ets_sys.h>
-};
-#endif
-
 void Log::application(const char* app) {
     strncpy(_application, app, sizeof(_application));
 }
@@ -147,16 +107,11 @@ void Log::log(char level, const char* file, uint32_t lineNbr,
     static char logLine[256];
     vsnprintf(logLine, sizeof(logLine) - 1, fmt, args);
     va_end(args);
-#ifdef __linux__
-    //	::snprintf(_application,sizeof(_application),"%X",(uint32_t)pthread_self());
-    pthread_getname_np(pthread_self(), _application, sizeof(_application));
-#endif
-#if defined(ESP32_IDF) || defined(ESP_OPEN_RTOS) || defined(ESP8266_RTOS_SDK)
+
     extern void* pxCurrentTCB;
     //	if ( _application[0]==0)
     ::snprintf(_application, sizeof(_application), "%X",
                (uint32_t)pxCurrentTCB);
-#endif
     string_format(*_line, "%+10.10s %c | %8s | %s | %15s:%4d | %s",
                   _application, level, time(), Sys::hostname(), file, lineNbr,
                   logLine);
@@ -202,22 +157,10 @@ extern const char* __progname;
 #endif
 //_________________________________________ EMBEDDED
 
-#if defined(ESP32_IDF) || defined(ARDUINO)
 const char* Log::time() {
     static char szTime[20];
     snprintf(szTime, sizeof(szTime), "%llu", Sys::millis());
     return szTime;
 }
-#endif
 
-#if defined(ESP_OPEN_RTOS) || defined(ESP8266_RTOS_SDK) // doesn't support 64 bit printf
-const char* Log::time() {
-    static char szTime[20];
-    snprintf(szTime, sizeof(szTime), "%d", (uint32_t)Sys::millis());
-    return szTime;
-}
-#endif
 
-#ifdef ARDUINO
-
-#endif
