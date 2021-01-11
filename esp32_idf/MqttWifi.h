@@ -27,7 +27,7 @@ extern "C" {
 #define TIMEOUT 10000L
 
 class MqttWifi : public Mqtt {
-//  StaticJsonDocument<3000> _jsonBuffer;
+  //  StaticJsonDocument<3000> _jsonBuffer;
   std::string _clientId;
   std::string _address;
   esp_mqtt_client_handle_t _mqttClient;
@@ -35,26 +35,26 @@ class MqttWifi : public Mqtt {
   std::string _lwt_message;
   TimerSource _reportTimer;
   TimerSource _keepAliveTimer;
+
   std::string _lastTopic;
   MqttOta mqttOta;
 
- public:
+public:
   Sink<bool> wifiConnected;
-  TimerSource keepAliveTimer;
-  MqttWifi(Thread& thread);
+  MqttWifi(Thread &thread);
   ~MqttWifi();
   void init();
 
-  void mqttPublish(const char* topic, const char* message);
-  void mqttSubscribe(const char* topic);
+  void mqttPublish(const char *topic, const char *message);
+  void mqttSubscribe(const char *topic);
   void mqttConnect();
   void mqttDisconnect();
 
-  bool handleMqttMessage(const char* message);
-  static int mqtt_event_handler(esp_mqtt_event_t* event);
+  bool handleMqttMessage(const char *message);
+  static int mqtt_event_handler(esp_mqtt_event_t *event);
 
-  void onNext(const TimerMsg&);
-  void onNext(const MqttMessage&);
+  void onNext(const TimerMsg &);
+  void onNext(const MqttMessage &);
   void request();
 };
 

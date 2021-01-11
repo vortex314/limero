@@ -46,7 +46,7 @@ public:
   Sink<MqttMessage> outgoing;
   ValueFlow<MqttBlock> blocks;
   ValueSource<bool> connected;
-  TimerSource keepAliveTimer;
+//  TimerSource keepAliveTimer;
   Mqtt(Thread &thr)
       : Actor(thr), incoming(4, "incoming"), outgoing(4, "outgoing") {
     dstPrefix = "dst/";

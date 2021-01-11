@@ -403,24 +403,24 @@ public:
 //
 template <class T> class RefSource : public Source<T> {
   T &_t;
-  bool _pass = true;
+  //  bool _pass = true;
 
 public:
   RefSource(T &t) : _t(t){};
   void request() { this->emit(_t); }
   void operator=(T t) {
     _t = t;
-    if (_pass)
-      this->emit(_t);
+    //   if (_pass)
+    this->emit(_t);
   }
-  void pass(bool p) { _pass = p; }
+  //  void pass(bool p) { _pass = p; }
   T &operator()() { return _t; }
 };
 //__________________________________________________________________________
 //
 template <class T> class ValueSource : public Source<T> {
   T _t;
-  bool _pass = true;
+  // bool _pass = true;
 
 public:
   ValueSource(){};
@@ -428,11 +428,11 @@ public:
   void request() { this->emit(_t); }
   void operator=(T t) {
     _t = t;
-    if (_pass)
-      this->emit(_t);
+    //  if (_pass)
+    this->emit(_t);
   }
   T &operator()() { return _t; }
-  void pass(bool p) { _pass = p; }
+  //  void pass(bool p) { _pass = p; }
 };
 //__________________________________________________________________________`
 //
@@ -463,7 +463,7 @@ class TimerSource : public Source<TimerMsg>, public Named {
   }
 
 public:
-  TimerSource(Thread &thr, uint32_t interval, bool repeat,
+  TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
               const char *name = "unknownTimer1")
       : Named(name) {
     _interval = interval;
@@ -472,17 +472,13 @@ public:
       start();
     thr.addTimer(this);
   }
-  TimerSource(Thread &thr, const char *name = "unknownTimer2")
-      : TimerSource(thr, UINT32_MAX, false, name) {
-    thr.addTimer(this);
-  }
-
+/*
   TimerSource(const char *name = "unknownTimer3") : Named(name) {
     _expireTime = Sys::now() + _interval;
-  };
+  };*/
   ~TimerSource() { WARN(" timer destructor. Really ? "); }
 
-  void attach(Thread &thr) { thr.addTimer(this); }
+  // void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
   void start() { _expireTime = Sys::millis() + _interval; }
   void start(uint32_t interval) {
@@ -539,7 +535,7 @@ public:
     }
   }
 
-  virtual void request() { invoke(); }
+  //  virtual void request() { invoke(); }
   void invoke() {
     if (_queue.pop(_lastValue)) {
       _func(_lastValue);
@@ -555,7 +551,7 @@ public:
     _thread = 0;
     _func = func;
   }
-  T operator()() { return _lastValue; }
+  //  T operator()() { return _lastValue; }
 };
 
 //_________________________________________________ Flow ________________

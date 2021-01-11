@@ -58,7 +58,6 @@ NanoAkka.h , Mqtt.h are independent of the port and used in other projects.
 ## Directory structure 
 ```
 ├── components
-│   ├── Common -> ../../Common/
 │   ├── config -> store data in non-volatile storage
 │   ├── gps		-> drive NEO6M
 │   ├── hmc5883	-> magnetic sensor
@@ -85,3 +84,8 @@ I2MzE3MzI3OV19
 
 
 12 directories
+
+## References
+https://www.codersblock.org/blog/2016/6/02/ditching-the-mutex
+https://github.com/spectre1989/fast_mpmc_queue/blob/master/MPMCQueue.h
+

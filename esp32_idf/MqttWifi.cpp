@@ -23,8 +23,7 @@
 //________________________________________________________________________
 //
 MqttWifi::MqttWifi(Thread &thread)
-    : Mqtt(thread), _reportTimer(thread, 500, true), _keepAliveTimer(thread),
-      wifiConnected(1) {
+    : Mqtt(thread), _reportTimer(thread, 500, true,"report"),_keepAliveTimer(thread,1000,true,"keepAlive"),wifiConnected(1) {
   _lwt_message = "false";
   incoming.async(thread);
 }
@@ -81,9 +80,7 @@ void MqttWifi::init() {
 
   subscriptions.emplace(dstPrefix + "#");
 
-  keepAliveTimer.interval(1000);
-  keepAliveTimer.repeat(true);
-  keepAliveTimer >> [&](const TimerMsg &tm) {
+  _keepAliveTimer >> [&](const TimerMsg &tm) {
     if (connected())
       outgoing.on({_lwt_topic, "true"});
   };
@@ -192,8 +189,8 @@ typedef enum { PING = 0, PUBLISH, PUBACK, SUBSCRIBE, SUBACK } CMD;
 void MqttWifi::mqttPublish(const char *topic, const char *message) {
   if (connected() == false)
     return;
-	INFO("PUB : %s = %s", topic, message);
-  int id =0;
+  INFO("PUB : %s = %s", topic, message);
+  int id = 0;
   id = esp_mqtt_client_publish(_mqttClient, topic, message, 0, 0, 0);
   if (id < 0)
     WARN("esp_mqtt_client_publish() failed.");
