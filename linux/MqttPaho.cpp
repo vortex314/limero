@@ -57,9 +57,9 @@ void MqttPaho::init()
   outgoing.async(thread(), [&](const MqttMessage &m) {
     publish(m.topic.c_str(), m.message.c_str());
   });
-  keepAliveTimer.interval(1000);
-  keepAliveTimer.repeat(true);
-  keepAliveTimer >> [&](const TimerMsg &tm) {
+  _keepAliveTimer.interval(1000);
+  _keepAliveTimer.repeat(true);
+  _keepAliveTimer >> [&](const TimerMsg &tm) {
     INFO("");
     if (connected())
       outgoing.on({_lastWillTopic, "true"});
