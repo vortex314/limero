@@ -45,7 +45,6 @@ class MqttSerial : public Mqtt {
  public:
   static void onRxd(void *);
 
-  ValueSource<bool> connected;
   TimerSource keepAliveTimer;
   TimerSource connectTimer;
   MqttSerial(Thread &thr);

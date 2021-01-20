@@ -3,10 +3,10 @@
 MqttSerial::MqttSerial(Thread &thr)
     : Mqtt(thr),
       _uart(UART::create(UART_NUM_0, 1, 3)),
-      connected(false),
       keepAliveTimer(thr, 500, true, "keepAlive"),
       connectTimer(thr, 3000, true, "connect")
 {
+  connected=false;
   _rxdString.reserve(256);
 }
 MqttSerial::~MqttSerial() {}
