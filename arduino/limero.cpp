@@ -10,6 +10,8 @@
 */
 int Thread::_id = 0;
 
+Thread::Thread(const char* name):Named(name),_workQueue(10) {};
+
 void Thread::createQueue() {}
 
 void Thread::start() {}
@@ -43,7 +45,7 @@ void Thread::loop() {
 
   if (waitTime > 0) {
     Invoker *prq;
-    if (_workQueue.pop(prq) == 0) {
+    if (_workQueue.pop(prq) == true) {
       uint64_t start = Sys::millis();
       prq->invoke();
       uint32_t delta = Sys::millis() - start;

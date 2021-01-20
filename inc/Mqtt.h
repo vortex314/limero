@@ -46,7 +46,7 @@ public:
   Sink<MqttMessage> outgoing;
   ValueFlow<MqttBlock> blocks;
   ValueSource<bool> connected;
-//  TimerSource keepAliveTimer;
+  //  TimerSource keepAliveTimer;
   Mqtt(Thread &thr)
       : Actor(thr), incoming(4, "incoming"), outgoing(4, "outgoing") {
     dstPrefix = "dst/";
@@ -92,6 +92,7 @@ public:
           variant.set(event);
           serializeJson(doc, msg.message);
           msg.topic = _name;
+//          INFO("%s", msg.topic.c_str());
           return 0;
         }),
         _name(name) {
@@ -115,8 +116,8 @@ template <class T> class FromMqtt : public LambdaFlow<MqttMessage, T> {
 public:
   FromMqtt(std::string name, Mqtt *mqtt)
       : LambdaFlow<MqttMessage, T>([&](T &t, const MqttMessage &mqttMessage) {
-          INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(),
-               mqttMessage.message.c_str(), _name.c_str());
+         // INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(),
+           //    mqttMessage.message.c_str(), _name.c_str());
           if (mqttMessage.topic != _name) {
             return EINVAL;
           }

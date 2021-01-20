@@ -3,7 +3,6 @@
 
 MqttSerial::MqttSerial(Thread &thr, HardwareSerial &serial)
     : Mqtt(thr), _serial(serial),
-      connected(false),
       keepAliveTimer(thr, 1000, true),
       connectTimer(thr, 1000, true)
 {
@@ -29,6 +28,7 @@ void MqttSerial::init()
   _loopbackReceived = 0;
 
   outgoing.async(thread(), [&](const MqttMessage &m) {
+   // INFO("outgoing %s:%s %s",m.topic.c_str(),m.message.c_str(),connected() ? "connected" : "disconnected" );
     if (connected())
     {
       publish(m.topic, m.message);
@@ -41,7 +41,6 @@ void MqttSerial::init()
       outgoing.on({_lwt_topic, "true"});
   };
   connectTimer >> [&](const TimerMsg &tm) {
-    INFO(" connectTimer ");
     if (Sys::millis() > (_loopbackReceived + 3000))
     {
       connected = false;
@@ -67,7 +66,6 @@ void MqttSerial::onRxd(void *me)
     char inChar = ( char) mqttSerial->_serial.read();
     s+= inChar;
   }
- // INFO(" RXD >> %d", s.length());
   for (uint32_t i = 0; i < s.length(); i++)
     mqttSerial->handleSerialByte(s.charAt(i));
 }
@@ -100,13 +98,13 @@ void MqttSerial::rxdSerial(std::string &rxdString)
       connected = true;
       std::string topic = array[1];
       std::string arg = array[2];
-      INFO(" RXD >>> %s : %s ", topic.c_str(), arg.c_str());
+//      INFO(" RXD >>> %s : %s ", topic.c_str(), arg.c_str());
     }
     else
     {
       std::string topic = array[1];
       std::string arg = array[2];
-      INFO(" RXD >>> %s : %s ", topic.c_str(), arg.c_str());
+ //     INFO(" RXD >>> %s : %s ", topic.c_str(), arg.c_str());
       incoming.on({topic, arg});
     }
   }
@@ -118,6 +116,7 @@ void MqttSerial::rxdSerial(std::string &rxdString)
 
 void MqttSerial::publish(std::string topic, std::string message)
 {
+ // INFO("publish %s:%s",topic.c_str(),message.c_str());
   txd.clear();
   txd.add((int)CMD_PUBLISH);
   txd.add(topic);

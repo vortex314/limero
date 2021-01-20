@@ -171,8 +171,8 @@ public:
 #endif
 //#pragma GCC diagnostic ignored "-Warray-bounds"
 
-#ifdef NO_ATOMIC
-dfsdjhfks qfkqsljfh template <class T>
+#ifdef ARDUINO
+template <class T>
 class ArrayQueue : public AbstractQueue<T> {
   T *_array;
   int _size;
@@ -183,10 +183,10 @@ class ArrayQueue : public AbstractQueue<T> {
 public:
   ArrayQueue(int size) : _size(size) {
     _readPtr = _writePtr = 0;
-    _array = (T *)(malloc(size * sizeof(T *)));
+    _array = (T *)new T[size];;
   }
   bool push(const T &t) {
-    //    INFO("push %X", this);
+     //   INFO("push %X", (unsigned int)this);
     noInterrupts();
     int expected = _writePtr;
     int desired = next(expected);
@@ -202,7 +202,6 @@ public:
   }
 
   bool pop(T &t) {
-    //    INFO("pop %X", this);
     noInterrupts();
     int expected = _readPtr;
     int desired = next(expected);
@@ -352,7 +351,7 @@ class Thread : public Named {
   QueueHandle_t _workQueue = 0;
 
 #elif defined(ARDUINO)
-  ArrayQueue<Invoker *> _workQueue(10);
+  ArrayQueue<Invoker *> _workQueue;
 #endif
   uint32_t queueOverflow = 0;
   void createQueue();
@@ -399,7 +398,7 @@ public:
   LambdaSource(std::function<T()> handler) : _handler(handler){};
   void request() { this->emit(_handler()); }
 };
-//__________________________________________________________________________
+//_____________________________________________________________ RefSource
 //
 template <class T> class RefSource : public Source<T> {
   T &_t;
@@ -420,7 +419,6 @@ public:
 //
 template <class T> class ValueSource : public Source<T> {
   T _t;
-  // bool _pass = true;
 
 public:
   ValueSource(){};
@@ -428,11 +426,9 @@ public:
   void request() { this->emit(_t); }
   void operator=(T t) {
     _t = t;
-    //  if (_pass)
     this->emit(_t);
   }
   T &operator()() { return _t; }
-  //  void pass(bool p) { _pass = p; }
 };
 //__________________________________________________________________________`
 //
@@ -635,7 +631,6 @@ public:
   void request() { invoke(); }
   void invoke() {
     T value;
-    INFO("invoked");
     if (_queue.pop(value)) {
       this->emit(value);
     } else {
