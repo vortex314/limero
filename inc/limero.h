@@ -196,7 +196,7 @@ public:
       return false;
     }
     _writePtr = desired;
-    _array[desired] = std::move(t);
+    _array[desired] = t;
     interrupts();
     return true;
   }
@@ -210,7 +210,7 @@ public:
       return false;
     }
     _readPtr = desired;
-    t = std::move(_array[desired]);
+    t = _array[desired];
     interrupts();
     return true;
   }
@@ -259,8 +259,7 @@ public:
       : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))),
         m_capacity(capacity), m_head(0), m_tail(0)
 #else
-      //      : m_items(static_cast<Item
-      //      *>(aligned_alloc(cache_line_size,sizeof(Item) * capacity ))),
+            // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) * capacity ))),
       //      m_capacity(capacity), m_head(0), m_tail(0)
       : m_capacity(capacity), m_head(0), m_tail(0)
 
@@ -536,7 +535,7 @@ public:
     if (_queue.pop(_lastValue)) {
       _func(_lastValue);
     } else
-      WARN(" no data in queue");
+      WARN(" no data in queue '%s'[%d]",name(),_queue.capacity());
   }
 
   void async(Thread &thread, std::function<void(const T &)> func) {
@@ -686,16 +685,16 @@ template <class T> class ValueFlow : public Flow<T, T> {
 
 public:
   ValueFlow(){};
-  ValueFlow(T t) { _t = std::move(t); }
+  ValueFlow(T t) { _t = t; }
   void request() { this->emit(_t); }
   void operator=(T t) {
-    _t = std::move(t);
+    _t = t;
     if (_pass)
       this->emit(_t);
   }
   T &operator()() { return _t; }
   void on(const T &in) {
-    _t = std::move(in);
+    _t = in;
     this->emit(_t);
   }
   void pass(bool p) { _pass = p; }

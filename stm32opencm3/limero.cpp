@@ -76,7 +76,7 @@ void Thread::run()
             Invoker *prq;
             TickType_t tickWaits  = pdMS_TO_TICKS(waitTime) ;
             if ( tickWaits==0) noWaits++;
-            if (xQueueReceive(_workQueue, &prq, tickWaits) == pdTRUE) {
+            if (xQueueReceive(_workQueue, &prq, tickWaits) == pdPASS) {
                 uint64_t start=Sys::millis();
                 prq->invoke();
                 uint32_t delta=Sys::millis()-start;

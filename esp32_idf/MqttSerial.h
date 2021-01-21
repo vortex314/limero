@@ -7,9 +7,7 @@
 #include <limero.h>
 
 #include <string>
-#ifdef ESP32_IDF
 #include "driver/uart.h"
-#endif
 
 #define QOS 0
 #define TIMEOUT 10000L
@@ -17,32 +15,33 @@
 #define TIMER_CONNECT 2
 #define TIMER_SERIAL 3
 
-class MqttSerial : public Mqtt {
-  StaticJsonDocument<3000> _jsonBuffer;
-  std::string  _clientId;
-  std::string  _address;
-  std::string  _lwt_topic;
-  std::string  _lwt_message;
-#ifdef ESP32_IDF
+class MqttSerial : public Mqtt
+{
+  StaticJsonDocument<1000> _jsonBuffer;
+  std::string _clientId;
+  std::string _address;
+  std::string _lwt_topic;
+  std::string _lwt_message;
   UART &_uart;
-#endif
-
- private:
   StaticJsonDocument<256> txd;
   StaticJsonDocument<256> rxd;
-  std::string  _rxdString;
-  std::string  _loopbackTopic;
+  std::string _rxdString;
+  std::string _loopbackTopic;
   uint64_t _loopbackReceived;
 
-  enum { CMD_SUBSCRIBE = 0, CMD_PUBLISH };
+  enum
+  {
+    CMD_SUBSCRIBE = 0,
+    CMD_PUBLISH
+  };
 
   void handleSerialByte(uint8_t);
-  void rxdSerial(std::string  &);
+  void rxdSerial(std::string &);
   void txdSerial(JsonDocument &);
-  void publish(std::string  topic, std::string  message);
+  void publish(std::string topic, std::string message);
   void subscribe(std::string topic);
 
- public:
+public:
   static void onRxd(void *);
 
   TimerSource keepAliveTimer;
@@ -52,7 +51,6 @@ class MqttSerial : public Mqtt {
   void init();
 
   void mqttPublish(const char *topic, const char *message);
-  //void mqttSubscribe(const char *topic);
   void mqttConnect();
   void mqttDisconnect();
 
@@ -64,4 +62,4 @@ class MqttSerial : public Mqtt {
   void request();
 };
 
-#endif  // MQTTSERIAL_H
+#endif // MQTTSERIAL_H
