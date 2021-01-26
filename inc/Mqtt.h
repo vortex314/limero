@@ -149,7 +149,7 @@ public:
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
       INFO(" no prefix for %s ", name.c_str());
       _name = name;
-      mqtt->subscriptions.emplace(_name);
+      mqtt->subscriptions.emplace(_name); // add explicit subscription beside the implicit src/device/#
     } else {
       INFO(" adding prefix %s to %s ", mqtt->dstPrefix.c_str(), name.c_str());
       _name = mqtt->dstPrefix + name;

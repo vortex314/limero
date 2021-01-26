@@ -24,7 +24,7 @@ Gpio *gpio[40];
   }
 
 
-static uint8_t gpioRaspberry[] = {4, 9, 10, 17, 18, 22, 23, 24, 25, 27};
+static uint8_t gpioRaspberry[] = {2,4, 9, 10, 17, 18, 22, 23, 24, 25,16, 27};
 HANDLER(0);
 HANDLER(1);
 HANDLER(2);
@@ -67,7 +67,7 @@ void Gpio::init()
 #ifdef HAS_GPIO
   wiringPiSetupGpio();
 #else
-  INFO(" this GPIO doesn't do anything !");
+  INFO(" this GPIO doesn't do anything, completely stubbed  !");
 #endif
 }
 
@@ -86,9 +86,9 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
       pinMode(_pin, INPUT);
     else
       pinMode(_pin, OUTPUT);
-    mode = _mode == M_INPUT ? "INPUT" : "OUTPUT";
+     _mode == M_INPUT ? "INPUT" : "OUTPUT";
 #else
-    INFO(" stub GPIO %d mode %s ", pin, mode().c_str());
+    INFO(" stub GPIO %d mode %s ", _pin, mode().c_str());
 #endif
   };
 
@@ -99,9 +99,8 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
     if (_mode == M_OUTPUT)
       digitalWrite(_pin, _value ? HIGH : LOW);
 #else
-    INFO(" stub GPIO %d write %d ", pin, _value);
+    INFO(" stub GPIO %d write %d ", _pin, _value);
 #endif
-    value = _value;
   };
   _pollTimer >> [&](const TimerMsg &tm) {
 #ifdef HAS_GPIO
@@ -110,7 +109,7 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
     else
       value = _value;
 #else
-    INFO(" stub GPIO %d read %d ", pin, _value);
+    INFO(" stub GPIO %d read %d ", _pin, _value);
 #endif
   };
 #ifdef HAS_GPIO
