@@ -18,13 +18,13 @@ Gpio *gpio[40];
   void handler##_X_(void)                                \
   {                                                      \
     INFO(" pin interrupt : %d : 0x%X ", _X_, gpio[_X_]); \
-    for (int i = 0; i < 30; i++)                         \
-      INFO(" gpio[%d]=%X", i, gpio[i]);                  \
-    gpio[_X_]->value = digitalRead(_X_);              \
+    gpio[_X_]->value = digitalRead(_X_);                 \
   }
 
+//    for (int i = 0; i < 30; i++)                         \
+//      INFO(" gpio[%d]=%X", i, gpio[i]);                  \
 
-static uint8_t gpioRaspberry[] = {2,4, 9, 10, 17, 18, 22, 23, 24, 25,16, 27};
+std::vector<int> Gpio::raspberryGpio {0,1,2,3,4,5,6,7,21,22,23,24,25,26,27,28,29};
 HANDLER(0);
 HANDLER(1);
 HANDLER(2);
@@ -65,7 +65,7 @@ Handler handler[] = {handler0, handler1, handler2, handler3, handler4, handler5,
 void Gpio::init()
 {
 #ifdef HAS_GPIO
-  wiringPiSetupGpio();
+  wiringPiSetup();
 #else
   INFO(" this GPIO doesn't do anything, completely stubbed  !");
 #endif
@@ -86,7 +86,7 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
       pinMode(_pin, INPUT);
     else
       pinMode(_pin, OUTPUT);
-     _mode == M_INPUT ? "INPUT" : "OUTPUT";
+    _mode == M_INPUT ? "INPUT" : "OUTPUT";
 #else
     INFO(" stub GPIO %d mode %s ", _pin, mode().c_str());
 #endif
@@ -105,8 +105,8 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
   _pollTimer >> [&](const TimerMsg &tm) {
 #ifdef HAS_GPIO
     if (_mode == M_INPUT)
-      value = digitalRead(_pin);
-    else
+      _value = digitalRead(_pin);
+    if (value() != _value)
       value = _value;
 #else
     INFO(" stub GPIO %d read %d ", _pin, _value);

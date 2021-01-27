@@ -13,31 +13,13 @@ extern "C" {
 
 char Log::_logLevel[7] = {'T', 'D', 'I', 'W', 'E', 'F', 'N'};
 
-#ifdef ARDUINO
-#include <Arduino.h>
-#include <WString.h>
-#endif
 
-#ifdef STM32_OPENCM3
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/rcc.h>
-#include <libopencm3/stm32/usart.h>
-#endif
-
-#ifdef LM4F_OPENCM3
-#include <libopencm3/lm4f/uart.h>
-#endif
-
-#ifdef ESP32_IDF
-#endif
-#ifdef ESP_OPEN_RTOS
-#endif
 
 std::string& string_format(std::string& str, const char* fmt, ...) {
     int size = strlen(fmt) * 2 + 50; // Use a rubric appropriate for your code
     va_list ap;
     while (1) { // Maximum two passes on a POSIX system...
-        ASSERT(size < 1024);
+        ASSERT(size < 10240);
         str.resize(size);
         va_start(ap, fmt);
         int n = vsprintf((char*)str.data(), fmt, ap);
@@ -65,23 +47,10 @@ void bytesToHex(std::string& ret, uint8_t* input, uint32_t length, char sep) {
 }
 
 void Log::serialLog(char* start, uint32_t length) {
-#ifdef ARDUINO
-    Serial.write((const uint8_t*)start, length);
-    Serial.write("\r\n");
-#endif
-#if defined(STM32_OPENCM3) || defined(LM4F_OPENCM3)
-    *(start + length) = '\0';
-    char* s = start;
-    while (*s) {
-        uart_send_blocking(0, *(s++));
-    }
-#endif
-#if defined(__linux__) || defined(ESP_OPEN_RTOS) || defined(ESP8266_RTOS_SDK) || defined(ESP32_IDF) ||      \
-    defined(__APPLE__)
+
     *(start + length) = '\0';
     fprintf(stdout, "%s\n", start);
     fflush(stdout);
-#endif
 }
 
 Log::Log(uint32_t size)
@@ -144,7 +113,7 @@ void Log::log(char level, const char* file, uint32_t lineNbr,
 
     va_list args;
     va_start(args, fmt);
-    static char logLine[256];
+    static char logLine[10240];
     vsnprintf(logLine, sizeof(logLine) - 1, fmt, args);
     va_end(args);
 #ifdef __linux__

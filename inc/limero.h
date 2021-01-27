@@ -522,7 +522,7 @@ public:
       if (_queue.push(t))
         _thread->enqueue(this);
       else {
-        WARN("push failed");
+        WARN("push failed on '%s' ",name());
         stats.bufferOverflow++;
       }
     } else {

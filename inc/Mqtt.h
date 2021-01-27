@@ -48,7 +48,7 @@ public:
   ValueSource<bool> connected;
   //  TimerSource keepAliveTimer;
   Mqtt(Thread &thr)
-      : Actor(thr), incoming(4, "incoming"), outgoing(4, "outgoing") {
+      : Actor(thr), incoming(10, "incoming"), outgoing(10, "outgoing") {
     dstPrefix = "dst/";
     dstPrefix += Sys::hostname();
     dstPrefix += "/";
@@ -99,10 +99,10 @@ public:
     _mqtt = mqtt;
     std::string topic = name;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
-      INFO(" no prefix for %s ", name.c_str());
+      DEBUG(" no prefix for %s ", name.c_str());
       _name = name;
     } else {
-      INFO(" adding prefix %s to %s ", mqtt->srcPrefix.c_str(), name.c_str());
+      DEBUG(" adding prefix %s to %s ", mqtt->srcPrefix.c_str(), name.c_str());
       _name = mqtt->srcPrefix + name;
     }
   }
@@ -147,11 +147,11 @@ public:
     std::string topic = name;
     std::string targetTopic;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
-      INFO(" no prefix for %s ", name.c_str());
+      DEBUG(" no prefix for %s ", name.c_str());
       _name = name;
       mqtt->subscriptions.emplace(_name); // add explicit subscription beside the implicit src/device/#
     } else {
-      INFO(" adding prefix %s to %s ", mqtt->dstPrefix.c_str(), name.c_str());
+      DEBUG(" adding prefix %s to %s ", mqtt->dstPrefix.c_str(), name.c_str());
       _name = mqtt->dstPrefix + name;
     }
   };
