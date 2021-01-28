@@ -48,7 +48,7 @@ public:
   ValueSource<bool> connected;
   //  TimerSource keepAliveTimer;
   Mqtt(Thread &thr)
-      : Actor(thr), incoming(10, "incoming"), outgoing(10, "outgoing") {
+      : Actor(thr), incoming(20, "incoming"), outgoing(20, "outgoing") {
     dstPrefix = "dst/";
     dstPrefix += Sys::hostname();
     dstPrefix += "/";

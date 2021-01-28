@@ -268,6 +268,7 @@ int MqttPaho::publish(std::string topic, std::string message, int qos,
   {
     state(MS_DISCONNECTED);
     ERROR("MQTTAsync_sendMessage failed.");
+    disconnect();
     return ECOMM;
   }
   return 0;

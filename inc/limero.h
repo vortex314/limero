@@ -150,7 +150,7 @@ public:
 //___________________________________________________________________________
 // lockfree buffer, isr ready
 //
-#define BUSY (1 << 15) // busy read or write ptr
+//#define BUSY (1 << 15) // busy read or write ptr
 
 #if defined(ESP_OPEN_RTOS) || defined(ESP8266_IDF)
 // Set Interrupt Level
@@ -172,8 +172,7 @@ public:
 //#pragma GCC diagnostic ignored "-Warray-bounds"
 
 #ifdef ARDUINO
-template <class T>
-class ArrayQueue : public AbstractQueue<T> {
+template <class T> class ArrayQueue : public AbstractQueue<T> {
   T *_array;
   int _size;
   int _readPtr;
@@ -183,10 +182,11 @@ class ArrayQueue : public AbstractQueue<T> {
 public:
   ArrayQueue(int size) : _size(size) {
     _readPtr = _writePtr = 0;
-    _array = (T *)new T[size];;
+    _array = (T *)new T[size];
+    ;
   }
   bool push(const T &t) {
-     //   INFO("push %X", (unsigned int)this);
+    //   INFO("push %X", (unsigned int)this);
     noInterrupts();
     int expected = _writePtr;
     int desired = next(expected);
@@ -259,7 +259,8 @@ public:
       : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))),
         m_capacity(capacity), m_head(0), m_tail(0)
 #else
-            // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) * capacity ))),
+      // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) *
+      // capacity ))),
       //      m_capacity(capacity), m_head(0), m_tail(0)
       : m_capacity(capacity), m_head(0), m_tail(0)
 
@@ -467,10 +468,10 @@ public:
       start();
     thr.addTimer(this);
   }
-/*
-  TimerSource(const char *name = "unknownTimer3") : Named(name) {
-    _expireTime = Sys::now() + _interval;
-  };*/
+  /*
+    TimerSource(const char *name = "unknownTimer3") : Named(name) {
+      _expireTime = Sys::now() + _interval;
+    };*/
   ~TimerSource() { WARN(" timer destructor. Really ? "); }
 
   // void attach(Thread &thr) { thr.addTimer(this); }
@@ -522,7 +523,7 @@ public:
       if (_queue.push(t))
         _thread->enqueue(this);
       else {
-        WARN("push failed on '%s' ",name());
+        WARN("push failed on '%s' ", name());
         stats.bufferOverflow++;
       }
     } else {
@@ -535,7 +536,7 @@ public:
     if (_queue.pop(_lastValue)) {
       _func(_lastValue);
     } else
-      WARN(" no data in queue '%s'[%d]",name(),_queue.capacity());
+      WARN(" no data in queue '%s'[%d]", name(), _queue.capacity());
   }
 
   void async(Thread &thread, std::function<void(const T &)> func) {
