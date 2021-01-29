@@ -23,10 +23,10 @@ public:
   ValueFlow<int> value;
   static void init();
   void request();
+  int _value;
 
 private:
   Mode _mode;
-  int _value;
   TimerSource _pollTimer;
 };
 

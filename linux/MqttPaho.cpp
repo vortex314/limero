@@ -245,7 +245,7 @@ int MqttPaho::publish(std::string topic, std::string message, int qos,
   {
     return 0;
   }
-  INFO(" MQTT PUB : %s = %s ", topic.c_str(), message.c_str());
+  DEBUG(" MQTT PUB : %s = %s ", topic.c_str(), message.c_str());
 
   qos = 1;
   MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;

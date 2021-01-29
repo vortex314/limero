@@ -18,13 +18,13 @@ Gpio *gpio[40];
   void handler##_X_(void)                                \
   {                                                      \
     INFO(" pin interrupt : %d : 0x%X ", _X_, gpio[_X_]); \
-    gpio[_X_]->value = digitalRead(_X_);                 \
+    gpio[_X_]->_value = digitalRead(_X_);                \
   }
 
 //    for (int i = 0; i < 30; i++)                         \
 //      INFO(" gpio[%d]=%X", i, gpio[i]);                  \
 
-std::vector<int> Gpio::raspberryGpio {0,1,2,3,4,5,6,7,21,22,23,24,25,26,27,28,29};
+std::vector<int> Gpio::raspberryGpio{0, 1, 2, 3, 4, 5, 7, 21, 22, 23, 24, 25, 26, 27, 28, 29}; // removed 6
 HANDLER(0);
 HANDLER(1);
 HANDLER(2);
@@ -104,15 +104,14 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
   };
   _pollTimer >> [&](const TimerMsg &tm) {
 #ifdef HAS_GPIO
-    if (_mode == M_INPUT)
-      _value = digitalRead(_pin);
+    _value = digitalRead(_pin);
     if (value() != _value)
       value = _value;
 #else
     INFO(" stub GPIO %d read %d ", _pin, _value);
 #endif
   };
-#ifdef HAS_GPIO
+#ifdef HAS_GPIO_ISR // de-activated interrupts, crashes mqtt ?
   if ((int)handler[_pin] > 100)
     wiringPiISR(_pin, INT_EDGE_BOTH, handler[_pin]);
 #endif
