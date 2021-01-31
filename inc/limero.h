@@ -327,6 +327,7 @@ public:
   }
 
   size_t capacity() const { return m_capacity; }
+  size_t size() const { return m_tail-m_head;}
 };
 
 #endif
@@ -523,7 +524,7 @@ public:
       if (_queue.push(t))
         _thread->enqueue(this);
       else {
-        WARN("push failed on '%s' ", name());
+        WARN("push failed on '%s' [%d/%d] ", name(),_queue.size(),_queue.capacity());
         stats.bufferOverflow++;
       }
     } else {
@@ -646,25 +647,23 @@ public:
 //
 
 template <class IN, class OUT> class LambdaFlow : public Flow<IN, OUT> {
-  std::function<int(OUT &, const IN &)> _func;
+  std::function<bool(OUT &, const IN &)> _func;
 
 public:
   LambdaFlow() {
     _func = [](OUT &out, const IN &in) {
       WARN("no handler for this flow");
-      return ENODATA;
+      return false;
     };
   };
-  LambdaFlow(std::function<int(OUT &, const IN &)> func) : _func(func){};
-  void lambda(std::function<int(OUT &, const IN &)> func) { _func = func; }
+  LambdaFlow(std::function<bool(OUT &, const IN &)> func) : _func(func){};
+  void lambda(std::function<bool(OUT &, const IN &)> func) { _func = func; }
   virtual void on(const IN &in) {
     OUT out;
-    if (_func(out, in) == 0) {
-      this->emit(out);
-    }
+    if (_func(out, in) ) this->emit(out);
   }
   void request(){};
-  static LambdaFlow<IN, OUT> &nw(std::function<int(OUT &, const IN &)> func) {
+  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func) {
     auto lf = new LambdaFlow(func);
     return *lf;
   }

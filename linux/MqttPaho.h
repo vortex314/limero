@@ -30,7 +30,7 @@ private:
   int _keepAliveInterval;
 
   MqttConnectionState _connectionState;
-  void state(MqttConnectionState newState);
+  void state(MqttConnectionState newState,const char* file,int line);
   std::string _lastWillTopic;
   std::string _lastWillMessage;
   int _lastWillQos;

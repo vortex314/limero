@@ -48,7 +48,7 @@ public:
   ValueSource<bool> connected;
   //  TimerSource keepAliveTimer;
   Mqtt(Thread &thr)
-      : Actor(thr), incoming(20, "incoming"), outgoing(20, "outgoing") {
+      : Actor(thr), incoming(20, "incoming"), outgoing(30, "outgoing") {
     dstPrefix = "dst/";
     dstPrefix += Sys::hostname();
     dstPrefix += "/";
@@ -86,14 +86,14 @@ public:
   ToMqtt(std::string name, Mqtt *mqtt)
       : LambdaFlow<T, MqttMessage>([&](MqttMessage &msg, const T &event) {
           if (!_mqtt->connected())
-            return ENOTCONN;
+            return false;
           DynamicJsonDocument doc(100);
           JsonVariant variant = doc.to<JsonVariant>();
           variant.set(event);
           serializeJson(doc, msg.message);
           msg.topic = _name;
 //          INFO("%s", msg.topic.c_str());
-          return 0;
+          return true;
         }),
         _name(name) {
     _mqtt = mqtt;
@@ -119,27 +119,27 @@ public:
          // INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(),
            //    mqttMessage.message.c_str(), _name.c_str());
           if (mqttMessage.topic != _name) {
-            return EINVAL;
+            return false;
           }
           DynamicJsonDocument doc(100);
           auto error = deserializeJson(doc, mqttMessage.message);
           if (error) {
             WARN(" failed JSON parsing '%s' : '%s' ",
                  mqttMessage.message.c_str(), error.c_str());
-            return ENODATA;
+            return false;
           }
           JsonVariant variant = doc.as<JsonVariant>();
           if (variant.isNull()) {
             WARN(" is not a JSON variant '%s' ", mqttMessage.message.c_str());
-            return ENODATA;
+            return false;
           }
           if (variant.is<T>() == false) {
             WARN(" message '%s' JSON type doesn't match.",
                  mqttMessage.message.c_str());
-            return ENODATA;
+            return false;
           }
           t = variant.as<T>();
-          return 0;
+          return true;
           // emit doesn't work as such
           // https://stackoverflow.com/questions/9941987/there-are-no-arguments-that-depend-on-a-template-parameter
         }) {
