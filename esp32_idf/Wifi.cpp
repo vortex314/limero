@@ -11,6 +11,7 @@
 
 Wifi::Wifi(Thread &thr)
     : Actor(thr), password(S(WIFI_PASS)), prefix(S(WIFI_SSID)) {
+      INFO(" Wifi %s:%s ",password().c_str(),prefix().c_str());
   rssi = 0;
 }
 

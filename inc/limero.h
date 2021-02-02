@@ -34,7 +34,7 @@
 //-------------------------------------------------- ESP32
 #if defined(ESP32_IDF)
 #define FREERTOS
-#include <FreeRTOS.h>
+#include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 

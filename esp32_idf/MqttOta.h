@@ -18,7 +18,7 @@ class MqttOta {
   esp_ota_handle_t update_handle = 0;
   uint32_t _lengthWritten = 0;
   typedef enum { READY, INIT, WRITE, END } State;
-  State _state = READY;
+  State _state = READY; 
 
  public:
   ValueFlow<MqttBlock> blocks;
