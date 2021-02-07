@@ -3,8 +3,9 @@
 #include <Log.h>
 #include <Sys.h>
 #include <errno.h>
-#include <functional>
 #include <stdint.h>
+
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -17,7 +18,7 @@
 #endif
 //--------------------------------------------------  ESP8266
 #if defined(ESP_OPEN_RTOS) || \
-    defined(ESP8266_RTOS_SDK) // ESP_PLATFORM for ESP8266_RTOS_SDK
+    defined(ESP8266_RTOS_SDK)  // ESP_PLATFORM for ESP8266_RTOS_SDK
 #define FREERTOS
 #define NO_ATOMIC
 #include <FreeRTOS.h>
@@ -83,8 +84,7 @@ using cstr = const char *const;
 #undef min
 #undef max
 
-typedef struct
-{
+typedef struct {
   uint32_t bufferOverflow = 0;
   uint32_t bufferPushBusy = 0;
   uint32_t bufferPopBusy = 0;
@@ -100,64 +100,56 @@ extern NanoStats stats;
 //
 
 template <class T>
-class AbstractQueue
-{
-public:
+class AbstractQueue {
+ public:
   virtual bool pop(T &t) = 0;
-  virtual bool push(const T &t) = 0; // const to be able to do something like
-                                     // push({"topic","message"});
+  virtual bool push(const T &t) = 0;  // const to be able to do something like
+                                      // push({"topic","message"});
 };
 //--------------- give an object a name, useful for debugging
-class Named
-{
+class Named {
   std::string _name = "no-name";
 
-public:
+ public:
   Named(const char *name) { _name = name == 0 ? "NULL" : name; }
   const char *name() { return _name.c_str(); }
 };
 //--------------- something that can be invoked or execute something
-class Invoker
-{
-public:
+class Invoker {
+ public:
   virtual void invoke() = 0;
 };
 //-------------- handler class for certain messages or events
 template <class T>
-class Subscriber
-{
-public:
+class Subscriber {
+ public:
   virtual void on(const T &t) = 0;
   virtual ~Subscriber(){};
 };
 #include <bits/atomic_word.h>
 //------------- handler function for certain messages or events
 template <class T>
-class SubscriberFunction : public Subscriber<T>
-{
+class SubscriberFunction : public Subscriber<T> {
   std::function<void(const T &t)> _func;
 
-public:
+ public:
   SubscriberFunction(std::function<void(const T &t)> func) { _func = func; }
   void on(const T &t) { _func(t); }
 };
 //------------ generator of messages
 template <class T>
-class Publisher
-{
-public:
+class Publisher {
+ public:
   virtual void subscribe(Subscriber<T> *listener) = 0;
   void operator>>(Subscriber<T> &listener) { subscribe(&listener); }
   void operator>>(Subscriber<T> *listener) { subscribe(listener); }
-  void operator>>(std::function<void(const T &t)> func)
-  {
+  void operator>>(std::function<void(const T &t)> func) {
     subscribe(new SubscriberFunction<T>(func));
   }
 };
 //-----------------  can be prooked to publish something
-class Requestable
-{
-public:
+class Requestable {
+ public:
   virtual void request() = 0;
 };
 //___________________________________________________________________________
@@ -171,16 +163,14 @@ public:
 // level 15 will disable ALL interrupts,
 // level 0 will enable ALL interrupts
 //
-#define xt_rsil(level)                               \
-  (__extension__({                                   \
-    uint32_t state;                                  \
-    __asm__ __volatile__("rsil %0," STRINGIFY(level) \
-                         : "=a"(state));             \
-    state;                                           \
+#define xt_rsil(level)                                               \
+  (__extension__({                                                   \
+    uint32_t state;                                                  \
+    __asm__ __volatile__("rsil %0," STRINGIFY(level) : "=a"(state)); \
+    state;                                                           \
   }))
-#define xt_wsr_ps(state)                               \
-  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) \
-                       : "memory")
+#define xt_wsr_ps(state) \
+  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) : "memory")
 #define interrupts() xt_rsil(0)
 #define noInterrupts() xt_rsil(15)
 #endif
@@ -188,29 +178,25 @@ public:
 
 #ifdef ARDUINO
 template <class T>
-class ArrayQueue : public AbstractQueue<T>
-{
+class ArrayQueue : public AbstractQueue<T> {
   T *_array;
   int _size;
   int _readPtr;
   int _writePtr;
   inline int next(int idx) { return (idx + 1) % _size; }
 
-public:
-  ArrayQueue(int size) : _size(size)
-  {
+ public:
+  ArrayQueue(int size) : _size(size) {
     _readPtr = _writePtr = 0;
     _array = (T *)new T[size];
     ;
   }
-  bool push(const T &t)
-  {
+  bool push(const T &t) {
     //   INFO("push %X", (unsigned int)this);
     noInterrupts();
     int expected = _writePtr;
     int desired = next(expected);
-    if (desired == _readPtr)
-    {
+    if (desired == _readPtr) {
       stats.bufferOverflow++;
       interrupts();
       return false;
@@ -221,13 +207,11 @@ public:
     return true;
   }
 
-  bool pop(T &t)
-  {
+  bool pop(T &t) {
     noInterrupts();
     int expected = _readPtr;
     int desired = next(expected);
-    if (expected == _writePtr)
-    {
+    if (expected == _writePtr) {
       interrupts();
       return false;
     }
@@ -237,8 +221,7 @@ public:
     return true;
   }
   size_t capacity() const { return _size; }
-  size_t size() const
-  {
+  size_t size() const {
     if (_writePtr > _readPtr)
       return _writePtr - _readPtr;
     else
@@ -248,9 +231,10 @@ public:
 #else
 #pragma once
 
+#include <stdlib.h>
+
 #include <atomic>
 #include <cstdint>
-#include <stdlib.h>
 
 #if defined(STM32_OPENCM3)
 #define INDEX_TYPE uint32_t
@@ -264,18 +248,15 @@ template <typename T, size_t cache_line_size = 64>
 #define INDEX_TYPE uint64_t
 #endif
 
-class ArrayQueue
-{
-private:
-  struct alignas(cache_line_size) Item
-  {
+class ArrayQueue {
+ private:
+  struct alignas(cache_line_size) Item {
     T value;
     std::atomic<INDEX_TYPE> version;
   };
 
   struct alignas(cache_line_size) AlignedAtomicU64
-      : public std::atomic<INDEX_TYPE>
-  {
+      : public std::atomic<INDEX_TYPE> {
     using std::atomic<INDEX_TYPE>::atomic;
   };
 
@@ -286,22 +267,25 @@ private:
   AlignedAtomicU64 m_head;
   AlignedAtomicU64 m_tail;
 
-public:
+ public:
   explicit ArrayQueue(size_t capacity)
 #if defined(STM32_OPENCM3) || defined(ESP8266_RTOS_SDK)
       : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))),
-        m_capacity(capacity), m_head(0), m_tail(0)
+        m_capacity(capacity),
+        m_head(0),
+        m_tail(0)
 #else
       // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) *
       // capacity ))),
       //      m_capacity(capacity), m_head(0), m_tail(0)
-      : m_capacity(capacity), m_head(0), m_tail(0)
+      : m_capacity(capacity),
+        m_head(0),
+        m_tail(0)
 
 #endif
   {
     m_items = new Item[capacity];
-    for (size_t i = 0; i < capacity; ++i)
-    {
+    for (size_t i = 0; i < capacity; ++i) {
       m_items[i].version = i;
     }
   }
@@ -314,19 +298,16 @@ public:
   ArrayQueue<T> &operator=(const ArrayQueue<T> &) = delete;
   ArrayQueue<T> &operator=(const ArrayQueue<T> &&) = delete;
 
-  bool push(const T &value)
-  {
+  bool push(const T &value) {
     INDEX_TYPE tail = m_tail.load(std::memory_order_relaxed);
 
     if (m_items[tail % m_capacity].version.load(std::memory_order_acquire) !=
-        tail)
-    {
+        tail) {
       return false;
     }
 
     if (!m_tail.compare_exchange_strong(tail, tail + 1,
-                                        std::memory_order_relaxed))
-    {
+                                        std::memory_order_relaxed)) {
       return false;
     }
 
@@ -340,21 +321,18 @@ public:
     return true;
   }
 
-  bool pop(T &out)
-  {
+  bool pop(T &out) {
     INDEX_TYPE head = m_head.load(std::memory_order_relaxed);
 
     // Acquire here makes sure read of m_data[head].value is not reordered
     // before this Also makes sure side effects in try_enqueue are visible here
     if (m_items[head % m_capacity].version.load(std::memory_order_acquire) !=
-        (head + 1))
-    {
+        (head + 1)) {
       return false;
     }
 
     if (!m_head.compare_exchange_strong(head, head + 1,
-                                        std::memory_order_relaxed))
-    {
+                                        std::memory_order_relaxed)) {
       return false;
     }
     out = m_items[head % m_capacity].value;
@@ -375,16 +353,14 @@ public:
 // STREAMS
 class TimerSource;
 //____________________________________________________________________ THREAD __
-struct ThreadProperties
-{
-  const char *name ;
-  int stackSize ;
-  int queueSize ;
-  int priority ;
+struct ThreadProperties {
+  const char *name;
+  int stackSize;
+  int queueSize;
+  int priority;
 };
 
-class Thread : public Named
-{
+class Thread : public Named {
 #ifdef LINUX
   int _pipeFd[2];
   int _writePipe = 0;
@@ -404,7 +380,7 @@ class Thread : public Named
   int _stackSize;
   int _priority;
 
-public:
+ public:
   Thread(const char *name = "noname");
   Thread(ThreadProperties props);
   void start();
@@ -418,18 +394,15 @@ public:
 //_____________________________________________________________________ SOURCE _
 //
 template <class T>
-class Source : public Publisher<T>, public Requestable
-{
+class Source : public Publisher<T>, public Requestable {
   std::vector<Subscriber<T> *> _listeners;
   T _last;
 
-public:
+ public:
   void subscribe(Subscriber<T> *listener) { _listeners.push_back(listener); }
-  void emit(const T &t)
-  {
+  void emit(const T &t) {
     _last = t;
-    for (Subscriber<T> *listener : _listeners)
-    {
+    for (Subscriber<T> *listener : _listeners) {
       listener->on(t);
     }
   }
@@ -439,27 +412,25 @@ public:
 //____________________________________________________________ LAMBDASOURCE
 //
 template <class T>
-class LambdaSource : public Source<T>
-{
+class LambdaSource : public Source<T> {
   std::function<T()> _handler;
 
-public:
+ public:
   LambdaSource(std::function<T()> handler) : _handler(handler){};
+  T operator()() { return _handler(); }
   void request() { this->emit(_handler()); }
 };
 //_____________________________________________________________ RefSource
 //
 template <class T>
-class RefSource : public Source<T>
-{
+class RefSource : public Source<T> {
   T &_t;
   //  bool _pass = true;
 
-public:
+ public:
   RefSource(T &t) : _t(t){};
   void request() { this->emit(_t); }
-  void operator=(T t)
-  {
+  void operator=(T t) {
     _t = t;
     //   if (_pass)
     this->emit(_t);
@@ -470,16 +441,14 @@ public:
 //__________________________________________________________________________
 //
 template <class T>
-class ValueSource : public Source<T>
-{
+class ValueSource : public Source<T> {
   T _t;
 
-public:
+ public:
   ValueSource(){};
   ValueSource(T t) { _t = t; }
   void request() { this->emit(_t); }
-  void operator=(T t)
-  {
+  void operator=(T t) {
     _t = t;
     this->emit(_t);
   }
@@ -496,35 +465,29 @@ public:
 //	start : restart timer from now+interval
 //_______________________________________________________________ TimerSource
 //
-class TimerMsg
-{
-public:
+class TimerMsg {
+ public:
   TimerSource *source;
 };
 
-class TimerSource : public Source<TimerMsg>, public Named
-{
+class TimerSource : public Source<TimerMsg>, public Named {
   uint32_t _interval = UINT32_MAX;
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
 
-  void setNewExpireTime()
-  {
+  void setNewExpireTime() {
     uint64_t now = Sys::millis();
     _expireTime += _interval;
-    if (_expireTime < now && _repeat)
-      _expireTime = now + _interval;
+    if (_expireTime < now && _repeat) _expireTime = now + _interval;
   }
 
-public:
+ public:
   TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
               const char *name = "unknownTimer1")
-      : Named(name)
-  {
+      : Named(name) {
     _interval = interval;
     _repeat = repeat;
-    if (repeat)
-      start();
+    if (repeat) start();
     thr.addTimer(this);
   }
   /*
@@ -536,17 +499,14 @@ public:
   // void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
   void start() { _expireTime = Sys::millis() + _interval; }
-  void start(uint32_t interval)
-  {
+  void start(uint32_t interval) {
     _interval = interval;
     start();
   }
   void stop() { _expireTime = UINT64_MAX; }
   void interval(uint32_t i) { _interval = i; }
-  void request()
-  {
-    if (Sys::millis() >= _expireTime)
-    {
+  void request() {
+    if (Sys::millis() >= _expireTime) {
       if (_repeat)
         setNewExpireTime();
       else
@@ -561,17 +521,15 @@ public:
 };
 //____________________________________  SINK ______________________
 template <class T>
-class Sink : public Subscriber<T>, public Invoker, public Named
-{
+class Sink : public Subscriber<T>, public Invoker, public Named {
   ArrayQueue<T> _queue;
   std::function<void(const T &)> _func;
   Thread *_thread = 0;
   T _lastValue;
 
-public:
+ public:
   Sink(int capacity, const char *name = "unknown")
-      : Named(name), _queue(capacity)
-  {
+      : Named(name), _queue(capacity) {
     _func = [&](const T &t) {
       (void)t;
       WARN(" no handler attached to this sink ");
@@ -582,42 +540,33 @@ public:
        const char *name = "unknown")
       : Named(name), _queue(capacity), _func(handler){};
 
-  void on(const T &t)
-  {
-    if (_thread)
-    {
+  void on(const T &t) {
+    if (_thread) {
       if (_queue.push(t))
         _thread->enqueue(this);
-      else
-      {
-        WARN("push failed on '%s' [%d/%d] ", name(), _queue.size(), _queue.capacity());
+      else {
+        WARN("push failed on '%s' [%d/%d] ", name(), _queue.size(),
+             _queue.capacity());
         stats.bufferOverflow++;
       }
-    }
-    else
-    {
+    } else {
       _func(t);
     }
   }
 
   //  virtual void request() { invoke(); }
-  void invoke()
-  {
-    if (_queue.pop(_lastValue))
-    {
+  void invoke() {
+    if (_queue.pop(_lastValue)) {
       _func(_lastValue);
-    }
-    else
+    } else
       WARN(" no data in queue '%s'[%d]", name(), _queue.capacity());
   }
 
-  void async(Thread &thread, std::function<void(const T &)> func)
-  {
+  void async(Thread &thread, std::function<void(const T &)> func) {
     _func = func;
     _thread = &thread;
   }
-  void sync(std::function<void(const T &)> func)
-  {
+  void sync(std::function<void(const T &)> func) {
     _thread = 0;
     _func = func;
   }
@@ -627,19 +576,16 @@ public:
 //_________________________________________________ Flow ________________
 //
 template <class IN, class OUT>
-class Flow : public Subscriber<IN>, public Source<OUT>
-{
-public:
-  void operator==(Flow<OUT, IN> &flow)
-  {
+class Flow : public Subscriber<IN>, public Source<OUT> {
+ public:
+  void operator==(Flow<OUT, IN> &flow) {
     this->subscribe(&flow);
     flow.subscribe(this);
   };
 };
 // -------------------------------------------------------- Cache
 template <class T>
-class Cache : public Flow<T, T>, public Subscriber<TimerMsg>
-{
+class Cache : public Flow<T, T>, public Subscriber<TimerMsg> {
   Thread &_thread;
   uint32_t _minimum, _maximum;
   bool _unsendValue = false;
@@ -647,37 +593,35 @@ class Cache : public Flow<T, T>, public Subscriber<TimerMsg>
   T _t;
   TimerSource _timerSource;
 
-public:
-  Cache(Thread &thread, uint32_t minimum, uint32_t maximum, bool request = false)
-      : _thread(thread), _minimum(minimum), _maximum(maximum), _timerSource(thread)
-  {
+ public:
+  Cache(Thread &thread, uint32_t minimum, uint32_t maximum,
+        bool request = false)
+      : _thread(thread),
+        _minimum(minimum),
+        _maximum(maximum),
+        _timerSource(thread) {
     _timerSource.interval(minimum);
     _timerSource.start();
     _timerSource.subscribe(this);
   }
-  void on(const T &t)
-  {
+  void on(const T &t) {
     _t = t;
     uint64_t now = Sys::millis();
     _unsendValue = true;
-    if (_lastSend + _minimum < now)
-    {
+    if (_lastSend + _minimum < now) {
       this->emit(t);
       _unsendValue = false;
       _lastSend = now;
     }
   }
-  void on(const TimerMsg &tm)
-  {
+  void on(const TimerMsg &tm) {
     uint64_t now = Sys::millis();
-    if (_unsendValue)
-    {
+    if (_unsendValue) {
       this->emit(_t);
       _unsendValue = false;
       _lastSend = now;
     }
-    if (now > _lastSend + _maximum)
-    {
+    if (now > _lastSend + _maximum) {
       this->emit(_t);
       _unsendValue = false;
       _lastSend = now;
@@ -686,8 +630,7 @@ public:
   }
   void request() { this->emit(_t); }
 
-  static Cache<T> &nw(Thread &t, uint32_t min, uint32_t max)
-  {
+  static Cache<T> &nw(Thread &t, uint32_t min, uint32_t max) {
     auto cache = new Cache<T>(t, min, max);
     return *cache;
   }
@@ -695,38 +638,29 @@ public:
 //_____________________________________________________________________________
 //
 template <class T>
-class QueueFlow : public Flow<T, T>, public Invoker, public Named
-{
+class QueueFlow : public Flow<T, T>, public Invoker, public Named {
   ArrayQueue<T> _queue;
   Thread *_thread = 0;
 
-public:
+ public:
   QueueFlow(size_t capacity, const char *name = "QueueFlow")
       : Named(name), _queue(capacity){};
-  void on(const T &t)
-  {
-    if (_thread)
-    {
+  void on(const T &t) {
+    if (_thread) {
       if (_queue.push(t))
         _thread->enqueue(this);
       else
         WARN(" push failed");
-    }
-    else
-    {
+    } else {
       this->emit(t);
     }
   }
   void request() { invoke(); }
-  void invoke()
-  {
+  void invoke() {
     T value;
-    if (_queue.pop(value))
-    {
+    if (_queue.pop(value)) {
       this->emit(value);
-    }
-    else
-    {
+    } else {
       WARN(" no data ");
     }
   }
@@ -739,13 +673,11 @@ public:
 //
 
 template <class IN, class OUT>
-class LambdaFlow : public Flow<IN, OUT>
-{
+class LambdaFlow : public Flow<IN, OUT> {
   std::function<bool(OUT &, const IN &)> _func;
 
-public:
-  LambdaFlow()
-  {
+ public:
+  LambdaFlow() {
     _func = [](OUT &out, const IN &in) {
       WARN("no handler for this flow");
       return false;
@@ -753,15 +685,12 @@ public:
   };
   LambdaFlow(std::function<bool(OUT &, const IN &)> func) : _func(func){};
   void lambda(std::function<bool(OUT &, const IN &)> func) { _func = func; }
-  virtual void on(const IN &in)
-  {
+  virtual void on(const IN &in) {
     OUT out;
-    if (_func(out, in))
-      this->emit(out);
+    if (_func(out, in)) this->emit(out);
   }
   void request(){};
-  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func)
-  {
+  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func) {
     auto lf = new LambdaFlow(func);
     return *lf;
   }
@@ -770,8 +699,7 @@ public:
 //________________________________________________________________
 //
 template <class IN, class OUT>
-Source<OUT> &operator>>(Publisher<OUT> &publisher, Flow<IN, OUT> &flow)
-{
+Source<OUT> &operator>>(Publisher<OUT> &publisher, Flow<IN, OUT> &flow) {
   publisher.subscribe(&flow);
   return flow;
 }
@@ -779,24 +707,20 @@ Source<OUT> &operator>>(Publisher<OUT> &publisher, Flow<IN, OUT> &flow)
 //________________________________________________________________
 //
 template <class T>
-class ValueFlow : public Flow<T, T>
-{
+class ValueFlow : public Flow<T, T> {
   T _t;
   bool _pass = true;
 
-public:
+ public:
   ValueFlow(){};
   ValueFlow(T t) { _t = t; }
   void request() { this->emit(_t); }
-  void operator=(T t)
-  {
+  void operator=(T t) {
     _t = t;
-    if (_pass)
-      this->emit(_t);
+    if (_pass) this->emit(_t);
   }
   T &operator()() { return _t; }
-  void on(const T &in)
-  {
+  void on(const T &in) {
     _t = in;
     this->emit(_t);
   }
@@ -804,13 +728,12 @@ public:
 };
 //______________________________________ Actor __________________________
 //
-class Actor
-{
+class Actor {
   Thread &_thread;
 
-public:
+ public:
   Actor(Thread &thread) : _thread(thread) {}
   Thread &thread() { return _thread; }
 };
 
-#endif // NANOAKKA_H
+#endif  // NANOAKKA_H

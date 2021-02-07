@@ -1,25 +1,30 @@
 #include "Wifi.h"
 #include <Config.h>
 
-#define CHECK(x)                                                               \
-  do {                                                                         \
-    esp_err_t __err_rc = (x);                                                  \
-    if (__err_rc != ESP_OK) {                                                  \
-      WARN("%s = %d ", #x, __err_rc);                                          \
-    }                                                                          \
+#define CHECK(x)                      \
+  do                                  \
+  {                                   \
+    esp_err_t __err_rc = (x);         \
+    if (__err_rc != ESP_OK)           \
+    {                                 \
+      WARN("%s = %d ", #x, __err_rc); \
+    }                                 \
   } while (0);
 
 Wifi::Wifi(Thread &thr)
-    : Actor(thr), password(S(WIFI_PASS)), prefix(S(WIFI_SSID)) {
-   //   INFO(" WiFi credentials %s:%s",prefix().c_str(),password().c_str());
+    : Actor(thr), password(S(WIFI_PASS)), prefix(S(WIFI_SSID))
+{
+  INFO(" WiFi credentials %s:%s", prefix().c_str(), password().c_str());
   rssi = 0;
 }
 
 Wifi::~Wifi() {}
 
-void Wifi::init() {
+void Wifi::init()
+{
   wifiInit();
-  union {
+  union
+  {
     uint8_t macBytes[6];
     uint64_t macInt;
   };
@@ -36,11 +41,14 @@ void Wifi::init() {
 }
 
 void Wifi::ip_event_handler(void *event_arg, esp_event_base_t event_base,
-                            int32_t event_id, void *event_data) {
+                            int32_t event_id, void *event_data)
+{
   Wifi &wifi = *(Wifi *)event_arg;
-  switch (event_id) {
+  switch (event_id)
+  {
 
-  case IP_EVENT_STA_GOT_IP: {
+  case IP_EVENT_STA_GOT_IP:
+  {
     INFO("IP_EVENT_STA_GOT_IP");
     ip_event_got_ip_t *got_ip = (ip_event_got_ip_t *)event_data;
     char my_ip_address[20];
@@ -50,7 +58,8 @@ void Wifi::ip_event_handler(void *event_arg, esp_event_base_t event_base,
     break;
   }
 
-  case IP_EVENT_STA_LOST_IP: {
+  case IP_EVENT_STA_LOST_IP:
+  {
     INFO("IP_STA_LOST_IP");
     wifi.connected = false;
     break;
@@ -62,36 +71,46 @@ void Wifi::ip_event_handler(void *event_arg, esp_event_base_t event_base,
 }
 
 void Wifi::wifi_event_handler(void *event_arg, esp_event_base_t event_base,
-                              int32_t event_id, void *event_data) {
+                              int32_t event_id, void *event_data)
+{
   Wifi &wifi = *(Wifi *)event_arg;
-  switch (event_id) {
+  switch (event_id)
+  {
 
-  case WIFI_EVENT_SCAN_DONE: {
+  case WIFI_EVENT_SCAN_DONE:
+  {
     INFO("WIFI_EVENT_SCAN_DONE");
-    if (wifi.scanDoneHandler()) {
+    if (wifi.scanDoneHandler())
+    {
       wifi.connectToAP(wifi.ssid().c_str());
-    } else {
+    }
+    else
+    {
       wifi.startScan();
     }
     break;
   }
-  case WIFI_EVENT_STA_STOP: {
+  case WIFI_EVENT_STA_STOP:
+  {
     INFO("WIFI_EVENT_STA_STOP");
     //				esp_wifi_start();
     //				wifi.wifiInit();
     break;
   }
-  case WIFI_EVENT_STA_START: {
+  case WIFI_EVENT_STA_START:
+  {
     INFO("WIFI_EVENT_STA_START");
     wifi.startScan();
     break;
   }
 
-  case WIFI_EVENT_STA_CONNECTED: {
+  case WIFI_EVENT_STA_CONNECTED:
+  {
     INFO("WIFI_EVENT_STA_CONNECTED");
     break;
   }
-  case WIFI_EVENT_STA_DISCONNECTED: {
+  case WIFI_EVENT_STA_DISCONNECTED:
+  {
     INFO("WIFI_EVENT_STA_DISCONNECTED");
     esp_wifi_connect();
     break;
@@ -103,8 +122,9 @@ void Wifi::wifi_event_handler(void *event_arg, esp_event_base_t event_base,
   }
 }
 
-void Wifi::connectToAP(const char *ssid) {
-//  INFO(" connecting to SSID : %s PSWD: %s ", ssid,S(WIFI_PASS));
+void Wifi::connectToAP(const char *ssid)
+{
+  //  INFO(" connecting to SSID : %s PSWD: %s ", ssid,S(WIFI_PASS));
 
   wifi_config_t wifi_config;
   memset(&wifi_config, 0, sizeof(wifi_config)); // needed !!
@@ -116,11 +136,13 @@ void Wifi::connectToAP(const char *ssid) {
   esp_wifi_connect();
 }
 
-bool Wifi::scanDoneHandler() {
+bool Wifi::scanDoneHandler()
+{
   uint16_t sta_number;
   esp_wifi_scan_get_ap_num(&sta_number);
   INFO(" found %d AP's , size : %d ", sta_number, sizeof(wifi_ap_record_t));
-  if (sta_number == 0) {
+  if (sta_number == 0)
+  {
     WARN(" no AP found , restarting scan.");
     return false;
   }
@@ -128,15 +150,18 @@ bool Wifi::scanDoneHandler() {
   esp_wifi_scan_get_ap_records(&sta_number, apRecords);
   int strongestAP = -1;
   rssi = -200;
-  for (uint32_t i = 0; i < sta_number; i++) {
+  for (uint32_t i = 0; i < sta_number; i++)
+  {
     INFO(" %s : %d ", apRecords[i].ssid, apRecords[i].rssi);
     std::basic_string<char> ssid = (const char *)apRecords[i].ssid;
-    if ((apRecords[i].rssi > rssi()) && (ssid.find(prefix()) == 0)) {
+    if ((apRecords[i].rssi > rssi()) && (ssid.find(prefix()) == 0))
+    {
       strongestAP = i;
       rssi = apRecords[i].rssi;
     }
   }
-  if (strongestAP == -1) {
+  if (strongestAP == -1)
+  {
     WARN(" no AP found matching pattern '%s', restarting scan.",
          prefix().c_str());
     return false;
@@ -146,7 +171,8 @@ bool Wifi::scanDoneHandler() {
   return true;
 }
 
-void Wifi::startScan() {
+void Wifi::startScan()
+{
   INFO(
       " starting WiFi scan."); // https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/wifi.html#scan-configuration
   wifi_scan_config_t scanConfig = {
@@ -154,10 +180,12 @@ void Wifi::startScan() {
   CHECK(esp_wifi_scan_start(&scanConfig, false));
 }
 
-void Wifi::wifiInit() {
+void Wifi::wifiInit()
+{
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
-      ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+      ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+  {
     WARN(" erasing NVS flash ");
     ESP_ERROR_CHECK(nvs_flash_erase());
     ret = nvs_flash_init();
