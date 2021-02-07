@@ -13,14 +13,17 @@ int Thread::_id=0;
 
 Thread::Thread(const char *name) : Named(name)
 {
-    _queueSize = 20;
-    _stackSize = 10000;
     _priority = configMAX_PRIORITIES - 1;
 }
 
+  Thread::Thread(ThreadProperties props):Named(props.name),_queueSize(props.queueSize),_stackSize(props.stackSize),_priority(props.priority) {
+
+  }
+
+
 void Thread::createQueue()
 {
-    _workQueue = xQueueCreate(20, sizeof(Invoker *)); 
+    _workQueue = xQueueCreate(_queueSize ? _queueSize:20, sizeof(Invoker *)); 
     if ( _workQueue== NULL) WARN("Queue creation failed ");
 }
 
@@ -28,7 +31,7 @@ void Thread::start()
 {
     xTaskCreate([](void* task) {
         ((Thread*)task)->run();
-    }, name(), 20000, this, tskIDLE_PRIORITY, NULL);
+    }, name(), _stackSize ? _stackSize:10000, this, _priority, NULL);
     /*
     	xTaskCreatePinnedToCore([](void* task) {
     		((Thread*)task)->run();
@@ -60,7 +63,7 @@ int Thread::enqueueFromIsr(Invoker* invoker)
 
 void Thread::run()
 {
-    INFO("Thread '%s' started ",name());
+    INFO("Thread '%s' prio : %d started ",name(),uxTaskPriorityGet(NULL));
     createQueue();
     uint32_t noWaits=0;
     while(true) {

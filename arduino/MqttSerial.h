@@ -2,11 +2,8 @@
 #define MQTTSERIAL_H
 #include <Mqtt.h>
 #include <limero.h>
-
 #include <string>
-#ifdef ESP32_IDF
-#include "driver/uart.h"
-#endif
+
 
 #define QOS 0
 #define TIMEOUT 10000L
@@ -20,7 +17,7 @@ class MqttSerial : public Mqtt {
   std::string  _address;
   std::string  _lwt_topic;
   std::string  _lwt_message;
-  HardwareSerial& _serial;
+  Stream& _serial;
 
  private:
   StaticJsonDocument<256> txd;
@@ -41,7 +38,7 @@ class MqttSerial : public Mqtt {
   static void onRxd(void *);
   TimerSource keepAliveTimer;
   TimerSource connectTimer;
-  MqttSerial(Thread &thr,HardwareSerial& serial);
+  MqttSerial(Thread &thr,Stream& serial);
   ~MqttSerial();
   void init();
 

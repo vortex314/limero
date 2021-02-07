@@ -50,19 +50,19 @@ void Thread::loop() {
       prq->invoke();
       uint32_t delta = Sys::millis() - start;
       if (delta > 20)
-        WARN("Invoker [%X] slow %lu msec invoker on thread '%s'.",
+        WARN("Invoker [%X] slow %u msec invoker on thread '%s'.",
              (unsigned int)prq, delta, name());
     }
   } else {
     if (expiredTimer && expiredTimer->expireTime() < Sys::millis() ) {
       if (-waitTime > 100)
-        INFO("Timer[%X] already expired by %ld msec on thread '%s'.",
+        INFO("Timer[%X] already expired by %d msec on thread '%s'.",
              (unsigned int)expiredTimer, -waitTime, name());
       uint64_t start = Sys::millis();
       expiredTimer->request();
       uint32_t deltaExec = Sys::millis() - start;
       if (deltaExec > 20)
-        WARN("Timer [%X] request slow %lu msec on thread '%s'",
+        WARN("Timer [%X] request slow %u msec on thread '%s'",
              (unsigned int)expiredTimer, deltaExec, name());
     }
   }

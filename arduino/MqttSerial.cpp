@@ -1,7 +1,7 @@
 
 #include <MqttSerial.h>
 
-MqttSerial::MqttSerial(Thread &thr, HardwareSerial &serial)
+MqttSerial::MqttSerial(Thread &thr, Stream &serial)
     : Mqtt(thr), _serial(serial),
       keepAliveTimer(thr, 1000, true),
       connectTimer(thr, 1000, true)
@@ -136,6 +136,8 @@ void MqttSerial::txdSerial(JsonDocument &txd)
 {
   String output = "";
   serializeJson(txd, output);
-  Serial.println(output.c_str());
-  Serial.flush();
+  _serial.write(output.c_str());
+  _serial.write("\r\n");
+  _serial.flush();
+  INFO(".");
 }

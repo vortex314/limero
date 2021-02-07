@@ -11,7 +11,7 @@
 
 Wifi::Wifi(Thread &thr)
     : Actor(thr), password(S(WIFI_PASS)), prefix(S(WIFI_SSID)) {
-      INFO(" Wifi %s:%s ",password().c_str(),prefix().c_str());
+   //   INFO(" WiFi credentials %s:%s",prefix().c_str(),password().c_str());
   rssi = 0;
 }
 
@@ -104,7 +104,7 @@ void Wifi::wifi_event_handler(void *event_arg, esp_event_base_t event_base,
 }
 
 void Wifi::connectToAP(const char *ssid) {
-  INFO(" connecting to SSID : %s", ssid);
+//  INFO(" connecting to SSID : %s PSWD: %s ", ssid,S(WIFI_PASS));
 
   wifi_config_t wifi_config;
   memset(&wifi_config, 0, sizeof(wifi_config)); // needed !!

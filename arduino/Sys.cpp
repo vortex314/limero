@@ -30,6 +30,14 @@ void Sys::delay(uint32_t delta) {
 
 uint64_t Sys::now() { return _boot_time + Sys::millis(); }
 
+const char* Sys::board( ) {
+    return S(BOARD);
+}
+
+const char* Sys::cpu(){
+    return S(CPU);
+}
+
 
 
 
