@@ -1,4 +1,3 @@
-#include <../Common/Config.h>
 #include <MqttWifi.h>
 #include <Wifi.h>
 #include <sys/types.h>
