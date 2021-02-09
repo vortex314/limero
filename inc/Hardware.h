@@ -53,7 +53,7 @@ class DigitalIn : public Driver
 public:
     typedef enum { DIN_NONE, DIN_RAISE, DIN_FALL, DIN_CHANGE } PinChange;
 
-    typedef enum { DIN_PULL_UP = 1, DIN_PULL_DOWN = 2 } Mode;
+    typedef enum { DIN_NO_PULL=0,DIN_PULL_UP = 1, DIN_PULL_DOWN = 2 } Mode;
     static DigitalIn& create(PhysicalPin pin);
     virtual int read() = 0;
     virtual int init() = 0;
@@ -138,7 +138,7 @@ public:
     virtual int getValue() = 0;
 };
 
-class Connector
+class Uext
 {
     uint32_t _pinsUsed;
     uint32_t _connectorIdx;
@@ -159,7 +159,7 @@ private:
 public:
     uint32_t toPin(uint32_t logicalPin);
     static const char* uextPin(uint32_t logicalPin);
-    Connector(uint32_t idx);
+    Uext(uint32_t idx);
     UART& getUART();
     Spi& getSPI();
     I2C& getI2C();

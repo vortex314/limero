@@ -188,7 +188,7 @@ typedef enum { PING = 0, PUBLISH, PUBACK, SUBSCRIBE, SUBACK } CMD;
 void MqttWifi::mqttPublish(const char *topic, const char *message) {
   if (connected() == false)
     return;
-  INFO("PUB : %s = %s", topic, message);
+  //INFO("PUB : %s = %s", topic, message);
   int id = 0;
   id = esp_mqtt_client_publish(_mqttClient, topic, message, 0, 0, 0);
   if (id < 0)

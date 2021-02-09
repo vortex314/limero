@@ -987,7 +987,7 @@ UART &UART::create(uint32_t module, PhysicalPin txd, PhysicalPin rxd)
  #####    ####   #    #  #    #  ######   ####      #     ####   #    #
 
  */
-Connector::Connector(uint32_t idx) // defined by PCB layout
+Uext::Uext(uint32_t idx) // defined by PCB layout
 {
   /* OLD PCB
    if (idx == 1) {
@@ -1052,19 +1052,19 @@ Connector::Connector(uint32_t idx) // defined by PCB layout
 const char *sLogicalPin[] = {"TXD", "RXD", "SCL", "SDA",
                              "MISO", "MOSI", "SCK", "CS"};
 
-PhysicalPin Connector::toPin(uint32_t logicalPin)
+PhysicalPin Uext::toPin(uint32_t logicalPin)
 {
   DEBUG(" UEXT%d %s[%d] => GPIO_%d", _connectorIdx, sLogicalPin[logicalPin],
         logicalPin, _physicalPins[logicalPin]);
   return _physicalPins[logicalPin];
 }
 
-const char *Connector::uextPin(uint32_t logicalPin)
+const char *Uext::uextPin(uint32_t logicalPin)
 {
   return sLogicalPin[logicalPin];
 }
 
-UART &Connector::getUART()
+UART &Uext::getUART()
 {
   lockPin(LP_TXD);
   lockPin(LP_RXD);
@@ -1072,7 +1072,7 @@ UART &Connector::getUART()
   return *_uart;
 }
 
-Spi &Connector::getSPI()
+Spi &Uext::getSPI()
 {
   _spi = new SPI_ESP32(toPin(LP_MISO), toPin(LP_MOSI), toPin(LP_SCK),
                        toPin(LP_CS));
@@ -1082,7 +1082,7 @@ Spi &Connector::getSPI()
   lockPin(LP_CS);
   return *_spi;
 }
-I2C &Connector::getI2C()
+I2C &Uext::getI2C()
 {
   lockPin(LP_SDA);
   lockPin(LP_SCL);
@@ -1090,28 +1090,28 @@ I2C &Connector::getI2C()
   return *_i2c;
 }
 
-ADC &Connector::getADC(LogicalPin pin)
+ADC &Uext::getADC(LogicalPin pin)
 {
   lockPin(LP_SDA);
   ADC *adc = new ADC_ESP32(toPin(pin));
   return *adc;
 }
 
-DigitalOut &Connector::getDigitalOut(LogicalPin lp)
+DigitalOut &Uext::getDigitalOut(LogicalPin lp)
 {
   lockPin(lp);
   DigitalOut *_out = new DigitalOut_ESP32(toPin(lp));
   return *_out;
 }
 
-DigitalIn &Connector::getDigitalIn(LogicalPin lp)
+DigitalIn &Uext::getDigitalIn(LogicalPin lp)
 {
   lockPin(lp);
   DigitalIn *_in = new DigitalIn_ESP32(toPin(lp));
   return *_in;
 }
 
-void Connector::lockPin(LogicalPin lp)
+void Uext::lockPin(LogicalPin lp)
 {
   if (_pinsUsed & (1 << lp))
   {
