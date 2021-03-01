@@ -156,7 +156,8 @@ int MqttPaho::disconnect()
 int MqttPaho::subscribe(std::string topic)
 {
   int qos = 0;
-  if (state() != MS_CONNECTED)
+  subscriptions.emplace(topic);
+  if (state() != MS_CONNECTED) 
     return 0;
   MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
   INFO("Subscribing to topic %s for client %s using QoS%d", topic.c_str(),
