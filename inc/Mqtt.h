@@ -24,7 +24,7 @@ public:
   uint32_t length;
   uint32_t total;
   uint8_t *data;
-  MqttBlock operator=(const MqttBlock &other) {
+/*  MqttBlock operator=(const MqttBlock &other) {
     topic = other.topic;
     //    data=other.data;
     offset = other.offset;
@@ -32,7 +32,7 @@ public:
     total = other.total;
     data = other.data;
     return *this;
-  }
+  }*/
 };
 
 //____________________________________________________________________________________________________________

@@ -21,8 +21,8 @@ Gpio *gpio[40];
     gpio[_X_]->_value = digitalRead(_X_);                \
   }
 
-//    for (int i = 0; i < 30; i++)                         \
-//      INFO(" gpio[%d]=%X", i, gpio[i]);                  \
+//    for (int i = 0; i < 30; i++)
+//      INFO(" gpio[%d]=%X", i, gpio[i]);
 
 std::vector<int> Gpio::raspberryGpio{0, 1, 2, 3, 4, 5, 7, 21, 22, 23, 24, 25, 26, 27, 28, 29}; // removed 6
 HANDLER(0);
@@ -102,7 +102,7 @@ Gpio::Gpio(Thread &thread, int pin) : _pollTimer(thread, 1000, true, "gpioPollTi
     INFO(" stub GPIO %d write %d ", _pin, _value);
 #endif
   };
-  _pollTimer >> [&](const TimerMsg &tm) {
+  _pollTimer >> [&](const TimerMsg &) {
 #ifdef HAS_GPIO
     _value = digitalRead(_pin);
     if (value() != _value)

@@ -51,13 +51,13 @@ void MqttPaho::init()
   state(MS_DISCONNECTED, __SHORT_FILE__, __LINE__);
 
   _reportTimer >>
-      ([&](const TimerMsg &tm) { publish(_lastWillTopic.c_str(), "true"); });
+      ([&](const TimerMsg &) { publish(_lastWillTopic.c_str(), "true"); });
 
   outgoing.async(thread(), [&](const MqttMessage &m) {
     publish(m.topic.c_str(), m.message.c_str());
   });
 
-  _keepAliveTimer >> [&](const TimerMsg &tm) {
+  _keepAliveTimer >> [&](const TimerMsg &) {
     if (!connected())
       connect();
   };
@@ -184,12 +184,13 @@ void MqttPaho::onConnectionLost(void *context, char *cause)
 {
   MqttPaho *me = (MqttPaho *)context;
   me->state(MS_DISCONNECTED, __SHORT_FILE__, __LINE__);
+  INFO(" MQTT connection lost : %s",cause);
 }
 
 int MqttPaho::onMessage(void *context, char *topicName, int topicLen,
                         MQTTAsync_message *message)
 {
-  INFO(" receiving message %s : %s  ", topicName, message->payload);
+  DEBUG(" receiving message %s : %s  ", topicName, message->payload);
   MqttPaho *me = (MqttPaho *)context;
   std::string msg((char *)message->payload, message->payloadlen);
   std::string topic(topicName, topicLen);
@@ -200,26 +201,26 @@ int MqttPaho::onMessage(void *context, char *topicName, int topicLen,
   return 1;
 }
 
-void MqttPaho::onDeliveryComplete(void *context, MQTTAsync_token response)
+void MqttPaho::onDeliveryComplete(void *context, MQTTAsync_token )
 {
   //    MqttPaho* me = (MqttPaho*)context;
 }
 
-void MqttPaho::onDisconnect(void *context, MQTTAsync_successData *response)
+void MqttPaho::onDisconnect(void *context, MQTTAsync_successData *)
 {
   MqttPaho *me = (MqttPaho *)context;
   me->state(MS_DISCONNECTED, __SHORT_FILE__, __LINE__);
 }
 
 void MqttPaho::onConnectFailure(void *context,
-                                MQTTAsync_failureData *response)
+                                MQTTAsync_failureData *)
 {
   MqttPaho *me = (MqttPaho *)context;
   me->state(MS_DISCONNECTED, __SHORT_FILE__, __LINE__);
 }
 
 void MqttPaho::onConnectSuccess(void *context,
-                                MQTTAsync_successData *response)
+                                MQTTAsync_successData *)
 {
   MqttPaho *me = (MqttPaho *)context;
   me->state(MS_CONNECTED, __SHORT_FILE__, __LINE__);

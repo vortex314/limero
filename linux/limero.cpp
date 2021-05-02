@@ -122,7 +122,7 @@ void Thread::run() {
     if (waitTime > 0) {
       Invoker* prq = 0;
       if (waitTime == 0) noWaits++;
-      unsigned int priority = 0;
+ //     unsigned int priority = 0;
       DEBUG(" waiting ... %d msec", waitTime);
       int rc = readPipe(_readPipe, &prq, sizeof(Invoker*), waitTime);
       if (rc == 1) {
