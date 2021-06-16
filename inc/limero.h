@@ -652,6 +652,7 @@ class QueueFlow : public Flow<T, T>, public Invoker, public Named {
       else
         WARN(" push failed");
     } else {
+      //      WARN(" queue without consuming thread ");
       this->emit(t);
     }
   }
@@ -736,4 +737,60 @@ class Actor {
   Thread &thread() { return _thread; }
 };
 
-#endif  // NANOAKKA_H
+//____________________________________________________________________________________
+//
+class Poller : public Actor {
+  TimerSource _pollInterval;
+  std::vector<Requestable *> _requestables;
+  uint32_t _idx = 0;
+
+ public:
+  ValueFlow<bool> connected;
+  ValueFlow<uint32_t> interval = 500;
+  Poller(Thread &t) : Actor(t), _pollInterval(t, 500, true) {
+    _pollInterval >> [&](const TimerMsg tm) {
+      if (_requestables.size() && connected())
+        _requestables[_idx++ % _requestables.size()]->request();
+    };
+    interval >> [&](const uint32_t iv) { _pollInterval.interval(iv); };
+  };
+
+  /*
+    template <class T> Source<T> &poll(Source<T> &source) {
+      RequestFlow<T> *rf = new RequestFlow<T>(source);
+      source >> rf;
+      _requestables.push_back(rf);
+      return *rf;
+    }*/
+
+  template <class T>
+  LambdaSource<T> &operator>>(LambdaSource<T> &source) {
+    _requestables.push_back(&source);
+    return source;
+  }
+
+  template <class T>
+  ValueSource<T> &operator>>(ValueSource<T> &source) {
+    _requestables.push_back(&source);
+    return source;
+  }
+
+  template <class T>
+  ValueFlow<T> &operator>>(ValueFlow<T> &source) {
+    _requestables.push_back(&source);
+    return source;
+  }
+
+  template <class T>
+  RefSource<T> &operator>>(RefSource<T> &source) {
+    _requestables.push_back(&source);
+    return source;
+  }
+  /*
+    Poller &operator()(Requestable &rq) {
+      _requestables.push_back(&rq);
+      return *this;
+    }*/
+};
+
+#endif  // LIMERO_H

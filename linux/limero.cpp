@@ -36,7 +36,7 @@ int readPipe(int readFd, void* data, int size, uint32_t timeout) {
   FD_SET(readFd, &rfds);
   FD_SET(readFd, &efds);
   int maxFd = readFd;
-  maxFd += 1;
+  maxFd += 1; 
 
   int rc = select(maxFd, &rfds, 0, &efds, &tv);
 

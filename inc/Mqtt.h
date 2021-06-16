@@ -52,7 +52,7 @@ public:
     dstPrefix = "dst/";
     dstPrefix += Sys::hostname();
     dstPrefix += "/";
-    srcPrefix = "src";
+    srcPrefix = "src/";
     srcPrefix += Sys::hostname();
     srcPrefix += "/";
   };
@@ -99,10 +99,10 @@ public:
     _mqtt = mqtt;
     std::string topic = name;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
-      DEBUG(" no prefix for %s ", name.c_str());
+      DEBUG(" absolute topic %s ", name.c_str());
       _name = name;
     } else {
-      DEBUG(" adding prefix %s to %s ", mqtt->srcPrefix.c_str(), name.c_str());
+      DEBUG(" relative topic adding %s to %s ", mqtt->srcPrefix.c_str(), name.c_str());
       _name = mqtt->srcPrefix + name;
     }
   }
@@ -116,8 +116,8 @@ template <class T> class FromMqtt : public LambdaFlow<MqttMessage, T> {
 public:
   FromMqtt(std::string name, Mqtt *mqtt)
       : LambdaFlow<MqttMessage, T>([&](T &t, const MqttMessage &mqttMessage) {
-         // INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(),
-           //    mqttMessage.message.c_str(), _name.c_str());
+       /*   INFO(" from topic '%s':'%s' vs '%s'", mqttMessage.topic.c_str(),
+              mqttMessage.message.c_str(), _name.c_str());*/
           if (mqttMessage.topic != _name) {
             return false;
           }
@@ -147,11 +147,11 @@ public:
     std::string topic = name;
     std::string targetTopic;
     if (topic.find("src/") == 0 || topic.find("dst/") == 0) {
-      DEBUG(" no prefix for %s ", name.c_str());
+      DEBUG(" absolute topic %s ", name.c_str());
       _name = name;
       mqtt->subscriptions.emplace(_name); // add explicit subscription beside the implicit src/device/#
     } else {
-      DEBUG(" adding prefix %s to %s ", mqtt->dstPrefix.c_str(), name.c_str());
+      DEBUG(" relative topic, adding prefix %s to %s ", mqtt->dstPrefix.c_str(), name.c_str());
       _name = mqtt->dstPrefix + name;
     }
   };

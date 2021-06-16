@@ -789,7 +789,7 @@ public:
     std::string taskName;
     string_format(taskName, "uart_event_task_%d", _driver);
     xTaskCreate(uart_event_task, taskName.c_str(), 3120, this,
-                tskIDLE_PRIORITY + 5, &_taskHandle);
+                /*tskIDLE_PRIORITY + 5*/20, &_taskHandle);
     return 0;
   }
 

@@ -93,6 +93,18 @@ void MqttPaho::state(MqttConnectionState newState, const char *file, int line)
 
 MqttPaho::MqttConnectionState MqttPaho::state() { return _connectionState; }
 
+
+// DIRTY HACK until https://github.com/eclipse/paho.mqtt.c/issues/530 gets resolved 
+/*#include <MQTTAsyncUtils.h>
+#include <sys/socket.h>
+
+void disableNagle(void* client) {
+  MQTTAsyncs *ps = (MQTTAsyncs *)client;
+  int flags=1;
+  int rc  = setsockopt(ps->websocket, SOL_TCP, TCP_NODELAY, (void *)&flags, sizeof(flags));
+  if ( rc < 0 ) WARN(" disableNagle fails ");
+}*/
+
 int MqttPaho::connect()
 {
   int rc;
@@ -127,7 +139,8 @@ int MqttPaho::connect()
   {
     WARN("Failed to start connect, return code %d", rc);
     return ECONNREFUSED;
-  }
+  };
+//  disableNagle(_client);
   return 0;
 }
 
@@ -157,7 +170,7 @@ int MqttPaho::subscribe(std::string topic)
 {
   int qos = 0;
   subscriptions.emplace(topic);
-  if (state() != MS_CONNECTED) 
+  if (state() != MS_CONNECTED)
     return 0;
   MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
   INFO("Subscribing to topic %s for client %s using QoS%d", topic.c_str(),
@@ -184,7 +197,7 @@ void MqttPaho::onConnectionLost(void *context, char *cause)
 {
   MqttPaho *me = (MqttPaho *)context;
   me->state(MS_DISCONNECTED, __SHORT_FILE__, __LINE__);
-  INFO(" MQTT connection lost : %s",cause);
+  INFO(" MQTT connection lost : %s", cause);
 }
 
 int MqttPaho::onMessage(void *context, char *topicName, int topicLen,
@@ -201,7 +214,7 @@ int MqttPaho::onMessage(void *context, char *topicName, int topicLen,
   return 1;
 }
 
-void MqttPaho::onDeliveryComplete(void *context, MQTTAsync_token )
+void MqttPaho::onDeliveryComplete(void *context, MQTTAsync_token)
 {
   //    MqttPaho* me = (MqttPaho*)context;
 }

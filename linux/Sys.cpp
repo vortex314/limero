@@ -49,6 +49,15 @@ uint64_t Sys::millis()  // time in msec since boot, only increasing
 }
 
 
+uint64_t Sys::micros()  // time in µsec since boot, only increasing
+{
+  struct timespec deadline;
+  clock_gettime((int)CLOCK_MONOTONIC, &deadline);
+  Sys::_upTime = deadline.tv_sec * 1000000 + deadline.tv_nsec / 1000;
+  return _upTime;
+}
+
+
 
 void Sys::init() { gethostname(_hostname, 30); }
 
