@@ -166,9 +166,10 @@ int MqttMosquitto::connect()
   mosquitto_log_callback_set(_client, onLog);
   mosquitto_message_callback_set(_client, onMessage);
   mosquitto_subscribe_callback_set(_client, onSubscribe);
-  rc = mosquitto_int_option(_client, MOSQ_OPT_TCP_NODELAY, 1);
+  /*rc = mosquitto_int_option(_client, MOSQ_OPT_TCP_NODELAY, 1);
   if (rc)
     WARN("mosquitto_int_option() : %s  ", logMosquitto(rc));
+    */
   rc = mosquitto_connect(_client, _host.c_str(), _port, _keepalive);
   if (rc)
   {
