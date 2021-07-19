@@ -12,6 +12,10 @@ int Thread::_id = 0;
 
 Thread::Thread(const char* name):Named(name),_workQueue(10) {};
 
+void Thread::addTimer(TimerSource *ts) {
+  _timers.push_back(ts);
+}
+
 void Thread::createQueue() {}
 
 void Thread::start() {}

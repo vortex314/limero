@@ -756,7 +756,7 @@ public:
       uart_config.stop_bits = UART_STOP_BITS_2;
     else
       return EINVAL;
-    return 0;
+    return 0; 
   }
 
   int init()
