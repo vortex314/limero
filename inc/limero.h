@@ -17,8 +17,8 @@
 #include <thread>
 #endif
 //--------------------------------------------------  ESP8266
-#if defined(ESP_OPEN_RTOS) ||                                                  \
-    defined(ESP8266_RTOS_SDK) // ESP_PLATFORM for ESP8266_RTOS_SDK
+#if defined(ESP_OPEN_RTOS) || \
+    defined(ESP8266_RTOS_SDK)  // ESP_PLATFORM for ESP8266_RTOS_SDK
 #define FREERTOS
 #define NO_ATOMIC
 #include <FreeRTOS.h>
@@ -56,23 +56,23 @@
 #undef WARN
 using cstr = const char *const;
 
-#define INFO(fmt, ...)                                                         \
-  {                                                                            \
-    char line[256];                                                            \
-    int len = snprintf(line, sizeof(line), "I %u | %.12s:%.3d | ",             \
-                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);     \
-    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__);    \
-    Serial.println(line);                                                      \
-    Serial.flush();                                                            \
+#define INFO(fmt, ...)                                                      \
+  {                                                                         \
+    char line[256];                                                         \
+    int len = snprintf(line, sizeof(line), "I %u | %.12s:%.3d | ",          \
+                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);  \
+    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__); \
+    Serial.println(line);                                                   \
+    Serial.flush();                                                         \
   }
-#define WARN(fmt, ...)                                                         \
-  {                                                                            \
-    char line[256];                                                            \
-    int len = snprintf(line, sizeof(line), "W %u | %.12s:%.3d | ",             \
-                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);     \
-    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__);    \
-    Serial.println(line);                                                      \
-    Serial.flush();                                                            \
+#define WARN(fmt, ...)                                                      \
+  {                                                                         \
+    char line[256];                                                         \
+    int len = snprintf(line, sizeof(line), "W %u | %.12s:%.3d | ",          \
+                       (uint32_t)Sys::millis(), __SHORT_FILE__, __LINE__);  \
+    snprintf((char *)(line + len), sizeof(line) - len, fmt, ##__VA_ARGS__); \
+    Serial.println(line);                                                   \
+    Serial.flush();                                                         \
   }
 #else
 #include <Log.h>
@@ -99,43 +99,47 @@ extern NanoStats stats;
 // INTERFACES nanoAkka
 //
 
-template <class T> class AbstractQueue {
-public:
+template <class T>
+class AbstractQueue {
+ public:
   virtual bool pop(T &t) = 0;
-  virtual bool push(const T &t) = 0; // const to be able to do something like
-                                     // push({"topic","message"});
+  virtual bool push(const T &t) = 0;  // const to be able to do something like
+                                      // push({"topic","message"});
 };
 //--------------- give an object a name, useful for debugging
 class Named {
   std::string _name = "no-name";
 
-public:
+ public:
   Named(const char *name) { _name = name == 0 ? "NULL" : name; }
   const char *name() { return _name.c_str(); }
 };
 //--------------- something that can be invoked or execute something
 class Invoker {
-public:
+ public:
   virtual void invoke() = 0;
 };
 //-------------- handler class for certain messages or events
-template <class T> class Subscriber {
-public:
+template <class T>
+class Subscriber {
+ public:
   virtual void on(const T &t) = 0;
   virtual ~Subscriber(){};
 };
 #include <bits/atomic_word.h>
 //------------- handler function for certain messages or events
-template <class T> class SubscriberFunction : public Subscriber<T> {
+template <class T>
+class SubscriberFunction : public Subscriber<T> {
   std::function<void(const T &t)> _func;
 
-public:
+ public:
   SubscriberFunction(std::function<void(const T &t)> func) { _func = func; }
   void on(const T &t) { _func(t); }
 };
 //------------ generator of messages
-template <class T> class Publisher {
-public:
+template <class T>
+class Publisher {
+ public:
   virtual void subscribe(Subscriber<T> *listener) = 0;
   void operator>>(Subscriber<T> &listener) { subscribe(&listener); }
   void operator>>(Subscriber<T> *listener) { subscribe(listener); }
@@ -145,7 +149,7 @@ public:
 };
 //-----------------  can be prooked to publish something
 class Requestable {
-public:
+ public:
   virtual void request() = 0;
 };
 //___________________________________________________________________________
@@ -159,13 +163,13 @@ public:
 // level 15 will disable ALL interrupts,
 // level 0 will enable ALL interrupts
 //
-#define xt_rsil(level)                                                         \
-  (__extension__({                                                             \
-    uint32_t state;                                                            \
-    __asm__ __volatile__("rsil %0," STRINGIFY(level) : "=a"(state));           \
-    state;                                                                     \
+#define xt_rsil(level)                                               \
+  (__extension__({                                                   \
+    uint32_t state;                                                  \
+    __asm__ __volatile__("rsil %0," STRINGIFY(level) : "=a"(state)); \
+    state;                                                           \
   }))
-#define xt_wsr_ps(state)                                                       \
+#define xt_wsr_ps(state) \
   __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) : "memory")
 #define interrupts() xt_rsil(0)
 #define noInterrupts() xt_rsil(15)
@@ -173,14 +177,15 @@ public:
 //#pragma GCC diagnostic ignored "-Warray-bounds"
 
 #ifdef ARDUINO
-template <class T> class ArrayQueue : public AbstractQueue<T> {
+template <class T>
+class ArrayQueue : public AbstractQueue<T> {
   T *_array;
   int _size;
   int _readPtr;
   int _writePtr;
   inline int next(int idx) { return (idx + 1) % _size; }
 
-public:
+ public:
   ArrayQueue(int size) : _size(size) {
     _readPtr = _writePtr = 0;
     _array = (T *)new T[size];
@@ -244,7 +249,7 @@ template <typename T, size_t cache_line_size = 64>
 #endif
 
 class ArrayQueue {
-private:
+ private:
   struct alignas(cache_line_size) Item {
     T value;
     std::atomic<INDEX_TYPE> version;
@@ -262,16 +267,20 @@ private:
   AlignedAtomicU64 m_head;
   AlignedAtomicU64 m_tail;
 
-public:
+ public:
   explicit ArrayQueue(size_t capacity)
 #if defined(STM32_OPENCM3) || defined(ESP8266_RTOS_SDK)
       : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))),
-        m_capacity(capacity), m_head(0), m_tail(0)
+        m_capacity(capacity),
+        m_head(0),
+        m_tail(0)
 #else
       // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) *
       // capacity ))),
       //      m_capacity(capacity), m_head(0), m_tail(0)
-      : m_capacity(capacity), m_head(0), m_tail(0)
+      : m_capacity(capacity),
+        m_head(0),
+        m_tail(0)
 
 #endif
   {
@@ -377,7 +386,7 @@ class Thread : public Named {
   int _stackSize;
   int _priority;
 
-public:
+ public:
   Thread(const char *name = "noname");
   Thread(ThreadProperties props);
   void start();
@@ -396,11 +405,12 @@ public:
 
 //_____________________________________________________________________ SOURCE _
 //
-template <class T> class Source : public Publisher<T>, public Requestable {
+template <class T>
+class Source : public Publisher<T>, public Requestable {
   std::vector<Subscriber<T> *> _listeners;
   T _last;
 
-public:
+ public:
   void subscribe(Subscriber<T> *listener) { _listeners.push_back(listener); }
   void emit(const T &t) {
     _last = t;
@@ -413,21 +423,23 @@ public:
 };
 //____________________________________________________________ LAMBDASOURCE
 //
-template <class T> class LambdaSource : public Source<T> {
+template <class T>
+class LambdaSource : public Source<T> {
   std::function<T()> _handler;
 
-public:
+ public:
   LambdaSource(std::function<T()> handler) : _handler(handler){};
   T operator()() { return _handler(); }
   void request() { this->emit(_handler()); }
 };
 //_____________________________________________________________ RefSource
 //
-template <class T> class RefSource : public Source<T> {
+template <class T>
+class RefSource : public Source<T> {
   T &_t;
   //  bool _pass = true;
 
-public:
+ public:
   RefSource(T &t) : _t(t){};
   void request() { this->emit(_t); }
   void operator=(T t) {
@@ -440,10 +452,11 @@ public:
 };
 //__________________________________________________________________________
 //
-template <class T> class ValueSource : public Source<T> {
+template <class T>
+class ValueSource : public Source<T> {
   T _t;
 
-public:
+ public:
   ValueSource(){};
   ValueSource(T t) { _t = t; }
   void request() { this->emit(_t); }
@@ -465,7 +478,7 @@ public:
 //_______________________________________________________________ TimerSource
 //
 class TimerMsg {
-public:
+ public:
   TimerSource *source;
 };
 
@@ -477,18 +490,16 @@ class TimerSource : public Source<TimerMsg>, public Named {
   void setNewExpireTime() {
     uint64_t now = Sys::millis();
     _expireTime += _interval;
-    if (_expireTime < now && _repeat)
-      _expireTime = now + _interval;
+    if (_expireTime < now && _repeat) _expireTime = now + _interval;
   }
 
-public:
+ public:
   TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
               const char *name = "unknownTimer1")
       : Named(name) {
     _interval = interval;
     _repeat = repeat;
-    if (repeat)
-      start();
+    if (repeat) start();
     thr.addTimer(this);
   }
   /*
@@ -528,7 +539,7 @@ class Sink : public Subscriber<T>, public Invoker, public Named {
   Thread *_thread = 0;
   T _lastValue;
 
-public:
+ public:
   Sink(int capacity, const char *nme = "unknown")
       : Named(nme), _queue(capacity) {
     _func = [&](const T &t) {
@@ -578,7 +589,7 @@ public:
 //
 template <class IN, class OUT>
 class Flow : public Subscriber<IN>, public Source<OUT> {
-public:
+ public:
   void operator==(Flow<OUT, IN> &flow) {
     this->subscribe(&flow);
     flow.subscribe(this);
@@ -594,10 +605,12 @@ class Cache : public Flow<T, T>, public Subscriber<TimerMsg> {
   T _t;
   TimerSource _timerSource;
 
-public:
+ public:
   Cache(Thread &thread, uint32_t minimum, uint32_t maximum,
         bool request = false)
-      : _thread(thread), _minimum(minimum), _maximum(maximum),
+      : _thread(thread),
+        _minimum(minimum),
+        _maximum(maximum),
         _timerSource(thread) {
     _timerSource.interval(minimum);
     _timerSource.start();
@@ -641,7 +654,7 @@ class QueueFlow : public Flow<T, T>, public Invoker, public Named {
   ArrayQueue<T> _queue;
   Thread *_thread = 0;
 
-public:
+ public:
   QueueFlow(size_t capacity, const char *name = "QueueFlow")
       : Named(name), _queue(capacity){};
   void on(const T &t) {
@@ -672,10 +685,11 @@ public:
 //________________________________________________________________
 //
 
-template <class IN, class OUT> class LambdaFlow : public Flow<IN, OUT> {
+template <class IN, class OUT>
+class LambdaFlow : public Flow<IN, OUT> {
   std::function<bool(OUT &, const IN &)> _func;
 
-public:
+ public:
   LambdaFlow() {
     _func = [](OUT &out, const IN &in) {
       WARN("no handler for this flow");
@@ -686,8 +700,7 @@ public:
   void lambda(std::function<bool(OUT &, const IN &)> func) { _func = func; }
   virtual void on(const IN &in) {
     OUT out;
-    if (_func(out, in))
-      this->emit(out);
+    if (_func(out, in)) this->emit(out);
   }
   void request(){};
   static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func) {
@@ -695,6 +708,30 @@ public:
     return *lf;
   }
 };
+
+template <class T>
+class Filter : public Flow<T, T> {
+  std::function<bool(const T &t)> _func;
+
+ public:
+  Filter() {
+    _func = [](const T &t) {
+      WARN("no handler for this filter");
+      return false;
+    };
+  };
+  Filter(std::function<bool(OUT &, const IN &)> func) : _func(func){};
+  void lambda(std::function<bool(OUT &, const IN &)> func) { _func = func; }
+  virtual void on(const IN &in) {
+    if (_func(in)) this->emit(in);
+  }
+  void request(){};
+};
+
+template <typename T>
+Flow<T, T> filter(std::function<bool(const T &t)> f) {
+  return *new Filter<T>(f);
+}
 
 //________________________________________________________________
 //
@@ -706,18 +743,18 @@ Source<OUT> &operator>>(Publisher<OUT> &publisher, Flow<IN, OUT> &flow) {
 
 //________________________________________________________________
 //
-template <class T> class ValueFlow : public Flow<T, T> {
+template <class T>
+class ValueFlow : public Flow<T, T> {
   T _t;
   bool _pass = true;
 
-public:
+ public:
   ValueFlow(){};
   ValueFlow(T t) { _t = t; }
   void request() { this->emit(_t); }
   void operator=(T t) {
     _t = t;
-    if (_pass)
-      this->emit(_t);
+    if (_pass) this->emit(_t);
   }
   T &operator()() { return _t; }
   void on(const T &in) {
@@ -731,7 +768,7 @@ public:
 class Actor {
   Thread &_thread;
 
-public:
+ public:
   Actor(Thread &thread) : _thread(thread) {}
   Thread &thread() { return _thread; }
 };
@@ -743,7 +780,7 @@ class Poller : public Actor {
   std::vector<Requestable *> _requestables;
   uint32_t _idx = 0;
 
-public:
+ public:
   ValueFlow<bool> connected;
   ValueFlow<uint32_t> interval = 500;
   Poller(Thread &t) : Actor(t), _pollInterval(t, 500, true) {
@@ -762,22 +799,26 @@ public:
       return *rf;
     }*/
 
-  template <class T> LambdaSource<T> &operator>>(LambdaSource<T> &source) {
+  template <class T>
+  LambdaSource<T> &operator>>(LambdaSource<T> &source) {
     _requestables.push_back(&source);
     return source;
   }
 
-  template <class T> ValueSource<T> &operator>>(ValueSource<T> &source) {
+  template <class T>
+  ValueSource<T> &operator>>(ValueSource<T> &source) {
     _requestables.push_back(&source);
     return source;
   }
 
-  template <class T> ValueFlow<T> &operator>>(ValueFlow<T> &source) {
+  template <class T>
+  ValueFlow<T> &operator>>(ValueFlow<T> &source) {
     _requestables.push_back(&source);
     return source;
   }
 
-  template <class T> RefSource<T> &operator>>(RefSource<T> &source) {
+  template <class T>
+  RefSource<T> &operator>>(RefSource<T> &source) {
     _requestables.push_back(&source);
     return source;
   }
@@ -788,4 +829,4 @@ public:
     }*/
 };
 
-#endif // LIMERO_H
+#endif  // LIMERO_H
