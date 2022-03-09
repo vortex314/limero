@@ -1,170 +1,84 @@
 /*
- * Log.h
+ * log.h
  *
- *  Created on: Jul 3, 2016
+ *  Created on: Nov 7, 2021
  *      Author: lieven
  */
 
-#ifndef LOG_H_
-#define LOG_H_
-
-#ifdef __cplusplus
-
-#include <Sema.h>
-#include <Sys.h>
-#include <stdarg.h>
+#ifndef SRC_LOG_H_
+#define SRC_LOG_H_
 #include <stdint.h>
-#include <string.h>
-
+#include <stdarg.h>
+#include "Sys.h"
 #include <string>
+#include <string.h>
+#include <errno.h>
 
-#define myASSERT(xxx)                    \
-  if (!(xxx)) {                          \
-    WARN(" assertion " #xxx " failed."); \
-  };
+#define ColorOrange "\033[33m"
+#define ColorGreen "\033[32m"
+#define ColorPurple "\033[35m"
+#define ColorDefault "\033[39m"
 
-extern std::string &string_format(std::string &str, const char *fmt, ...);
-void bytesToHex(std::string &ret, uint8_t *input, uint32_t length,
-                char sep = 0);
-
-typedef void (*LogFunction)(char *start, uint32_t length);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wignored-qualifiers"
 using cstr = const char *const;
 
-static constexpr cstr past_last_slash(cstr str, cstr last_slash) {
-  return *str == '\0'  ? last_slash
-         : *str == '/' ? past_last_slash(str + 1, str + 1)
-                       : past_last_slash(str + 1, last_slash);
+static constexpr const char *past_last_slash(cstr str, cstr last_slash)
+{
+	return *str == '\0' ? last_slash : *str == '/' ? past_last_slash(str + 1, str + 1)
+												   : past_last_slash(str + 1, last_slash);
 }
 
-static constexpr cstr past_last_slash(cstr str) {
-  return past_last_slash(str, str);
+static constexpr const char *past_last_slash(cstr str)
+{
+	return past_last_slash(str, str);
 }
-#define __SHORT_FILE__                              \
-  ({                                                \
-    constexpr cstr sf__{past_last_slash(__FILE__)}; \
-    sf__;                                           \
-  })
-//#pragma GCC diagnostic pop
-extern "C" void c_logger(char level, const char *file, uint32_t line,
-                     const char *function, const char *fmt, ...);
 
-class Log {
- public:
-  typedef enum {
-    LOG_TRACE = 0,
-    LOG_DEBUG,
-    LOG_INFO,
-    LOG_WARN,
-    LOG_ERROR,
-    LOG_FATAL,
-    LOG_NONE
-  } LogLevel;
-  static char _logLevel[7];
-  std::string *_line;
+#define __SHORT_FILE__                                      \
+	(                                                       \
+		{                                                   \
+			constexpr cstr sf__{past_last_slash(__FILE__)}; \
+			sf__;                                           \
+		})
 
- private:
-  bool _enabled;
-  LogFunction _logFunction;
-  char _hostname[20];
-  char _application[20];
-  LogLevel _level;
-#if !defined(ARDUINO)
-  Sema &_sema;
-#endif
+typedef void (*LogWriter)(uint8_t *, size_t);
+class Log
+{
+	LogWriter _logWriter = 0;
 
- public:
-  Log(uint32_t size);
-  ~Log();
-  bool enabled(LogLevel level);
-  void setLogLevel(char l);
-  void disable();
-  void enable();
-  void defaultOutput();
-  void writer(LogFunction function);
-  LogFunction writer();
-  void printf(const char *fmt, ...);
-  void log(char level, const char *file, uint32_t line, const char *function,
-           const char *fmt, ...);
+public:
+	typedef enum { L_DEBUG,L_INFO,L_WARN,L_ERROR} Level;
+	Level _level=L_INFO;
 
-  const char *time();
-  void host(const char *hostname);
-  void location(const char *module, uint32_t line);
-  void application(const char *applicationName);
-  void flush();
-  void level(LogLevel l);
-  void logLevel();
-  static void serialLog(char *start, uint32_t length);
-  LogLevel level();
-  friend void c_logger(char level, const char *file, uint32_t line,
-                       const char *function, const char *fmt, ...);
+	Log();
+	uint32_t txBufferOverflow;
+	char _buffer[100];
+	size_t offset;
+	bool txBusy = false;
+	Log &tfl(const char *, const uint32_t);
+	Log &logf(const char *fmt, ...);
+	void flush();
+	LogWriter *setWriter(LogWriter f);
+	void setLevel(char);
+
+private:
 };
 
 extern Log logger;
-//#include <cstdio>
 
-#define LOGF(fmt, ...) \
-  logger.log(__FLE__, __SHORT_FILE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
+#define INFO(fmt, ...)                                                           \
+	{                                                                            \
+	 if (logger._level<=Log::L_INFO) 	logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+	}
+#define WARN(fmt, ...)                                                           \
+	{                                                                            \
+		if (logger._level<=Log::L_WARN) logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+	}
+#define DEBUG(fmt, ...)                                                          \
+	{                                                                            \
+		if (logger._level<=Log::L_DEBUG) logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+	}
+#define ERROR(fmt, ...)                                                          \
+	{                                                                            \
+		if (logger._level<=Log::L_ERROR)  logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+	}
 
-/*
- #define LOGF(fmt, ...) \ logger.log(__FLE__, __LINE__, __PRETTY_FUNCTION__,
- fmt, ##__VA_ARGS__)
- */
-#undef ASSERT
-#define ASSERT(xxx)                    \
-  if (!(xxx)) {                        \
-    WARN(" ASSERT FAILED : %s", #xxx); \
-    while (1) {                        \
-      Sys::delay(1000);                \
-    };                                 \
-  }
-
-#define INFO(fmt, ...)                                                \
-  if (logger.enabled(Log::LOG_INFO))                                  \
-  logger.log('I', __SHORT_FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, \
-             ##__VA_ARGS__)
-#define ERROR(fmt, ...)                                               \
-  if (logger.enabled(Log::LOG_ERROR))                                 \
-  logger.log('E', __SHORT_FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, \
-             ##__VA_ARGS__)
-#define WARN(fmt, ...)                                                \
-  if (logger.enabled(Log::LOG_WARN))                                  \
-  logger.log('W', __SHORT_FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, \
-             ##__VA_ARGS__)
-#define FATAL(fmt, ...)                                               \
-  if (logger.enabled(Log::LOG_FATAL))                                 \
-  logger.log('F', __SHORT_FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, \
-             ##__VA_ARGS__)
-#define DEBUG(fmt, ...)                                               \
-  if (logger.enabled(Log::LOG_DEBUG))                                 \
-  logger.log('D', __SHORT_FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, \
-             ##__VA_ARGS__)
-#define TRACE(fmt, ...)                                               \
-  if (logger.enabled(Log::LOG_TRACE))                                 \
-  logger.log('T', __SHORT_FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, \
-             ##__VA_ARGS__)
-
-#define __FLE__                                                            \
-  (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 \
-                                    : __FILE__)
-
-#else
-#include <stdint.h>
-extern void c_logger(char level, const char *file, uint32_t line,
-                     const char *function, const char *fmt, ...);
-#define INFO(fmt, ...) \
-  c_logger('I', __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
-#define ERROR(fmt, ...) \
-  c_logger('E', __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
-#define WARN(fmt, ...) \
-  c_logger('W', __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
-#define FATAL(fmt, ...) \
-  c_logger('F', __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
-#define DEBUG(fmt, ...) \
-  c_logger('D', __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
-#define TRACE(fmt, ...) \
-  c_logger('T', __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ##__VA_ARGS__)
-#endif  // __cplusplus
-
-#endif /* LOG_H_ */
+#endif /* SRC_LOG_H_ */

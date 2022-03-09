@@ -3,6 +3,10 @@
 
 #include "errno.h"
 #include "stdint.h"
+#include <vector>
+
+typedef std::vector<uint8_t> Bytes;
+
 //#include <string.h>
 
 //#ifdef USB_OTG_HS_INTERNAL_DMA_ENABLED
