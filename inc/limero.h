@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <forward_list>
 
 typedef std::vector<uint8_t> Bytes;
 typedef std::string String;
@@ -85,6 +86,42 @@ typedef struct
 } NanoStats;
 extern NanoStats stats;
 
+class Thread;
+//====================================================================================
+struct Subscription
+{
+  void *source;
+  void *sink;
+
+  static std::unordered_map<void *, std::forward_list<Subscription *> *> _subscriptions;
+
+  Subscription(void *src, void *snk) : source(src), sink(snk)
+  {
+  }
+
+  static void addSource(void *source, std::forward_list<Subscription *> *list)
+  {
+    _subscriptions.emplace(source, list);
+  }
+
+  static void eraseSink(void *sink)
+  {
+    INFO(" erase Sink from subscriptions : %X ",sink);
+    auto it = _subscriptions.begin();
+    while (it != _subscriptions.end())
+    {
+      auto list = it->second;
+      list->remove_if([sink](const Subscription *sub)
+                      { return sub->sink == sink; });
+      it++;
+    }
+  }
+
+  static void eraseSource(void *source)
+  {
+    _subscriptions.erase(source);
+  }
+};
 //______________________________________________________________________
 // INTERFACES nanoAkka
 //
@@ -118,7 +155,10 @@ class Sink
 {
 public:
   virtual void on(const T &t) = 0;
-  virtual ~Sink(){};
+  virtual ~Sink()
+  {
+    Subscription::eraseSink(this);
+  }
 };
 #include <bits/atomic_word.h>
 //------------- handler function for certain messages or events
@@ -131,21 +171,29 @@ public:
   SinkFunction(std::function<void(const T &t)> func) { _func = func; }
   void on(const T &t) { _func(t); }
 };
+
 //------------ generator of messages
 template <class T>
 class Source
 {
-  std::vector<Sink<T> *> _listeners;
-  T _last;
+  std::forward_list<Subscription *> _subscriptions;
 
 public:
-  void subscribe(Sink<T> *listener) { _listeners.push_back(listener); }
+  void subscribe(Sink<T> *listener)
+  {
+    _subscriptions.push_front(new Subscription(this, listener));
+  }
+  void unsubscribe(Sink<T> *listener)
+  {
+    _subscriptions.remove(listener);
+  }
+  Source() { Subscription::addSource(this, &_subscriptions); }
+  ~Source() { Subscription::eraseSource(this); }
   void emit(const T &t)
   {
-    _last = t;
-    for (Sink<T> *listener : _listeners)
+    for (auto sub : _subscriptions)
     {
-      listener->on(t);
+      ((Sink<T> *)sub->sink)->on(t);
     }
   }
   //  void operator>>(Sink<T> listener) { subscribe(&listener); }
@@ -314,7 +362,7 @@ public:
     }
   }
 
-  virtual ~ArrayQueue() { free(m_items); }
+  virtual ~ArrayQueue() { delete[] m_items; }
 
   // non-copyable
   ArrayQueue(const ArrayQueue<T> &) = delete;
@@ -401,12 +449,14 @@ class Thread : public Named
   fd_set _wfds;
   fd_set _efds;
   int _maxFd;
+  std::unordered_map<int, std::function<void(int)>> _writeInvokers;
   std::unordered_map<int, std::function<void(int)>> _readInvokers;
   std::unordered_map<int, std::function<void(int)>> _errorInvokers;
   void buildFdSet();
 
 public:
   void addReadInvoker(int, std::function<void(int)>);
+  void addWriteInvoker(int, std::function<void(int)>);
   void addErrorInvoker(int, std::function<void(int)>);
   void deleteInvoker(int);
   int waitInvoker(uint32_t timeout);
@@ -619,6 +669,7 @@ template <class IN, class OUT>
 class Flow : public Sink<IN>, public Source<OUT>
 {
 public:
+  ~Flow(){};
   void operator==(Flow<OUT, IN> &flow)
   {
     this->subscribe(&flow);
@@ -715,16 +766,20 @@ public:
       // this->emit(t);
     }
   }
-  		void onIsr(const T &t) {
-			if (_thread) {
-				if (_queue.push(t))
-					_thread->enqueueFromIsr(this);
-				else
-					WARN("QueueFlow '%s' push failed", name());
-			} else {
-				this->emit(t);
-			}
-		}
+  void onIsr(const T &t)
+  {
+    if (_thread)
+    {
+      if (_queue.push(t))
+        _thread->enqueueFromIsr(this);
+      else
+        WARN("QueueFlow '%s' push failed", name());
+    }
+    else
+    {
+      this->emit(t);
+    }
+  }
   void request() { invoke(); }
   void invoke()
   {

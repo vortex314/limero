@@ -50,7 +50,8 @@ public:
 
 	Log();
 	uint32_t txBufferOverflow;
-	char _buffer[100];
+	char* _buffer;
+	size_t _bufferSize;
 	size_t offset;
 	bool txBusy = false;
 	Log &tfl(const char *, const uint32_t);

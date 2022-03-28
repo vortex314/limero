@@ -43,7 +43,7 @@ const char* Sys::cpu() {
 uint64_t Sys::millis()  // time in msec since boot, only increasing
 {
   struct timespec deadline;
-  clock_gettime((int)CLOCK_MONOTONIC, &deadline);
+  clock_gettime((int)CLOCK_REALTIME, &deadline);
   Sys::_upTime = deadline.tv_sec * 1000 + deadline.tv_nsec / 1000000;
   return _upTime;
 }
@@ -52,7 +52,7 @@ uint64_t Sys::millis()  // time in msec since boot, only increasing
 uint64_t Sys::micros()  // time in µsec since boot, only increasing
 {
   struct timespec deadline;
-  clock_gettime((int)CLOCK_MONOTONIC, &deadline);
+  clock_gettime((int)CLOCK_REALTIME, &deadline);
   Sys::_upTime = deadline.tv_sec * 1000000 + deadline.tv_nsec / 1000;
   return _upTime;
 }
