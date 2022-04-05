@@ -99,6 +99,11 @@ struct Subscription
   {
   }
 
+  ~Subscription()
+  {
+    INFO("dtor Subscription");
+  }
+
   static void addSource(void *source, std::forward_list<Subscription *> *list)
   {
     _subscriptions.emplace(source, list);
@@ -106,18 +111,30 @@ struct Subscription
 
   static void eraseSink(void *sink)
   {
-    INFO(" erase Sink from subscriptions : %X ",sink);
+    INFO(" erase Sink from subscriptions : %X ", sink);
     auto it = _subscriptions.begin();
     while (it != _subscriptions.end())
     {
-      auto list = it->second;
-      list->remove_if([sink](const Subscription *sub)
-                      { return sub->sink == sink; });
+      auto sub_list = it->second;
+      auto prev = sub_list->before_begin();
+      for (auto sl_it = sub_list->begin(); sl_it != sub_list->end();)
+      {
+        if ((*sl_it)->sink == sink)
+        {
+          sl_it = sub_list->erase_after(prev);
+        }
+        else
+        {
+          prev = sl_it;
+          sl_it++;
+        }
+      }
       it++;
     }
   }
 
-  static void eraseSource(void *source)
+  static void
+  eraseSource(void *source)
   {
     _subscriptions.erase(source);
   }
@@ -439,6 +456,13 @@ struct ThreadProperties
   int priority;
 };
 
+typedef void (*CallbackFunction)(void *);
+typedef struct
+{
+  CallbackFunction fn;
+  void *arg;
+} Callback;
+
 class Thread : public Named
 {
 #ifdef LINUX
@@ -449,16 +473,19 @@ class Thread : public Named
   fd_set _wfds;
   fd_set _efds;
   int _maxFd;
-  std::unordered_map<int, std::function<void(int)>> _writeInvokers;
-  std::unordered_map<int, std::function<void(int)>> _readInvokers;
-  std::unordered_map<int, std::function<void(int)>> _errorInvokers;
+  std::unordered_map<int, Callback> _writeInvokers;
+  std::unordered_map<int, Callback> _readInvokers;
+  std::unordered_map<int, Callback> _errorInvokers;
   void buildFdSet();
 
 public:
-  void addReadInvoker(int, std::function<void(int)>);
-  void addWriteInvoker(int, std::function<void(int)>);
-  void addErrorInvoker(int, std::function<void(int)>);
-  void deleteInvoker(int);
+  void addReadInvoker(int, void *, CallbackFunction);
+  void addWriteInvoker(int, void *, CallbackFunction);
+  void addErrorInvoker(int, void *, CallbackFunction);
+  void delReadInvoker(const int);
+  void delWriteInvoker(const int);
+  void delErrorInvoker(const int);
+  void delAllInvoker(int);
   int waitInvoker(uint32_t timeout);
 #endif
 

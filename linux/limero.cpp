@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 NanoStats stats;
-std::unordered_map<void *, std::forward_list<Subscription *>*> Subscription::_subscriptions;
+std::unordered_map<void *, std::forward_list<Subscription *> *> Subscription::_subscriptions;
 
 /*
  _____ _                        _
@@ -53,26 +53,53 @@ void Thread::buildFdSet()
   _maxFd += 1;
 }
 
-void Thread::addReadInvoker(int fd, std::function<void(int)> invoker)
+void Thread::addReadInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  _readInvokers.emplace(fd, invoker);
+  INFO("addReadInvoker %d", fd);
+  _readInvokers[fd]={fn, arg};
   buildFdSet();
 }
 
-void Thread::addWriteInvoker(int fd, std::function<void(int)> invoker)
+void Thread::delReadInvoker(const int fd)
 {
-  _writeInvokers.emplace(fd, invoker);
+  INFO("delReadInvoker %d", fd);
+  _readInvokers.erase(fd);
   buildFdSet();
 }
 
-void Thread::addErrorInvoker(int fd, std::function<void(int)> invoker)
+void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  _errorInvokers.emplace(fd, invoker);
+  INFO("addWriteInvoker %d", fd);
+  Callback cb = {fn, arg};
+  _writeInvokers[fd] = {fn, arg};
   buildFdSet();
 }
 
-void Thread::deleteInvoker(int fd)
+void Thread::delWriteInvoker(const int fd)
 {
+  INFO("delWriteInvoker %d", fd);
+  _writeInvokers.erase(fd);
+  buildFdSet();
+}
+
+void Thread::addErrorInvoker(int fd, void *arg, CallbackFunction fn)
+{
+  INFO("addErrorInvoker %d", fd);
+  Callback cb = {fn, arg};
+  _errorInvokers[fd]={fn, arg};
+  buildFdSet();
+}
+
+void Thread::delErrorInvoker(const int fd)
+{
+  INFO("delErrorInvoker %d", fd);
+  _errorInvokers.erase(fd);
+  buildFdSet();
+}
+
+void Thread::delAllInvoker(int fd)
+{
+  INFO("delAllInvoker %d", fd);
   _readInvokers.erase(fd);
   _errorInvokers.erase(fd);
   _writeInvokers.erase(fd);
@@ -105,26 +132,20 @@ int Thread::waitInvoker(uint32_t timeout)
       ::read(_readPipe, &invoker, sizeof(Invoker *)); // read 1 event
       invoker->invoke();
     }
-    for (const auto &myPair : _readInvokers)
+    for (auto myPair : _readInvokers)
     {
-      int fd = myPair.first;
-      if (FD_ISSET(fd, &rfds))
-        if (_readInvokers.find(fd) != _readInvokers.end())
-          _readInvokers.find(fd)->second(fd);
+      if (FD_ISSET(myPair.first, &rfds))
+        myPair.second.fn(myPair.second.arg);
     }
-    for (const auto &myPair : _writeInvokers)
+    for (auto myPair : _writeInvokers)
     {
-      int fd = myPair.first;
-      if (FD_ISSET(fd, &wfds))
-        if (_writeInvokers.find(fd) != _writeInvokers.end())
-          _writeInvokers.find(fd)->second(fd);
+      if (FD_ISSET(myPair.first, &wfds))
+        myPair.second.fn(myPair.second.arg);
     }
-    for (const auto &myPair : _errorInvokers)
+    for (auto myPair : _errorInvokers)
     {
-      int fd = myPair.first;
-      if (FD_ISSET(fd, &efds))
-        if (_errorInvokers.find(fd) != _errorInvokers.end())
-          _errorInvokers.find(fd)->second(fd);
+      if (FD_ISSET(myPair.first, &efds))
+        myPair.second.fn(myPair.second.arg);
     }
     if (FD_ISSET(_readPipe, &efds))
     {

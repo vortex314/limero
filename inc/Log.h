@@ -54,7 +54,7 @@ public:
 	size_t _bufferSize;
 	size_t offset;
 	bool txBusy = false;
-	Log &tfl(const char *, const uint32_t);
+	Log &tfl(const char * lvl,  const char *file, const uint32_t line);
 	Log &logf(const char *fmt, ...);
 	void flush();
 	LogWriter *setWriter(LogWriter f);
@@ -67,19 +67,19 @@ extern Log logger;
 
 #define INFO(fmt, ...)                                                           \
 	{                                                                            \
-	 if (logger._level<=Log::L_INFO) 	logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+	 if (logger._level<=Log::L_INFO) 	logger.tfl("I",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
 #define WARN(fmt, ...)                                                           \
 	{                                                                            \
-		if (logger._level<=Log::L_WARN) logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+		if (logger._level<=Log::L_WARN) logger.tfl("W",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
 #define DEBUG(fmt, ...)                                                          \
 	{                                                                            \
-		if (logger._level<=Log::L_DEBUG) logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+		if (logger._level<=Log::L_DEBUG) logger.tfl("D",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
 #define ERROR(fmt, ...)                                                          \
 	{                                                                            \
-		if (logger._level<=Log::L_ERROR)  logger.tfl(__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+		if (logger._level<=Log::L_ERROR)  logger.tfl("E",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
 
 #endif /* SRC_LOG_H_ */
