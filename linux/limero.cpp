@@ -55,21 +55,18 @@ void Thread::buildFdSet()
 
 void Thread::addReadInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  INFO("addReadInvoker %d", fd);
-  _readInvokers[fd]={fn, arg};
+  _readInvokers[fd] = {fn, arg};
   buildFdSet();
 }
 
 void Thread::delReadInvoker(const int fd)
 {
-  INFO("delReadInvoker %d", fd);
   _readInvokers.erase(fd);
   buildFdSet();
 }
 
 void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  INFO("addWriteInvoker %d", fd);
   Callback cb = {fn, arg};
   _writeInvokers[fd] = {fn, arg};
   buildFdSet();
@@ -77,29 +74,25 @@ void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn)
 
 void Thread::delWriteInvoker(const int fd)
 {
-  INFO("delWriteInvoker %d", fd);
   _writeInvokers.erase(fd);
   buildFdSet();
 }
 
 void Thread::addErrorInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  INFO("addErrorInvoker %d", fd);
   Callback cb = {fn, arg};
-  _errorInvokers[fd]={fn, arg};
+  _errorInvokers[fd] = {fn, arg};
   buildFdSet();
 }
 
 void Thread::delErrorInvoker(const int fd)
 {
-  INFO("delErrorInvoker %d", fd);
   _errorInvokers.erase(fd);
   buildFdSet();
 }
 
 void Thread::delAllInvoker(int fd)
 {
-  INFO("delAllInvoker %d", fd);
   _readInvokers.erase(fd);
   _errorInvokers.erase(fd);
   _writeInvokers.erase(fd);
@@ -126,26 +119,37 @@ int Thread::waitInvoker(uint32_t timeout)
   }
   else if (rc > 0)
   { // one of the fd was set
-
+    for (auto &myPair : _writeInvokers)
+    {
+      if (myPair.first > 100)
+        WARN(" fd out of range ");
+    }
     if (FD_ISSET(_readPipe, &rfds))
     {
-      ::read(_readPipe, &invoker, sizeof(Invoker *)); // read 1 event
+      ::read(_readPipe, &invoker, sizeof(Invoker *)); // read 1 event handler
       invoker->invoke();
     }
-    for (auto myPair : _readInvokers)
+
+    for (auto &myPair : _readInvokers)
     {
-      if (FD_ISSET(myPair.first, &rfds))
+      if (FD_ISSET(myPair.first, &rfds)) {
         myPair.second.fn(myPair.second.arg);
+        break;
+      }
     }
-    for (auto myPair : _writeInvokers)
+    for (auto &myPair : _writeInvokers)
     {
-      if (FD_ISSET(myPair.first, &wfds))
-        myPair.second.fn(myPair.second.arg);
+      if (FD_ISSET(myPair.first, &wfds)) {
+        myPair.second.fn(myPair.second.arg); // can impact _writeInvokers 
+        break;
+      }
     }
-    for (auto myPair : _errorInvokers)
+    for (auto &myPair : _errorInvokers)
     {
-      if (FD_ISSET(myPair.first, &efds))
+      if (FD_ISSET(myPair.first, &efds)) {
         myPair.second.fn(myPair.second.arg);
+        break;
+      }
     }
     if (FD_ISSET(_readPipe, &efds))
     {
@@ -183,7 +187,6 @@ void Thread::createQueue()
 
 void Thread::addTimer(TimerSource *ts)
 {
-  INFO("thread %s timers:%d ", name(), _timers.size());
   _timers.push_back(ts);
 }
 
