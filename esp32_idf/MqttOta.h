@@ -1,7 +1,6 @@
 #ifndef MQTT_OTA_H
 #define MQTT_OTA_H
 #include <Base64.h>
-#include <Bytes.h>
 #include <limero.h>
 #include <Mqtt.h>
 #include <esp_https_ota.h>

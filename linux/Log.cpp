@@ -9,8 +9,6 @@
 #include <ctime>
 #include <iomanip>
 
-extern "C" void uartSendBytes(uint8_t *, size_t, uint32_t);
-
 Log::Log() {
   _bufferSize=10240;
   _buffer = new char[_bufferSize];
@@ -28,6 +26,10 @@ Log &Log::logf(const char *format, ...)
                       format, args);
   va_end(args);
   return *this;
+}
+
+void Log::setLevel(Level level) {
+  _level = level;
 }
 
 void Log::flush()

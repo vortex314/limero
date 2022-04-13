@@ -1,12 +1,14 @@
 #include <MqttSerial.h>
 
+#include <StringUtility.h>
+
 MqttSerial::MqttSerial(Thread &thr)
     : Mqtt(thr),
       _uart(UART::create(UART_NUM_0, 1, 3)),
       keepAliveTimer(thr, 500, true, "keepAlive"),
       connectTimer(thr, 3000, true, "connect")
 {
-  connected=false;
+  connected = false;
   _rxdString.reserve(256);
 }
 MqttSerial::~MqttSerial() {}
@@ -23,27 +25,29 @@ void MqttSerial::init()
   dstPrefix += Sys::hostname();
   dstPrefix += "/";
 
-  _loopbackTopic +=  dstPrefix + "system/loopback";
+  _loopbackTopic += dstPrefix + "system/loopback";
   _loopbackReceived = 0;
 
-  outgoing.async(thread(), [&](const MqttMessage &m) {
+  outgoing.async(thread());
+  outgoing >> [&](const MqttMessage &m)
+  {
     if (connected())
     {
       publish(m.topic, m.message);
-    }
-  });
+    } };
 
-  keepAliveTimer >> [&](const TimerMsg &tm) {
-    std::string s="true";
+  keepAliveTimer >> [&](const TimerMsg &tm)
+  {
+    std::string s = "true";
     publish(_loopbackTopic, s);
-    outgoing.on({srcPrefix+"system/alive", s});
+    outgoing.on({srcPrefix + "system/alive", s});
   };
-  connectTimer >> [&](const TimerMsg &tm) {
+  connectTimer >> [&](const TimerMsg &tm)
+  {
     if (Sys::millis() > (_loopbackReceived + 2000))
     {
       connected = false;
-      std::string topic;
-      string_format(topic, "dst/%s/#", Sys::hostname());
+      std::string topic = stringFormat("dst/%s/#", Sys::hostname());
       for (auto &subscription : subscriptions)
         subscribe(subscription);
       publish(_loopbackTopic, "true");

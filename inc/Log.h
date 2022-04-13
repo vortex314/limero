@@ -57,8 +57,8 @@ public:
 	Log &tfl(const char * lvl,  const char *file, const uint32_t line);
 	Log &logf(const char *fmt, ...);
 	void flush();
-	LogWriter *setWriter(LogWriter f);
-	void setLevel(char);
+	LogWriter setWriter(LogWriter f);
+	void setLevel(Level);
 
 private:
 };

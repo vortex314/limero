@@ -6,6 +6,7 @@
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <StringUtility.h>
 
 static struct ESP32
 {
@@ -756,7 +757,7 @@ public:
       uart_config.stop_bits = UART_STOP_BITS_2;
     else
       return EINVAL;
-    return 0; 
+    return 0;
   }
 
   int init()
@@ -786,10 +787,9 @@ public:
     /*       INFO(" queue %0xX",_queue);
      uart_enable_pattern_det_intr(_uartNum, '\n', 1, 10000, 10, 10);
      uart_pattern_queue_reset(_uartNum, 20);*/
-    std::string taskName;
-    string_format(taskName, "uart_event_task_%d", _driver);
+    std::string taskName = stringFormat("uart_event_task_%d", _driver);
     xTaskCreate(uart_event_task, taskName.c_str(), 3120, this,
-                /*tskIDLE_PRIORITY + 5*/20, &_taskHandle);
+                /*tskIDLE_PRIORITY + 5*/ 20, &_taskHandle);
     return 0;
   }
 

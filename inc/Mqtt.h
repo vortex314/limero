@@ -43,9 +43,9 @@ public:
   std::string srcPrefix;
   std::set<std::string> subscriptions;
   QueueFlow<MqttMessage> incoming;
-  Sink<MqttMessage> outgoing;
+  QueueFlow<MqttMessage> outgoing;
   ValueFlow<MqttBlock> blocks;
-  ValueSource<bool> connected;
+  ValueFlow<bool> connected;
   //  TimerSource keepAliveTimer;
   Mqtt(Thread &thr)
       : Actor(thr), incoming(20, "incoming"), outgoing(30, "outgoing") {
@@ -58,7 +58,7 @@ public:
   };
   ~Mqtt(){};
   void init();
-  template <class T> Subscriber<T> &toTopic(const char *name) {
+  template <class T> Sink<T> &toTopic(const char *name) {
     auto flow = new ToMqtt<T>(name, this);
     *flow >> outgoing;
     return *flow;
@@ -171,6 +171,6 @@ public:
                              };
   void request() { fromMqtt.request(); };
   void on(const T &t) { toMqtt.on(t); }
-  void subscribe(Subscriber<T> *tl) { fromMqtt.subscribe(tl); };
+  void subscribe(Sink<T> *tl) { fromMqtt.subscribe(tl); };
 };
 #endif

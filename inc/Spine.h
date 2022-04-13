@@ -21,7 +21,7 @@ typedef enum
   B_LOG
 } MsgType;
 
-#define FRAME_MAX_SIZE 128
+#define FRAME_MAX_SIZE 512
 
 class Spine : public Actor
 {

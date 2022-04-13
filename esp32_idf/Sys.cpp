@@ -2,6 +2,7 @@
 #include <Sys.h>
 #include <string.h>
 #include <unistd.h>
+#include <StringUtility.h>
 
 uint64_t Sys::_upTime;
 char Sys::_hostname[30] = "";
@@ -92,7 +93,7 @@ void Sys::init()
     macInt = 0L;
     if (esp_read_mac(macBytes, ESP_MAC_WIFI_STA) != ESP_OK)
         WARN(" esp_base_mac_addr_get() failed.");
-    string_format(hn, "ESP32-%d", macInt & 0xFFFF);
+    hn = stringFormat("ESP32-%d", macInt & 0xFFFF);
     Sys::hostname(hn.c_str());
 }
 

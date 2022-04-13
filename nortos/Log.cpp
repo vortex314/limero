@@ -39,9 +39,9 @@ void Log::flush() {
 	txBusy=false;
 }
 
-Log& Log::tfl(const char *file, const uint32_t line) {
+Log& Log::tfl(const char * lvl,const char *file, const uint32_t line) {
 	if ( txBusy ) return *this;
 	uint32_t t = Sys::millis();
-	offset = snprintf(_buffer, sizeof(_buffer), "%8.8lu | %s:%4lu | ",  t, file, line);
+	offset = snprintf(_buffer, sizeof(_buffer), "%s %8.8lu | %s:%4lu | ",lvl,  t, file, line);
 	return *this;
 }

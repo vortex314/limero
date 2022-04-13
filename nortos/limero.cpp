@@ -12,6 +12,8 @@
 #include <string.h>
 
 NanoStats stats;
+std::unordered_map<void *, std::forward_list<Subscription *> *> Subscription::_subscriptions;
+
 /*
  _____ _                        _
 |_   _| |__  _ __ ___  __ _  __| |

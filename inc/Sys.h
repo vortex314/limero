@@ -3,9 +3,7 @@
 
 #include "errno.h"
 #include "stdint.h"
-#include <vector>
 
-typedef std::vector<uint8_t> Bytes;
 
 //#include <string.h>
 
@@ -36,6 +34,10 @@ typedef std::vector<uint8_t> Bytes;
 #define S(X) STRINGIFY(X)
 
 #ifdef __cplusplus
+#include <vector>
+
+typedef std::vector<uint8_t> Bytes;
+
 class Sys {
     static char _hostname[30];
     static uint64_t _boot_time;

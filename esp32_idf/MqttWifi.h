@@ -40,7 +40,7 @@ class MqttWifi : public Mqtt {
   MqttOta mqttOta;
 
 public:
-  Sink<bool> wifiConnected;
+  SinkFunction<bool> wifiConnected;
   MqttWifi(Thread &thread);
   ~MqttWifi();
   void init();

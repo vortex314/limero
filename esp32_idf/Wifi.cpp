@@ -32,8 +32,7 @@ void Wifi::init()
   if (esp_read_mac(macBytes, ESP_MAC_WIFI_STA) != ESP_OK)
     WARN(" esp_base_mac_addr_get() failed.");
   ;
-  std::string macs;
-  string_format(macs, "%02X:%02X:%02X:%02X:%02X:%02X", macBytes[5], macBytes[4],
+  std::string macs = stringFormat( "%02X:%02X:%02X:%02X:%02X:%02X", macBytes[5], macBytes[4],
                 macBytes[3], macBytes[2], macBytes[1], macBytes[0]);
   macAddress = macs;
   mac = macInt;
