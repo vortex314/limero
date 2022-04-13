@@ -22,27 +22,31 @@ RedisSpine::RedisSpine(Thread &thread)
       jsonArrived.emit(true); };
 
   jsonArrived >> [this](bool)
-  { if ( _jsonIn[0] =="hello" ) _connected = true; };
+  { if ( _jsonIn[0] =="hello" && _jsonIn[1]["proto"]==3 ) {connected = true; _connectTimer.reset();} };
+    jsonArrived >> [this](bool)
+  { if ( _jsonIn[0] =="psubscribe"  ) {subscribed = true; _connectTimer.reset();} };
+
+  _connectTimer >> [this](const TimerMsg &)
+  { connected = false; };
+
+  connected >> [this](bool b)
+  {
+    if (b)
+    {
+      subscribeNode();
+    }
+  };
 }
 
 void RedisSpine::init()
 {
-  static uint32_t counter = 0;
   _loopbackTimer >> [&](const TimerMsg &tm)
   {
     if (!connected())
-    {
-      if (counter++ % 2 == 1)
-        sendNode(node);
-      else
-        publish(_loopbackTopic.c_str(), Sys::micros());
-    }
+      hello_3();
     else
       publish(_loopbackTopic.c_str(), Sys::micros());
   };
-
-  _connectTimer >> [&](const TimerMsg &)
-  { connected = false; };
 
   subscriber<uint64_t>(_loopbackTopic) >> [&](const uint64_t &in)
   {
@@ -82,5 +86,13 @@ void RedisSpine::hello_3()
   _jsonOut.clear();
   _jsonOut[0] = "hello";
   _jsonOut[1] = 3;
+  sendJson(_jsonOut);
+}
+
+void RedisSpine::subscribeNode()
+{
+  _jsonOut.clear();
+  _jsonOut[0] = "psubscribe";
+  _jsonOut[1] = srcPrefix+"/*";
   sendJson(_jsonOut);
 }

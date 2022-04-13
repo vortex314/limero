@@ -19,6 +19,7 @@ class RedisSpine : public Actor
   DynamicJsonDocument _jsonIn;
 
   ValueFlow<bool> jsonArrived;
+  ValueFlow<bool> subscribed;
 
   std::string _loopbackTopic;
   std::string _latencyTopic;
@@ -40,6 +41,7 @@ public:
 
   void sendJson(DynamicJsonDocument &json);
   void hello_3();
+  void subscribeNode();
 
   template <typename T>
   void publish(const char *topic, T v)
