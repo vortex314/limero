@@ -32,13 +32,15 @@ static const uint16_t fcsTable[256] = {
     0xC514, 0xB1AB, 0xA022, 0x92B9, 0x8330, 0x7BC7, 0x6A4E, 0x58D5, 0x495C,
     0x3DE3, 0x2C6A, 0x1EF1, 0x0F78};
 
-class Fcs {
+class Fcs
+{
   uint16_t _fcs;
 
- public:
+public:
   Fcs() { _fcs = 0xFFFF; }
   bool hasSpace(int size = 1) { return true; };
-  bool write(uint8_t b) {
+  bool write(uint8_t b)
+  {
     _fcs = (_fcs >> 8) ^ fcsTable[(_fcs & 0xFF) ^ b];
     return true;
   }
@@ -47,40 +49,55 @@ class Fcs {
   void clear() { _fcs = 0xFFFF; }
 };
 
-class PppDeframer : public Flow<Bytes, Bytes> {
+class PppDeframer : public Flow<Bytes, Bytes>
+{
   Bytes _buffer;
   size_t _maxFrameLength;
   bool _escFlag;
 
- public:
-  PppDeframer(size_t maxFrameLength) {
+public:
+  PppDeframer(size_t maxFrameLength)
+  {
     _maxFrameLength = maxFrameLength;
     _escFlag = false;
   }
-  bool checkCrc(Bytes &bs) {
+  bool checkCrc(Bytes &bs)
+  {
     Fcs fcs;
-    for (uint8_t b : bs) {
+    for (uint8_t b : bs)
+    {
       fcs.write(b);
     }
     return fcs.result() == 0x0F47;
   }
 
-  void on(const Bytes &in) {
-    for (auto b : in) {
-      if (b == PPP_FLAG_CHAR) {
-        if (_buffer.size() > 3 && checkCrc(_buffer)) {
+  void on(const Bytes &in)
+  {
+    for (auto b : in)
+    {
+      if (b == PPP_FLAG_CHAR)
+      {
+        if (_buffer.size() > 3 && checkCrc(_buffer))
+        {
           _buffer.pop_back();
           _buffer.pop_back();
           emit(_buffer);
-          _buffer.clear();
         }
-      } else if (b == PPP_ESC_CHAR) {
+        _buffer.clear();
+      }
+      else if (b == PPP_ESC_CHAR)
+      {
         _escFlag = true;
-      } else {
-        if (_escFlag) {
+      }
+      else
+      {
+        if (_escFlag)
+        {
           _buffer.push_back(b ^ PPP_MASK_CHAR);
           _escFlag = false;
-        } else {
+        }
+        else
+        {
           _buffer.push_back(b);
         }
       }
@@ -88,17 +105,23 @@ class PppDeframer : public Flow<Bytes, Bytes> {
   }
 };
 
-void PPP::addEscaped(Bytes &out, uint8_t c) {
-  if (c == PPP_ESC_CHAR || c == PPP_FLAG_CHAR) {  // byte stuffing
+void PPP::addEscaped(Bytes &out, uint8_t c)
+{
+  if (c == PPP_ESC_CHAR || c == PPP_FLAG_CHAR)
+  { // byte stuffing
     out.push_back(PPP_ESC_CHAR);
     out.push_back(c ^ PPP_MASK_CHAR);
-  } else {
+  }
+  else
+  {
     out.push_back(c);
   }
 }
 
-PPP::PPP(size_t maxFrameLength) : _maxFrameLength(maxFrameLength) {
-  _frame = LambdaFlow<Bytes, Bytes>([&](Bytes &out, const Bytes &in) {
+PPP::PPP(size_t maxFrameLength) : _maxFrameLength(maxFrameLength)
+{
+  _frame = *new LambdaFlow<Bytes, Bytes>([&](Bytes &out, const Bytes &in)
+                                         {
     Fcs fcs;
     out.clear();
     out.push_back(PPP_FLAG_CHAR);
@@ -109,13 +132,13 @@ PPP::PPP(size_t maxFrameLength) : _maxFrameLength(maxFrameLength) {
     addEscaped(out, fcs.result() & 0xFF);  // LSB first
     addEscaped(out, fcs.result() >> 8);
     out.push_back(PPP_FLAG_CHAR);
-    return true;
-  });
+    return true; });
 
   _deframe = new PppDeframer(maxFrameLength);
 }
 
-PPP::~PPP(){
+PPP::~PPP()
+{
   delete _deframe;
 }
 

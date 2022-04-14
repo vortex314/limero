@@ -9,14 +9,15 @@
 #include "StringUtility.h"
 
 RedisSpine::RedisSpine(Thread &thread)
-    : Actor(thread), _jsonOut(FRAME_MAX_SIZE), _jsonIn(FRAME_MAX_SIZE),
+    : Actor(thread), _jsonOut(FRAME_MAX_SIZE), _jsonNested(FRAME_MAX_SIZE / 2), _jsonIn(FRAME_MAX_SIZE),
       _loopbackTimer(thread, 1000, true, "loopbackTimer"),
       _connectionWatchdog(thread, 3000, true, "connectTimer")
 {
   setNode(Sys::hostname());
+  _state=CONNECTING;
   rxdFrame >> [&](const Bytes &b)
   {
-    _state= CONNECTING;
+    _state = CONNECTING;
     _jsonIn.clear();
     auto error = deserializeJson(_jsonIn, b.data(),b.size());
     if (error== DeserializationError::Ok  &&   _jsonIn.is<JsonArray>())
@@ -34,23 +35,22 @@ RedisSpine::RedisSpine(Thread &thread)
       _state = READY;
     }
   };
+  _connectionWatchdog >> [this](const TimerMsg &)
+  {
+    connected = false;
+    _state = CONNECTING;
+  };
   _connectionWatchdog.reset();
 };
 
-_connectionWatchdog >> [this](const TimerMsg &)
-{
-  connected = false;
-  _state = CONNECTING;
-}
-
-    void RedisSpine::init()
+void RedisSpine::init()
 {
   _loopbackTimer >> [&](const TimerMsg &tm)
   {
     if (_state == CONNECTING)
       hello_3();
     if (_state == SUBSCRIBING)
-      psubscribe(_subscribePattern);
+      psubscribe(_subscribePattern.c_str());
     if (_state == READY)
       publish(_loopbackTopic.c_str(), Sys::micros());
   };
@@ -85,7 +85,7 @@ void RedisSpine::hello_3()
 {
   _jsonOut.clear();
   _jsonOut[0] = "hello";
-  _jsonOut[1] = 3;
+  _jsonOut[1] = "3";
   sendJson(_jsonOut);
 }
 
