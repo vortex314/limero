@@ -25,11 +25,12 @@ class RedisSpine : public Actor
   std::string _subscribePattern;
   TimerSource _loopbackTimer;
   TimerSource _connectionWatchdog;
-  typedef enum {
+  typedef enum
+  {
     CONNECTING,
     SUBSCRIBING,
     READY
-  } _state=CONNECTING;
+  } _state = CONNECTING;
 
 public:
   ValueFlow<Bytes> rxdFrame;
@@ -45,7 +46,7 @@ public:
 
   void sendJson(DynamicJsonDocument &json);
   void hello_3();
-  void psubscribe(const char* pattern);
+  void psubscribe(const char *pattern);
 
   template <typename T>
   void publish(const char *topic, T v)
@@ -81,10 +82,11 @@ public:
       absTopic = topic;
 
     auto vf = new ValueFlow<T>();
-    jsonArrived >> new SinkFunction<bool>([&](const bool &)
-                                          {
-                                            if (_jsonIn[0] == "pmessage" || _jsonIn[1] == absTopic)
-          vf->emit( _jsonIn[2].as<T>()); });
+    jsonArrived >> [&](const bool &)
+    {
+      if (_jsonIn[0] == "pmessage" || _jsonIn[1] == absTopic)
+        vf->emit(_jsonIn[2].as<T>());
+    };
     return *vf;
   }
 };

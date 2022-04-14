@@ -22,34 +22,36 @@ RedisSpine::RedisSpine(Thread &thread)
     if (error== DeserializationError::Ok  &&   _jsonIn.is<JsonArray>())
       jsonArrived.emit(true); };
 
-      jsonArrived >> [&](bool )
-      {
-          if (_jsonIn[0] == "hello" && _jsonIn[1]["proto"] == "3" )
-          {
-            psubscribe(_subscribePattern.c_str());
-            _state = SUBSCRIBING;
-          }
-          else if (_jsonIn[0] == "psubscribe" && _jsonIn[1] == _subscribePattern )
-          {
-            _state = READY;
-          }
-        }
-        _connectionWatchdog.reset();
-      };
+  jsonArrived >> [&](bool)
+  {
+    if (_jsonIn[0] == "hello" && _jsonIn[1]["proto"] == "3")
+    {
+      psubscribe(_subscribePattern.c_str());
+      _state = SUBSCRIBING;
+    }
+    else if (_jsonIn[0] == "psubscribe" && _jsonIn[1] == _subscribePattern)
+    {
+      _state = READY;
+    }
+  };
+  _connectionWatchdog.reset();
+};
 
-
-  _connectionWatchdog >> [this](const TimerMsg &)
-  { connected = false; };
-
+_connectionWatchdog >> [this](const TimerMsg &)
+{
+  connected = false;
+  _state = CONNECTING;
 }
 
-void RedisSpine::init()
+    void RedisSpine::init()
 {
   _loopbackTimer >> [&](const TimerMsg &tm)
   {
-    if (_state == CONNECTING )
+    if (_state == CONNECTING)
       hello_3();
-    else
+    if (_state == SUBSCRIBING)
+      psubscribe(_subscribePattern);
+    if (_state == READY)
       publish(_loopbackTopic.c_str(), Sys::micros());
   };
 
