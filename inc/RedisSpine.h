@@ -19,12 +19,17 @@ class RedisSpine : public Actor
   DynamicJsonDocument _jsonIn;
 
   ValueFlow<bool> jsonArrived;
-  ValueFlow<bool> subscribed;
 
   std::string _loopbackTopic;
   std::string _latencyTopic;
+  std::string _subscribePattern;
   TimerSource _loopbackTimer;
-  TimerSource _connectTimer;
+  TimerSource _connectionWatchdog;
+  typedef enum {
+    CONNECTING,
+    SUBSCRIBING,
+    READY
+  } _state=CONNECTING;
 
 public:
   ValueFlow<Bytes> rxdFrame;
@@ -36,12 +41,11 @@ public:
 
   RedisSpine(Thread &thread);
   void init();
-  void sendNode(std::string &topic);
   void setNode(const char *);
 
   void sendJson(DynamicJsonDocument &json);
   void hello_3();
-  void subscribeNode();
+  void psubscribe(const char* pattern);
 
   template <typename T>
   void publish(const char *topic, T v)

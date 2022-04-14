@@ -11,38 +11,43 @@
 RedisSpine::RedisSpine(Thread &thread)
     : Actor(thread), _jsonOut(FRAME_MAX_SIZE), _jsonIn(FRAME_MAX_SIZE),
       _loopbackTimer(thread, 1000, true, "loopbackTimer"),
-      _connectTimer(thread, 3000, true, "connectTimer")
+      _connectionWatchdog(thread, 3000, true, "connectTimer")
 {
   setNode(Sys::hostname());
   rxdFrame >> [&](const Bytes &b)
   {
+    _state= CONNECTING;
     _jsonIn.clear();
     auto error = deserializeJson(_jsonIn, b.data(),b.size());
     if (error== DeserializationError::Ok  &&   _jsonIn.is<JsonArray>())
       jsonArrived.emit(true); };
 
-  jsonArrived >> [this](bool)
-  { if ( _jsonIn[0] =="hello" && _jsonIn[1]["proto"]==3 ) {connected = true; _connectTimer.reset();} };
-    jsonArrived >> [this](bool)
-  { if ( _jsonIn[0] =="psubscribe"  ) {subscribed = true; _connectTimer.reset();} };
+      jsonArrived >> [&](bool )
+      {
+          if (_jsonIn[0] == "hello" && _jsonIn[1]["proto"] == "3" )
+          {
+            psubscribe(_subscribePattern.c_str());
+            _state = SUBSCRIBING;
+          }
+          else if (_jsonIn[0] == "psubscribe" && _jsonIn[1] == _subscribePattern )
+          {
+            _state = READY;
+          }
+        }
+        _connectionWatchdog.reset();
+      };
 
-  _connectTimer >> [this](const TimerMsg &)
+
+  _connectionWatchdog >> [this](const TimerMsg &)
   { connected = false; };
 
-  connected >> [this](bool b)
-  {
-    if (b)
-    {
-      subscribeNode();
-    }
-  };
 }
 
 void RedisSpine::init()
 {
   _loopbackTimer >> [&](const TimerMsg &tm)
   {
-    if (!connected())
+    if (_state == CONNECTING )
       hello_3();
     else
       publish(_loopbackTopic.c_str(), Sys::micros());
@@ -52,7 +57,7 @@ void RedisSpine::init()
   {
     publish(_latencyTopic.c_str(), (Sys::micros() - in));
     connected = true;
-    _connectTimer.reset();
+    _connectionWatchdog.reset();
   };
 }
 
@@ -63,15 +68,8 @@ void RedisSpine::setNode(const char *n)
   dstPrefix = "dst/" + node + "/";
   _loopbackTopic = dstPrefix + "system/loopback";
   _latencyTopic = srcPrefix + "system/latency";
+  _subscribePattern = dstPrefix + "*";
   connected = false;
-}
-
-//================================= BROKER COMMANDS
-//=========================================
-void RedisSpine::sendNode(std::string &topic)
-{
-
-  txdFrame.on(Bytes(topic.begin(), topic.end()));
 }
 
 void RedisSpine::sendJson(DynamicJsonDocument &json)
@@ -89,10 +87,10 @@ void RedisSpine::hello_3()
   sendJson(_jsonOut);
 }
 
-void RedisSpine::subscribeNode()
+void RedisSpine::psubscribe(const char *pattern)
 {
   _jsonOut.clear();
   _jsonOut[0] = "psubscribe";
-  _jsonOut[1] = srcPrefix+"/*";
+  _jsonOut[1] = pattern;
   sendJson(_jsonOut);
 }

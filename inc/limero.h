@@ -121,6 +121,7 @@ struct Subscription
       {
         if ((*sl_it)->sink == sink)
         {
+          delete (*sl_it);
           sl_it = sub_list->erase_after(prev);
         }
         else
@@ -221,7 +222,7 @@ public:
     subscribe(new SinkFunction<T>(func));
   }
 };
-//-----------------  can be prooked to publish something
+//-----------------  can be pooked to publish something
 class Requestable
 {
 public:
@@ -847,7 +848,7 @@ public:
       this->emit(out);
   }
   void request(){};
-  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func)
+/*  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func)
   {
     auto lf = new LambdaFlow(func);
     return *lf;
@@ -855,7 +856,7 @@ public:
   void operator>>(std::function<void(const OUT &t)> func)
   {
     subscribe(new SinkFunction<OUT>(func));
-  }
+  }*/
 };
 
 template <class T>
