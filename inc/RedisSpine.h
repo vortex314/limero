@@ -52,7 +52,7 @@ public:
   template <typename T>
   void publish(const char *topic, T t)
   {
-    if ( _state != READY) return;
+    if ( _state != READY ) return;
     std::string s;
     _jsonOut.clear();
     _jsonNested.clear();

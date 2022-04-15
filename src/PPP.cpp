@@ -1,4 +1,5 @@
 #include <PPP.h>
+#include <StringUtility.h>
 
 //================================================================
 static const uint16_t fcsTable[256] = {
@@ -49,61 +50,61 @@ public:
   void clear() { _fcs = 0xFFFF; }
 };
 
-class PppDeframer : public Flow<Bytes, Bytes>
+PppDeframer::PppDeframer(size_t maxFrameLength)
 {
-  Bytes _buffer;
-  size_t _maxFrameLength;
-  bool _escFlag;
-
-public:
-  PppDeframer(size_t maxFrameLength)
+  _maxFrameLength = maxFrameLength;
+  _escFlag = false;
+}
+bool PppDeframer::checkCrc(Bytes &bs)
+{
+  Fcs fcs;
+  for (uint8_t b : bs)
   {
-    _maxFrameLength = maxFrameLength;
-    _escFlag = false;
+    fcs.write(b);
   }
-  bool checkCrc(Bytes &bs)
-  {
-    Fcs fcs;
-    for (uint8_t b : bs)
-    {
-      fcs.write(b);
-    }
-    return fcs.result() == 0x0F47;
-  }
+  return fcs.result() == 0x0F47;
+}
 
-  void on(const Bytes &in)
+void PppDeframer::on(const Bytes &in)
+{
+  for (auto b : in)
   {
-    for (auto b : in)
+    if (b == PPP_FLAG_CHAR)
     {
-      if (b == PPP_FLAG_CHAR)
+      if ((_buffer.size() > 3) && checkCrc(_buffer))
       {
-        if (_buffer.size() > 3 && checkCrc(_buffer))
-        {
-          _buffer.pop_back();
-          _buffer.pop_back();
-          emit(_buffer);
-        }
-        _buffer.clear();
-      }
-      else if (b == PPP_ESC_CHAR)
-      {
-        _escFlag = true;
+        _buffer.pop_back();
+        _buffer.pop_back();
+        emit(_buffer);
       }
       else
       {
-        if (_escFlag)
-        {
-          _buffer.push_back(b ^ PPP_MASK_CHAR);
-          _escFlag = false;
-        }
-        else
-        {
-          _buffer.push_back(b);
-        }
+        garbage.on(_buffer);
+      }
+      _buffer.clear();
+    }
+    else if (b == PPP_ESC_CHAR)
+    {
+      _escFlag = true;
+    }
+    else
+    {
+      if (_escFlag)
+      {
+        _buffer.push_back(b ^ PPP_MASK_CHAR);
+        _escFlag = false;
+      }
+      else
+      {
+        _buffer.push_back(b);
       }
     }
   }
-};
+  if (_buffer.size() > _maxFrameLength)
+  {
+    _buffer.clear();
+  }
+}
 
 void PPP::addEscaped(Bytes &out, uint8_t c)
 {
@@ -133,8 +134,7 @@ PPP::PPP(size_t maxFrameLength) : _maxFrameLength(maxFrameLength)
     addEscaped(out, fcs.result() >> 8);
     out.push_back(PPP_FLAG_CHAR);
     return true; });
-
-  _deframe = new PppDeframer(maxFrameLength);
+  _deframe = new PppDeframer(_maxFrameLength);
 }
 
 PPP::~PPP()

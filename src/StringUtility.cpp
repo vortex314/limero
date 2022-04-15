@@ -25,8 +25,14 @@ std::string charDump(const std::vector<uint8_t> &bs)
   {
     if (isprint(b))
       out += (char)b;
+    else if (b == '\n')
+      out += "\n";
+    else if (b == '\r')
+      out += "\r";
+    else if (b == '\t')
+      out += "\t";
     else
-      out += '.';
+      out += ".";
   }
   return out;
 }
@@ -45,7 +51,7 @@ std::string stringFormat(const char *fmt, ...)
       break;
     str.resize(size);
     va_start(ap, fmt);
-    int n = vsnprintf((char *)str.data(),str.capacity(), fmt, ap);
+    int n = vsnprintf((char *)str.data(), str.capacity(), fmt, ap);
     va_end(ap);
     if (n > -1 && n < size)
     { // Everything worked
