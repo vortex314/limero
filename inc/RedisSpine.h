@@ -10,13 +10,13 @@
 
 #include "ArduinoJson.h"
 #include "limero.h"
+#include <Stringify.h>
 
-#define FRAME_MAX_SIZE 1024
+#define FRAME_MAX_SIZE 512 // > 384 hello 3 response
 
 class RedisSpine : public Actor
 {
   DynamicJsonDocument _jsonOut;
-  DynamicJsonDocument _jsonNestedOut;
   DynamicJsonDocument _jsonIn;
   DynamicJsonDocument _jsonNestedIn;
 
@@ -54,20 +54,12 @@ public:
   template <typename T>
   void publish(const char *topic, T t)
   {
-    INFO("publish: %s : %d ", topic, _state);
-
-
-    std::string s;
+    if (_state != READY)
+      return;
     _jsonOut.clear();
-    _jsonNestedOut.clear();
-    //   JsonVariant var = _jsonNestedOut.to<JsonVariant>();
-    //  var.set(t)
-    _jsonNestedOut.set(t);
-    serializeJson(_jsonNestedOut, s);
     _jsonOut[0] = "publish";
     _jsonOut[1] = topic;
-    _jsonOut[2] = s;
-//    INFO("publish: %s=>%s", topic, s.c_str());
+    _jsonOut[2] = toString(t);
     sendJson(_jsonOut);
   }
 

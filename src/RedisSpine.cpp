@@ -11,9 +11,8 @@
 RedisSpine::RedisSpine(Thread &thr)
     : Actor(thr),
       _jsonOut(FRAME_MAX_SIZE),
-      _jsonNestedOut(FRAME_MAX_SIZE / 2),
       _jsonIn(FRAME_MAX_SIZE),
-      _jsonNestedIn(FRAME_MAX_SIZE / 2),
+      _jsonNestedIn(FRAME_MAX_SIZE),
       _loopbackTimer(thr, 1000, true, "loopbackTimer"),
       _connectionWatchdog(thr, 6000, true, "connectTimer"),
       rxdFrame(5, "Redis:rxdFrame"),
@@ -26,7 +25,6 @@ RedisSpine::RedisSpine(Thread &thr)
   txdFrame.async(thread());
   rxdFrame >> [&](const Bytes &b)
   {
-    _state = CONNECTING;
     _jsonIn.clear();
     auto error = deserializeJson(_jsonIn, b.data(), b.size());
     if (error == DeserializationError::Ok && _jsonIn.is<JsonArray>())
@@ -34,10 +32,12 @@ RedisSpine::RedisSpine(Thread &thr)
       jsonArrived.on(true);
       if (_jsonIn[0] == "pmessage")
       {
-        pmessageArrived.on(true);
         _jsonNestedIn.clear();
         deserializeJson(_jsonNestedIn, _jsonIn[3].as<std::string>());
+        pmessageArrived.on(true);
       }
+    } else {
+      WARN("RedisSpine: deserializeJson error %d", error);
     }
   };
 
@@ -45,8 +45,8 @@ RedisSpine::RedisSpine(Thread &thr)
   {
     if (_jsonIn[0] == "hello" && _jsonIn[1]["proto"] == 3)
     {
-      psubscribe(_subscribePattern.c_str());
       _state = SUBSCRIBING;
+      psubscribe(_subscribePattern.c_str());
     }
     else if (_jsonIn[0] == "psubscribe" && _jsonIn[1] == _subscribePattern)
     {
@@ -74,9 +74,8 @@ RedisSpine::RedisSpine(Thread &thr)
 
   subscriber<uint64_t>(_loopbackTopic) >> [&](const uint64_t &in)
   {
-    INFO("loopback %llu", in);
-    publish(_latencyTopic.c_str(), (Sys::micros() - in));
     connected = true;
+    publish(_latencyTopic.c_str(), (Sys::micros() - in));
     _connectionWatchdog.reset();
   };
 };
