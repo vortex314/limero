@@ -14,7 +14,7 @@ typedef std::vector<uint8_t> Bytes;
 #define PPP_ESC_CHAR 0x7D
 #define PPP_FLAG_CHAR 0x7E
 
-class PppDeframer : public Flow<Bytes, Bytes>
+class PppDeframer : public Flow<Bytes, Bytes>,public Actor
 {
   Bytes _buffer;
   size_t _maxFrameLength;
@@ -22,12 +22,12 @@ class PppDeframer : public Flow<Bytes, Bytes>
 
 public:
   ValueFlow<Bytes> garbage;
-  PppDeframer(size_t maxFrameLength);
+  PppDeframer(Thread&,size_t maxFrameLength);
   bool checkCrc(Bytes &bs);
   void on(const Bytes &in);
 };
 
-class PPP {
+class PPP : public Actor {
   uint64_t _lastFrameFlag;
   size_t _maxFrameLength;
   Bytes _buffer;
@@ -37,7 +37,7 @@ class PPP {
   ValueFlow<Bytes> _garbage;
 
  public:
-  PPP(size_t);
+  PPP(Thread&,size_t);
   ~PPP();
 
   void addEscaped(Bytes &out, uint8_t c);

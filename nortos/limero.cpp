@@ -35,14 +35,12 @@ void Thread::start() {}
 
 int Thread::enqueue(Invoker *invoker)
 {
-  _workQueue.push(invoker);
-  return 0;
+  return _workQueue.push(invoker) == true ? 0 : ENOSPC;
 };
 
 int Thread::enqueueFromIsr(Invoker *invoker)
 {
-  _workQueue.push(invoker);
-  return 0;
+  return _workQueue.push(invoker) == true ? 0 : ENOSPC;
 };
 
 void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
@@ -56,53 +54,25 @@ void Thread::run()
 
 void Thread::loop()
 {
-  uint64_t now = Sys::millis();
-  uint64_t expTime = now + 5000;
-  TimerSource *expiredTimer = 0;
-  // find next expired timer if any within 5 sec
+  // execute thread waiters
+  Invoker *prq;
+  if (_workQueue.pop(prq) == true)
+  {
+    prq->invoke();
+  }
+  // execute expired timers
   for (auto timer : _timers)
   {
-    if (timer->expireTime() < expTime)
+    if (timer->expireTime() < Sys::millis())
     {
-      expTime = timer->expireTime();
-      expiredTimer = timer;
-    }
-  }
-  int32_t waitTime =
-      (expTime - now); // ESP_OPEN_RTOS seems to double sleep time ?
-
-  //		INFO(" waitTime : %d ",waitTime);
-
-  if (waitTime > 0)
-  {
-    Invoker *prq;
-    if (_workQueue.pop(prq) == true)
-    {
-      uint64_t start = Sys::millis();
-      prq->invoke();
-      uint32_t delta = Sys::millis() - start;
-      if (delta > 20)
-        WARN("Invoker [%X] slow %u msec invoker on thread '%s'.",
-             (unsigned int)prq, delta, name());
-    }
-  }
-  else
-  {
-    if (expiredTimer && expiredTimer->expireTime() < Sys::millis())
-    {
-      if (-waitTime > 100)
-        INFO("Timer[%X] already expired by %d msec on thread '%s'.",
-             (unsigned int)expiredTimer, -waitTime, name());
-      uint64_t start = Sys::millis();
-      expiredTimer->request();
-      uint32_t deltaExec = Sys::millis() - start;
-      if (deltaExec > 20)
-        WARN("Timer [%X] request slow %u msec on thread '%s'",
-             (unsigned int)expiredTimer, deltaExec, name());
+      timer->request();
+      break;
     }
   }
 }
 
-void Thread::loopAll() {
-  for ( auto thr :_threads) thr->loop();
+void Thread::loopAll()
+{
+  for (auto thr : _threads)
+    thr->loop();
 }

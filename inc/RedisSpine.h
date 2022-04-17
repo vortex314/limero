@@ -11,15 +11,17 @@
 #include "ArduinoJson.h"
 #include "limero.h"
 
-#define FRAME_MAX_SIZE 128
+#define FRAME_MAX_SIZE 1024
 
 class RedisSpine : public Actor
 {
   DynamicJsonDocument _jsonOut;
-  DynamicJsonDocument _jsonNested;
+  DynamicJsonDocument _jsonNestedOut;
   DynamicJsonDocument _jsonIn;
+  DynamicJsonDocument _jsonNestedIn;
 
-  ValueFlow<bool> jsonArrived;
+  ZeroFlow<bool> jsonArrived;
+  ZeroFlow<bool> pmessageArrived;
 
   std::string _loopbackTopic;
   std::string _latencyTopic;
@@ -34,8 +36,8 @@ class RedisSpine : public Actor
   } _state;
 
 public:
-  ValueFlow<Bytes> rxdFrame;
-  ValueFlow<Bytes> txdFrame;
+  QueueFlow<Bytes> rxdFrame;
+  QueueFlow<Bytes> txdFrame;
   ValueFlow<bool> connected;
   std::string dstPrefix;
   std::string srcPrefix;
@@ -52,17 +54,20 @@ public:
   template <typename T>
   void publish(const char *topic, T t)
   {
-    if ( _state != READY ) return;
+    INFO("publish: %s : %d ", topic, _state);
+
+
     std::string s;
     _jsonOut.clear();
-    _jsonNested.clear();
-    //   JsonVariant var = _jsonNested.to<JsonVariant>();
+    _jsonNestedOut.clear();
+    //   JsonVariant var = _jsonNestedOut.to<JsonVariant>();
     //  var.set(t)
-    _jsonNested.set(t);
-    serializeJson(_jsonNested, s);
+    _jsonNestedOut.set(t);
+    serializeJson(_jsonNestedOut, s);
     _jsonOut[0] = "publish";
     _jsonOut[1] = topic;
     _jsonOut[2] = s;
+//    INFO("publish: %s=>%s", topic, s.c_str());
     sendJson(_jsonOut);
   }
 
@@ -88,10 +93,11 @@ public:
       absTopic = topic;
 
     auto vf = new ValueFlow<T>();
-    jsonArrived >> [&](const bool &)
+    pmessageArrived >> [&, absTopic, vf](const bool &)
     {
-      if (_jsonIn[0] == "pmessage" || _jsonIn[2] == absTopic)
-        vf->emit(_jsonIn[2].as<T>());
+      //     INFO("%s:%s", absTopic.c_str(), _jsonIn[2].as<std::string>().c_str());
+      if (_jsonIn[2].as<std::string>() == absTopic)
+        vf->emit(_jsonNestedIn.as<T>());
     };
     return *vf;
   }

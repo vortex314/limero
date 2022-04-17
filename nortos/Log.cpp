@@ -11,12 +11,13 @@
 
 extern "C" void uartSendBytes(uint8_t* ,size_t,uint32_t);
 
+#define LOG_SIZE  256
 
 Log::Log(){
 	_logWriter=0;
 	_level=L_INFO;
-	_buffer=new char[128];
-	_bufferSize=128;
+	_buffer=new char[LOG_SIZE];
+	_bufferSize=LOG_SIZE;
 	offset=0;
 	txBufferOverflow=0;
 	txBusy=false;
@@ -47,7 +48,14 @@ void Log::flush() {
 
 Log& Log::tfl(const char * lvl,const char *file, const uint32_t line) {
 	if ( txBusy ) return *this;
-	uint32_t t = Sys::millis();
-	offset = snprintf(_buffer, _bufferSize, "%s %8.8lu | %s:%4lu | ",lvl,  t, file, line);
+	uint64_t t = Sys::millis();
+	uint32_t sec = t / 1000;
+	uint32_t msec = t % 1000;
+	uint32_t min = sec / 60  ;
+	uint32_t hour = min / 60;
+
+	offset = snprintf(_buffer, _bufferSize, 
+	"%s %3.3u:%2.2u:%2.2u.%3.3u | %s:%4lu | ",
+	lvl, hour ,min %60,sec % 60,msec, file, line);
 	return *this;
 }

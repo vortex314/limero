@@ -50,7 +50,7 @@ public:
   void clear() { _fcs = 0xFFFF; }
 };
 
-PppDeframer::PppDeframer(size_t maxFrameLength)
+PppDeframer::PppDeframer(Thread &thread, size_t maxFrameLength) : Actor(thread)
 {
   _maxFrameLength = maxFrameLength;
   _escFlag = false;
@@ -67,6 +67,8 @@ bool PppDeframer::checkCrc(Bytes &bs)
 
 void PppDeframer::on(const Bytes &in)
 {
+  uint64_t t0 = Sys::millis();
+
   for (auto b : in)
   {
     if (b == PPP_FLAG_CHAR)
@@ -79,7 +81,8 @@ void PppDeframer::on(const Bytes &in)
       }
       else
       {
-        garbage.on(_buffer);
+        if (_buffer.size() > 0)
+          garbage.on(_buffer);
       }
       _buffer.clear();
     }
@@ -104,6 +107,9 @@ void PppDeframer::on(const Bytes &in)
   {
     _buffer.clear();
   }
+  uint32_t t1 = Sys::millis() - t0;
+  if (t1 > 5)
+    WARN("PppDeframer::on() took %d ms", t1);
 }
 
 void PPP::addEscaped(Bytes &out, uint8_t c)
@@ -119,7 +125,7 @@ void PPP::addEscaped(Bytes &out, uint8_t c)
   }
 }
 
-PPP::PPP(size_t maxFrameLength) : _maxFrameLength(maxFrameLength)
+PPP::PPP(Thread &thrd, size_t maxFrameLength) : Actor(thrd), _maxFrameLength(maxFrameLength)
 {
   _frame = *new LambdaFlow<Bytes, Bytes>([&](Bytes &out, const Bytes &in)
                                          {
@@ -134,7 +140,7 @@ PPP::PPP(size_t maxFrameLength) : _maxFrameLength(maxFrameLength)
     addEscaped(out, fcs.result() >> 8);
     out.push_back(PPP_FLAG_CHAR);
     return true; });
-  _deframe = new PppDeframer(_maxFrameLength);
+  _deframe = new PppDeframer(thread(), _maxFrameLength);
 }
 
 PPP::~PPP()

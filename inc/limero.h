@@ -158,6 +158,7 @@ class Named
   std::string _name = "no-name";
 
 public:
+  Named(){};
   Named(const char *name) { _name = name == 0 ? "NULL" : name; }
   const char *name() { return _name.c_str(); }
 };
@@ -281,7 +282,7 @@ public:
     {
       stats.bufferOverflow++;
       interrupts();
-      WARN("ArrayQueue sz %d rd %d wr %d ", size(), _readPtr, _writePtr);
+      //      WARN("ArrayQueue sz %d rd %d wr %d ", size(), _readPtr, _writePtr);
       return false;
     }
     _writePtr = desired;
@@ -617,7 +618,11 @@ public:
       else
         _expireTime = Sys::millis() + UINT32_MAX;
       TimerMsg tm = {this};
+      uint64_t now = Sys::millis();
       this->emit(tm);
+      uint32_t diff = Sys::millis() - now;
+      if (diff > 10)
+        WARN(" timer %s took %d ms to emit ", this->name(), diff);
     }
   }
   void repeat(bool r) { _repeat = r; };
@@ -625,7 +630,7 @@ public:
   inline uint32_t interval() { return _interval; }
 };
 //____________________________________  SINK ______________________
-template <class T>
+/*template <class T>
 class SinkQueue : public Sink<T>, public Invoker, public Named
 {
   ArrayQueue<T> _queue;
@@ -690,7 +695,7 @@ public:
   }
   //  T operator()() { return _lastValue; }
 };
-
+*/
 //_________________________________________________ Flow ________________
 //
 template <class IN, class OUT>
@@ -784,7 +789,10 @@ public:
     if (_thread)
     {
       if (_queue.push(t))
-        _thread->enqueue(this);
+      {
+        if (_thread->enqueue(this))
+          WARN("enqueue failed");
+      }
       else
         WARN("QueueFlow '%s' push failed", name());
     }
@@ -799,23 +807,33 @@ public:
     if (_thread)
     {
       if (_queue.push(t))
-        _thread->enqueueFromIsr(this);
+      {
+        if (_thread->enqueueFromIsr(this))
+          WARN("enqueueFromIsr failed");
+      }
       else
         WARN("QueueFlow '%s' push failed", name());
     }
     else
     {
-      this->emit(t);
+      WARN("QueueFlow '%s' no thread found", name());
+      // this->emit(t);
     }
   }
   void request() { invoke(); }
   void invoke()
   {
     T value;
-    if (_queue.pop(value))
+    while (_queue.pop(value))
+    {
+      uint64_t now = Sys::millis();
       this->emit(value);
-    else
-      WARN(" no data in queue ");
+      uint32_t delta = Sys::millis() - now;
+      if (delta > 10)
+        WARN("QueueFlow '%s' invoke too slow %d", name(), delta);
+    }
+   /* else
+      WARN(" no data in queue ");*/
   }
 
   void async(Thread &thread) { _thread = &thread; }
@@ -826,8 +844,9 @@ public:
 //
 
 template <class IN, class OUT>
-class LambdaFlow : public Flow<IN, OUT>
+class LambdaFlow : public Flow<IN, OUT>, public Named
 {
+
   std::function<bool(OUT &, const IN &)> _func;
 
 public:
@@ -845,18 +864,24 @@ public:
   {
     OUT out;
     if (_func(out, in))
+    {
+      uint64_t now = Sys::millis();
       this->emit(out);
+      uint32_t delta = Sys::millis() - now;
+      if (delta > 10)
+        WARN("LambdaFlow  %s invoke too slow %d", this->name(), delta);
+    }
   }
   void request(){};
-/*  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func)
-  {
-    auto lf = new LambdaFlow(func);
-    return *lf;
-  }
-  void operator>>(std::function<void(const OUT &t)> func)
-  {
-    subscribe(new SinkFunction<OUT>(func));
-  }*/
+  /*  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)> func)
+    {
+      auto lf = new LambdaFlow(func);
+      return *lf;
+    }
+    void operator>>(std::function<void(const OUT &t)> func)
+    {
+      subscribe(new SinkFunction<OUT>(func));
+    }*/
 };
 
 template <class T>
@@ -937,6 +962,14 @@ Sink<IN>& operator>>(Flow<IN,OUT>* flow,std::function<void(const OUT &t)> func){
   return *flow;
 }
 */
+template <class T>
+class ZeroFlow : public Flow<T, T>
+{
+public:
+  ZeroFlow(){};
+  void operator=(T t) { this->emit(t); }
+  void on(const T &t) { this->emit(t); }
+};
 //________________________________________________________________
 //
 template <class T>
