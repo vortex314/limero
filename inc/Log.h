@@ -45,41 +45,54 @@ class Log
 	LogWriter _logWriter = 0;
 
 public:
-	typedef enum { L_DEBUG,L_INFO,L_WARN,L_ERROR} Level;
-	Level _level=L_INFO;
+	typedef enum
+	{
+		L_DEBUG,
+		L_INFO,
+		L_WARN,
+		L_ERROR
+	} Level;
+	Level _level = L_INFO;
+	bool logging=true;
 
 	Log();
 	uint32_t txBufferOverflow;
-	char* _buffer;
+	char *_buffer;
 	size_t _bufferSize;
 	size_t offset;
 	bool txBusy = false;
-	Log &tfl(const char * lvl,  const char *file, const uint32_t line);
+	Log &tfl(const char *lvl, const char *file, const uint32_t line);
 	Log &logf(const char *fmt, ...);
 	void flush();
 	LogWriter setWriter(LogWriter f);
 	void setLevel(Level);
+	void stop() { logging=false; };
+	void resume() { logging = true; };
 
 private:
 };
 
 extern Log logger;
 
-#define INFO(fmt, ...)                                                           \
-	{                                                                            \
-	 if (logger._level<=Log::L_INFO) 	logger.tfl("I",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+#define INFO(fmt, ...)                                                                  \
+	{                                                                                   \
+		if (logger._level <= Log::L_INFO && logger.logging)                                               \
+			logger.tfl("I", __SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
-#define WARN(fmt, ...)                                                           \
-	{                                                                            \
-		if (logger._level<=Log::L_WARN) logger.tfl("W",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+#define WARN(fmt, ...)                                                                  \
+	{                                                                                   \
+		if (logger._level <= Log::L_WARN && logger.logging )                                               \
+			logger.tfl("W", __SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
-#define DEBUG(fmt, ...)                                                          \
-	{                                                                            \
-		if (logger._level<=Log::L_DEBUG) logger.tfl("D",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+#define DEBUG(fmt, ...)                                                                 \
+	{                                                                                   \
+		if (logger._level <= Log::L_DEBUG && logger.logging)                                              \
+			logger.tfl("D", __SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
-#define ERROR(fmt, ...)                                                          \
-	{                                                                            \
-		if (logger._level<=Log::L_ERROR)  logger.tfl("E",__SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
+#define ERROR(fmt, ...)                                                                 \
+	{                                                                                   \
+		if (logger._level <= Log::L_ERROR && logger.logging)                                              \
+			logger.tfl("E", __SHORT_FILE__, __LINE__).logf(fmt, ##__VA_ARGS__).flush(); \
 	}
 
 #endif /* SRC_LOG_H_ */

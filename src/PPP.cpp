@@ -67,11 +67,12 @@ bool PppDeframer::checkCrc(Bytes &bs)
 
 void PppDeframer::on(const Bytes &in)
 {
-  uint64_t t0 = Sys::millis();
 
   for (auto b : in)
   {
-    if (b == PPP_FLAG_CHAR)
+    switch (b)
+    {
+    case PPP_FLAG_CHAR:
     {
       if ((_buffer.size() > 3) && checkCrc(_buffer))
       {
@@ -85,12 +86,14 @@ void PppDeframer::on(const Bytes &in)
           garbage.on(_buffer);
       }
       _buffer.clear();
+      break;
     }
-    else if (b == PPP_ESC_CHAR)
+    case PPP_ESC_CHAR:
     {
       _escFlag = true;
+      break;
     }
-    else
+    default:
     {
       if (_escFlag)
       {
@@ -102,14 +105,12 @@ void PppDeframer::on(const Bytes &in)
         _buffer.push_back(b);
       }
     }
+    }
+    if (_buffer.size() > _maxFrameLength)
+    {
+      _buffer.clear();
+    }
   }
-  if (_buffer.size() > _maxFrameLength)
-  {
-    _buffer.clear();
-  }
-  uint32_t t1 = Sys::millis() - t0;
-  if (t1 > 5)
-    WARN("PppDeframer::on() took %d ms", t1);
 }
 
 void PPP::addEscaped(Bytes &out, uint8_t c)

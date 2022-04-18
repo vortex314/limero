@@ -54,7 +54,7 @@ void Log::serialLog(char* start, uint32_t length) {
 }
 
 Log::Log(uint32_t size)
-    : _enabled(true), _logFunction(serialLog), _level(LOG_INFO) {
+    : _enabled(true), _logFunction(serialLog), _level(LOG_INFO),logging(true) {
     if (_line == 0) {
         _line = new std::string;
         _line->reserve(size);
