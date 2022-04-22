@@ -67,7 +67,6 @@ void Thread::delReadInvoker(const int fd)
 
 void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  Callback cb = {fn, arg};
   _writeInvokers[fd] = {fn, arg};
   buildFdSet();
 }
@@ -80,7 +79,6 @@ void Thread::delWriteInvoker(const int fd)
 
 void Thread::addErrorInvoker(int fd, void *arg, CallbackFunction fn)
 {
-  Callback cb = {fn, arg};
   _errorInvokers[fd] = {fn, arg};
   buildFdSet();
 }

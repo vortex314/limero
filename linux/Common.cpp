@@ -30,7 +30,7 @@ void replyToJson(JsonVariant result, redisReply *reply) {
       break;
 
     case REDIS_REPLY_MAP:
-      for (int i = 0; i < reply->elements; i += 2)
+      for (size_t i = 0; i < reply->elements; i += 2)
         replyToJson(result[reply->element[i]->str].to<JsonVariant>(),
                     reply->element[i + 1]);
       break;
@@ -38,7 +38,7 @@ void replyToJson(JsonVariant result, redisReply *reply) {
     case REDIS_REPLY_SET:
     case REDIS_REPLY_PUSH:
     case REDIS_REPLY_ARRAY:
-      for (int i = 0; i < reply->elements; i++)
+      for (size_t i = 0; i < reply->elements; i++)
         replyToJson(result.addElement(), reply->element[i]);
       break;
     default: {

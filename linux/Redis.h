@@ -9,6 +9,7 @@
 class Redis : public Actor {
   QueueFlow<Json> _request;
   QueueFlow<Json> _response;
+  ValueFlow<std::string> _command;
   redisAsyncContext *_ac;
   ValueFlow<bool> _connected;
   std::string _redisHost;
@@ -32,6 +33,7 @@ class Redis : public Actor {
   void stop();
 
   Sink<Json> &request();
+  Sink<std::string>& command();
   Source<Json> &response();
   Source<bool> &connected();
 
