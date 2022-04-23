@@ -45,7 +45,6 @@ Log &Log::tfl(const char* lvl,const char *file, const uint32_t line)
 {
   if (txBusy)
     return *this;
-  time_t t = time(nullptr);
   struct timeval tv;
   gettimeofday(&tv, NULL);
   uint64_t msec = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
