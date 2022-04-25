@@ -1,10 +1,20 @@
 #ifndef __REDIS_H__
 #define __REDIS_H__
 #include <ArduinoJson.h>
-#include <Common.h>
 #include <async.h>
 #include <hiredis.h>
 #include <limero.h>
+
+void replyToJson(JsonVariant, redisReply*);
+bool validate(JsonVariant js, std::string format);
+int token(JsonVariant v);
+
+class Json : public DynamicJsonDocument {
+ public:
+  Json() : DynamicJsonDocument(10240) {}
+  Json(int x) : DynamicJsonDocument(x){};
+  Json(DynamicJsonDocument jsd) : DynamicJsonDocument(jsd){}
+};
 
 class Redis : public Actor {
   QueueFlow<Json> _request;
