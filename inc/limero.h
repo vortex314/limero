@@ -53,17 +53,13 @@ typedef std::string String;
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
-
 #include "esp_system.h"
 #include "freertos/task.h"
-//#include "nvs.h"
-//#include "nvs_flash.h"
 #define PRO_CPU 0
 #define APP_CPU 1
 #endif
 //-------------------------------------------------- ARDUINO
 #ifdef ARDUINO
-//#define NO_ATOMIC
 #include <Arduino.h>
 #define NO_RTOS
 #endif
@@ -74,17 +70,6 @@ typedef std::string String;
 #undef min
 #undef max
 
-typedef struct
-{
-  uint32_t bufferOverflow = 0;
-  uint32_t bufferPushBusy = 0;
-  uint32_t bufferPopBusy = 0;
-  uint32_t threadQueueOverflow = 0;
-  uint32_t bufferPushCasFailed = 0;
-  uint32_t bufferPopCasFailed = 0;
-  uint32_t bufferCasRetries = 0;
-} NanoStats;
-extern NanoStats stats;
 
 class Thread;
 //====================================================================================
@@ -141,7 +126,6 @@ struct Subscription
   }
 };
 //______________________________________________________________________
-// INTERFACES nanoAkka
 //
 
 template <class T>
@@ -447,8 +431,6 @@ public:
 
 #endif
 
-// STREAMS
-class TimerSource;
 //____________________________________________________________________ THREAD __
 struct ThreadProperties
 {
