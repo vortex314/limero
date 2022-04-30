@@ -9,7 +9,6 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-NanoStats stats;
 std::unordered_map<void *, std::forward_list<Subscription *> *> Subscription::_subscriptions;
 
 /*
@@ -207,7 +206,6 @@ int Thread::enqueue(Invoker *invoker)
   if (_writePipe)
     if (write(_writePipe, (const char *)&invoker, sizeof(Invoker *)) == -1)
     {
-      stats.threadQueueOverflow++;
       WARN("Thread '%s' queue overflow [%X]", name(), invoker);
       return ENOBUFS;
     }
