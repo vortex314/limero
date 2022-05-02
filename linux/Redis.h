@@ -9,6 +9,7 @@ void replyToJson(JsonVariant, redisReply*);
 bool validate(JsonVariant js, std::string format);
 int token(JsonVariant v);
 
+
 class Json : public DynamicJsonDocument {
  public:
   Json() : DynamicJsonDocument(10240) {}
@@ -41,6 +42,7 @@ class Redis : public Actor {
   int connect();
   void disconnect();
   void stop();
+  void publish(std::string channel, std::string message);
 
   Sink<Json> &request();
   Sink<std::string>& command();

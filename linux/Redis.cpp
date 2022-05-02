@@ -290,6 +290,16 @@ void replyToJson(JsonVariant result, redisReply *reply) {
   }
 }
 
+void Redis::publish( std::string channel,  std::string message)
+{
+  Json doc;
+  JsonArray array = doc.to<JsonArray>();
+  array.add("publish");
+  array.add(channel);
+  array.add(message);
+  _request.on(doc);
+}
+
 DynamicJsonDocument replyToJson(redisReply *reply) {
   DynamicJsonDocument doc(10240);
   replyToJson(doc.as<JsonVariant>(), reply);
