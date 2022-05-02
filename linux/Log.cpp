@@ -35,7 +35,6 @@ void Log::flush() {
 }
 #include <sys/time.h>
 
-
 Log &Log::tfl(const char *lvl, const char *file, const uint32_t line) {
   if (txBusy) return *this;
   struct timeval tv;
