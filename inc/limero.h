@@ -221,7 +221,6 @@ class ArrayQueue : public AbstractQueue<T> {
     int expected = _writePtr;
     int desired = next(expected);
     if (desired == _readPtr) {
-      stats.bufferOverflow++;
       interrupts();
       //      WARN("ArrayQueue sz %d rd %d wr %d ", size(), _readPtr,
       //      _writePtr);
