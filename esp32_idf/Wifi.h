@@ -10,8 +10,10 @@
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_event.h"
+#include "esp_mac.h"
 #include "freertos/event_groups.h"
 #include "nvs_flash.h"
+#include "lwip/ip_addr.h"
 #include <StringUtility.h>
 
 #ifndef WIFI_SSID

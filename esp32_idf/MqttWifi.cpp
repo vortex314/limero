@@ -9,11 +9,13 @@
 //#define BZERO(x) ::memset(&x, 0, sizeof(x))
 
 #ifndef MQTT_HOST
-#error "check MQTT_HOST definition "
+#define MQTT_HOST "limero.ddns.net"
 #endif
+
 #ifndef MQTT_PORT
-#error "check MQTT_PORT definition"
+#define MQTT_PORT 1883
 #endif
+
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
 

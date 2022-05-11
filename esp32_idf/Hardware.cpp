@@ -1,6 +1,6 @@
 #include <Hardware.h>
 #include <Log.h>
-#include <driver/gpio.h>
+#include <rom/gpio.h>
 #include <driver/i2c.h>
 
 #include "driver/uart.h"

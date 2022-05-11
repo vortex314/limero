@@ -53,6 +53,7 @@ void Sys::delay(uint32_t msec)
 #include <freertos/task.h>
 #include <stdint.h>
 #include <sys/time.h>
+#include "esp_mac.h"
 //#include <espressif/esp_wifi.h>
 
 uint32_t Sys::getSerialId()

@@ -1,6 +1,5 @@
 #include "limero.h"
 
-NanoStats stats;
 /*
  _____ _                        _
 |_   _| |__  _ __ ___  __ _  __| |
@@ -41,7 +40,6 @@ int Thread::enqueue(Invoker *invoker) {
   //	INFO("Thread '%s' >>> '%s'",_name.c_str(),symbols(invoker));
   if (_workQueue)
     if (xQueueSend(_workQueue, &invoker, (TickType_t)0) != pdTRUE) {
-      stats.threadQueueOverflow++;
       WARN("Thread '%s' queue overflow [%X]", name(), invoker);
       return ENOBUFS;
     }
@@ -51,7 +49,6 @@ int Thread::enqueueFromIsr(Invoker *invoker) {
   if (_workQueue) {
     if (xQueueSendFromISR(_workQueue, &invoker, (TickType_t)0) != pdTRUE) {
       //  WARN("queue overflow"); // cannot log here concurency issue
-      stats.threadQueueOverflow++;
       return ENOBUFS;
     }
   }
