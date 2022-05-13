@@ -2,11 +2,21 @@
 #include <Log.h>
 #include <rom/gpio.h>
 #include <driver/i2c.h>
-
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
+#include "FreeRTOSConfig.h"
 #include "freertos/task.h"
 #include <StringUtility.h>
+
+#define CHECK(xxx)          \
+  {                         \
+    esp_err_t erc = xxx;    \
+    if (erc)                \
+    {                       \
+      failure({erc, #xxx}); \
+      return erc;           \
+    }                       \
+  }
 
 static struct ESP32
 {
@@ -252,47 +262,33 @@ I2C_ESP32::~I2C_ESP32()
 
 int I2C_ESP32::init()
 {
-  INFO(" I2C init : scl:%d ,sda :%d ", _scl, _sda);
+  INFO(" I2C init : scl:%d ,sda :%d ,clock : %d Hz", _scl, _sda, _clock);
   i2c_config_t conf;
+  BZERO(conf);
   conf.mode = I2C_MODE_MASTER;
   conf.sda_io_num = (gpio_num_t)_sda;
   conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
   conf.scl_io_num = (gpio_num_t)_scl;
   conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
   conf.master.clk_speed = _clock;
-  esp_err_t erc = i2c_param_config(_port, &conf);
-  if (erc)
-    WARN("i2c_param_config() : %d", erc);
-  erc = i2c_driver_install(_port, conf.mode, 0, 0, 0);
-  if (erc)
-    WARN("i2c_driver_install() : %d", erc);
-  return erc;
+  CHECK(i2c_param_config(_port, &conf));
+  CHECK(i2c_driver_install(_port, conf.mode, 0, 0, 0));
+  return 0;
 }
 
 int I2C_ESP32::deInit() { return 0; }
 
 int I2C_ESP32::write(uint8_t *data, uint32_t size)
 {
-  esp_err_t erc;
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-  erc = i2c_master_start(cmd);
-  if (erc)
-    WARN("i2c_master_start(cmd):%d", erc);
-  erc = i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_WRITE,
-                              ACK_CHECK_EN);
-  if (erc)
-    ERROR("i2c_master_write_byte():%d", erc);
-  erc = i2c_master_write(cmd, data, size, ACK_CHECK_EN);
-  if (erc)
-    ERROR("i2c_master_write():%d", erc);
-  erc = i2c_master_stop(cmd);
-  if (erc)
-    ERROR("i2c_master_stop():%d", erc);
-  erc = i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS);
-  if (erc)
-    ERROR("i2c_master_cmd_begin():%d", erc);
+  CHECK(i2c_master_start(cmd));
+  CHECK(i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_WRITE,
+                              ACK_CHECK_EN));
+  CHECK(i2c_master_write(cmd, data, size, ACK_CHECK_EN));
+  CHECK(i2c_master_stop(cmd));
+  CHECK(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS));
   i2c_cmd_link_delete(cmd);
-  return erc;
+  return 0;
 }
 
 int I2C_ESP32::write(uint8_t b) { return write(&b, 1); }
@@ -305,17 +301,17 @@ int I2C_ESP32::read(uint8_t *data, uint32_t size)
   }
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_READ,
-                        ACK_CHECK_EN);
+  CHECK(i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_READ,
+                              ACK_CHECK_EN));
   if (size > 1)
   {
-    i2c_master_read(cmd, data, size - 1, (i2c_ack_type_t)ACK_VAL);
+    CHECK(i2c_master_read(cmd, data, size - 1, (i2c_ack_type_t)ACK_VAL));
   }
-  i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL);
-  i2c_master_stop(cmd);
-  esp_err_t ret = i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS);
+  CHECK(i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL));
+  CHECK(i2c_master_stop(cmd));
+  CHECK(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS));
   i2c_cmd_link_delete(cmd);
-  return ret;
+  return 0;
 }
 
 I2C &I2C::create(PhysicalPin scl, PhysicalPin sda)
