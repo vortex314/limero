@@ -18,6 +18,17 @@
     }                       \
   }
 
+  #define CHECK_CLEAN(xxx,yyy)          \
+  {                         \
+    esp_err_t erc = xxx;    \
+    if (erc)                \
+    {                       \
+      failure({erc, #xxx}); \
+      yyy;                   \
+      return erc;           \
+    }                       \
+  }
+
 static struct ESP32
 {
   i2c_port_t _i2c_port;
@@ -281,12 +292,12 @@ int I2C_ESP32::deInit() { return 0; }
 int I2C_ESP32::write(uint8_t *data, uint32_t size)
 {
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-  CHECK(i2c_master_start(cmd));
-  CHECK(i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_WRITE,
-                              ACK_CHECK_EN));
-  CHECK(i2c_master_write(cmd, data, size, ACK_CHECK_EN));
-  CHECK(i2c_master_stop(cmd));
-  CHECK(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS));
+  CHECK_CLEAN(i2c_master_start(cmd),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_WRITE,
+                              ACK_CHECK_EN),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_write(cmd, data, size, ACK_CHECK_EN),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_stop(cmd),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS),i2c_cmd_link_delete(cmd););
   i2c_cmd_link_delete(cmd);
   return 0;
 }
@@ -301,15 +312,16 @@ int I2C_ESP32::read(uint8_t *data, uint32_t size)
   }
   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
   i2c_master_start(cmd);
-  CHECK(i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_READ,
-                              ACK_CHECK_EN));
+  CHECK_CLEAN(i2c_master_write_byte(cmd, (_slaveAddress << 1) | I2C_MASTER_READ,
+                              ACK_CHECK_EN),i2c_cmd_link_delete(cmd););
   if (size > 1)
   {
-    CHECK(i2c_master_read(cmd, data, size - 1, (i2c_ack_type_t)ACK_VAL));
+    CHECK_CLEAN(i2c_master_read(cmd, data, size - 1, (i2c_ack_type_t)ACK_VAL),i2c_cmd_link_delete(cmd););
   }
-  CHECK(i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL));
-  CHECK(i2c_master_stop(cmd));
-  CHECK(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS));
+  CHECK_CLEAN(i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_stop(cmd),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS),i2c_cmd_link_delete(cmd);
+  );
   i2c_cmd_link_delete(cmd);
   return 0;
 }

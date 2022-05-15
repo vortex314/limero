@@ -16,7 +16,7 @@ extern "C" void uartSendBytes(uint8_t* ,size_t,uint32_t);
 Log::Log(){
 	_logWriter=0;
 	_level=L_INFO;
-	_buffer=new char[LOG_SIZE];
+	_buffer=(char*)(new char[LOG_SIZE]);
 	_bufferSize=LOG_SIZE;
 	offset=0;
 	txBufferOverflow=0;
