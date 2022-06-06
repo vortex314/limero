@@ -19,6 +19,7 @@ Log::Log()
 
 Log &Log::logf(const char *format, ...)
 {
+  if ( _buffer == 0 ) return *this;
   if (txBusy)
     return *this;
   if (offset > _bufferSize)
@@ -47,6 +48,7 @@ void Log::flush()
 #include <sys/time.h>
 Log &Log::tfl(const char *lvl, const char *file, const uint32_t line)
 {
+  if ( _buffer == 0 ) return *this;
   if (txBusy)
     return *this;
   uint64_t msec = Sys::millis();

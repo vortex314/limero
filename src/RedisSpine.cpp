@@ -33,7 +33,7 @@ RedisSpine::RedisSpine(Thread &thr)
     }
     else
     {
-      WARN("RedisSpine: deserializeJson error %d", error);
+      WARN("RedisSpine: deserializeJson error %d on %s ", error,charDump(b).c_str());
     }
   };
 

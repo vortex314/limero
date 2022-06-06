@@ -13,16 +13,20 @@
 #include "freertos/event_groups.h"
 #include "nvs_flash.h"
 
-#ifndef WIFI_SSID
+#define STRINGIFY(X) #X
+#define S(X) STRINGIFY(X)
+#define DO_EXPAND(VAL)  VAL ## 1
+#define EXPAND(VAL)     DO_EXPAND(VAL)
+
+#if !defined( WIFI_SSID )  || (EXPAND(WIFI_SSID) == 1)
 #error "WIFI_SSID should be defined !"
 #endif
 
-#ifndef WIFI_PASS
+#if !defined( WIFI_PASS ) || (EXPAND(WIFI_PASS) == 1)
 #error "WIFI_PASS should be defined !"
 #endif
 
-#define STRINGIFY(X) #X
-#define S(X) STRINGIFY(X)
+
 
 class Wifi : public Actor  {
 		uint8_t _mac[6];

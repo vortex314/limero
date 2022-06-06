@@ -57,7 +57,7 @@ public:
 
 	Log();
 	uint32_t txBufferOverflow;
-	char *_buffer;
+	char *_buffer=0;
 	size_t _bufferSize;
 	size_t offset;
 	bool txBusy = false;

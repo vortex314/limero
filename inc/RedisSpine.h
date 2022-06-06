@@ -12,7 +12,7 @@
 #include "limero.h"
 #include <Stringify.h>
 
-#define FRAME_MAX_SIZE 512 // > 384 hello 3 response
+#define FRAME_MAX_SIZE 1024 // > 384 hello 3 response
 
 class RedisSpine : public Actor
 {

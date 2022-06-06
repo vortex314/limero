@@ -71,56 +71,65 @@ int Thread::enqueueFromIsr(Invoker *invoker)
 
 void Thread::run()
 {
-    INFO("Thread '%s' started ", name());
-    while (true)
+  INFO("Thread '%s' prio : %d started ", name(), uxTaskPriorityGet(NULL));
+  createQueue();
+  uint32_t noWaits = 0;
+  while (true)
+  {
+    uint64_t now = Sys::millis();
+    uint64_t expTime = now + 5000;
+    TimerSource *expiredTimer = 0;
+    // find next expired timer if any within 5 sec
+    for (auto timer : _timers)
     {
-        uint64_t now = Sys::millis();
-        uint64_t expTime = now + 5000;
-        TimerSource *expiredTimer = 0;
-        // find next expired timer if any within 5 sec
-        for (auto timer : _timers)
-        {
-            if (timer->expireTime() < expTime)
-            {
-                expTime = timer->expireTime();
-                expiredTimer = timer;
-            }
-        }
-        if (expiredTimer && (expTime <= now))
-        {
-            if (expiredTimer)
-            {
-                uint32_t delta = now - expTime;
-                //                INFO(" expiredTimer 0x%X %s ",expiredTimer,expiredTimer->name());
-                if (delta > 100)
-                    INFO("Timer[%s] on thread %s already expired by %u", expiredTimer->name(), name(), delta);
-                expiredTimer->request();
-            }
-        }
-        else
-        {
-            Invoker *prq = 0;
-            int32_t waitTime = pdMS_TO_TICKS(expTime - now) + 1;
-            if (waitTime < 0)
-                waitTime = 0;
-            //           uint32_t queueCounter = 0;
-            //			INFO(" waitTime : %d msec %d ticks from %s ",(int32_t)(expTime-now),waitTime,expiredTimer ? expiredTimer->name() : "noTimer");
-            if (xQueueReceive(_workQueue, &prq, (TickType_t)waitTime) == pdTRUE)
-            {
-                //                INFO("invoke %s ",name());
-                uint64_t start = Sys::millis();
-                prq->invoke();
-                uint32_t delta = Sys::millis() - start;
-                if (delta > 50)
-                    WARN(" slow %d msec invoker [%X]", delta, prq);
-            }
-            else if (expiredTimer)
-            {
-                if ((expiredTimer->expireTime() < Sys::millis() - 10))
-                    WARN("timer %s fired too early %llu  ", expiredTimer->name(), Sys::millis() - expiredTimer->expireTime());
-                //                INFO(" request timer %s",expiredTimer->name);
-                expiredTimer->request();
-            }
-        }
+      if (timer->expireTime() < expTime)
+      {
+        expTime = timer->expireTime();
+        expiredTimer = timer;
+      }
     }
+    int32_t waitTime =
+        (expTime - now); // ESP_OPEN_RTOS seems to double sleep time ?
+
+    //		INFO(" waitTime : %d ",waitTime);
+    if (noWaits % 1000 == 999)
+      WARN(" noWaits : %d in thread %s waitTime %d ", noWaits, name(),
+           waitTime);
+    if (waitTime > 0)
+    {
+      Invoker *prq;
+      TickType_t tickWaits = pdMS_TO_TICKS(waitTime);
+      if (tickWaits == 0)
+        noWaits++;
+      if (xQueueReceive(_workQueue, &prq, tickWaits) == pdPASS)
+      {
+        uint64_t start = Sys::millis();
+        prq->invoke();
+        uint32_t delta = Sys::millis() - start;
+        if (delta > 50)
+          WARN("Invoker [%X] slow %d msec invoker on thread '%s'.", prq, delta,
+               name());
+      }
+      else
+      {
+        noWaits = 0;
+      }
+    }
+    else
+    {
+      noWaits++;
+      if (expiredTimer)
+      {
+        if (-waitTime > 100)
+          INFO("Timer[%X] already expired by %u msec on thread '%s'.",
+               expiredTimer, -waitTime, name());
+        uint64_t start = Sys::millis();
+        expiredTimer->request();
+        uint32_t deltaExec = Sys::millis() - start;
+        if (deltaExec > 50)
+          WARN("Timer [%X] request slow %d msec on thread '%s'", expiredTimer,
+               deltaExec, name());
+      }
+    }
+  }
 }

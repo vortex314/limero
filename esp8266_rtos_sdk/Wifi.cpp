@@ -12,7 +12,7 @@
 
 Wifi::Wifi(Thread& thr) : Actor(thr),password(S(WIFI_PASS)),prefix(S(WIFI_SSID))
 {
-    rssi = 0;
+    rssi = 0; 
 }
 
 Wifi::~Wifi()
@@ -32,6 +32,8 @@ void Wifi::init()
     macAddress = macs;
     mac = macInt;
     connected = false;
+    INFO(" WIFI %s PSWD %s",S(WIFI_SSID),S(WIFI_PASS));
+    INFO("SSID prefix = '%s' PSWD = '%s' MAC = %s",prefix().c_str(),password().c_str(),macs.c_str());
 }
 
 void Wifi::ip_event_handler(void* event_arg, esp_event_base_t event_base, int32_t event_id, void* event_data)

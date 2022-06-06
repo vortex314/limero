@@ -1,4 +1,6 @@
 #include <string>
+#include <StringUtility.h>
+
 inline std::string toString(const float f){
     return std::to_string(f);
 }
@@ -8,8 +10,15 @@ inline std::string toString(const int &t)
 }
 inline std::string toString(const unsigned long long &t)
 {
+    #ifdef ESP8266_RTOS_SDK
+    std::string s = stringFormat("%llu", t);
+    return s;
+    #else
     return std::to_string(t);
+    #endif
+    
 }
+
 
 inline std::string toString(const unsigned long &t)
 {
