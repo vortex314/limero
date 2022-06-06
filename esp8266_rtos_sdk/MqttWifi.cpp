@@ -2,6 +2,7 @@
 #include <Wifi.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <StringUtility.h>
 // SEE :
 // https://github.com/espressif/esp-idf/blob/master/examples/protocols/mqtt/tcp/main/app_main.c
 // volatile MQTTAsync_token deliveredtoken;
@@ -24,7 +25,7 @@
 MqttWifi::MqttWifi(Thread &thread)
     : Mqtt(thread),
       _reportTimer(thread, 1000, true, "mqtt.report"),
-      _keepAliveTimer(thread, "mqtt.keepAlive"), wifiConnected(1)
+      _keepAliveTimer(thread, 5000,true,"mqtt.keepAlive"), wifiConnected(true)
 {
   _lwt_message = "false";
   incoming.async(thread);
@@ -36,8 +37,8 @@ MqttWifi::~MqttWifi() {}
 //
 void MqttWifi::init()
 {
-  string_format(_address, "mqtt://%s:%d", S(MQTT_HOST), MQTT_PORT);
-  string_format(_lwt_topic, "src/%s/system/alive", Sys::hostname());
+  address = stringFormat("mqtt://%s:%d", S(MQTT_HOST), MQTT_PORT);
+  _lwt_topic = stringFormat("src/%s/system/alive", Sys::hostname());
   srcPrefix = "src/";
   srcPrefix += Sys::hostname();
   srcPrefix += "/";
@@ -67,7 +68,8 @@ void MqttWifi::init()
   _reportTimer >>
       ([&](const TimerMsg &tm) { mqttPublish(_lwt_topic.c_str(), "true"); });
 
-  wifiConnected.async(thread(), [&](bool conn) {
+  wifiConnected.async(thread());
+  wifiConnected >>  [&](bool conn) {
     INFO("WiFi %sconnected.", conn ? "" : "dis");
     if (conn)
     {
@@ -78,17 +80,18 @@ void MqttWifi::init()
       if (connected())
         esp_mqtt_client_stop(_mqttClient);
     }
-  });
+  };
 
-  outgoing.async(thread(), [&](const MqttMessage &m) {
+  outgoing.async(thread());
+  outgoing >>  [&](const MqttMessage &m) {
     mqttPublish(m.topic.c_str(), m.message.c_str());
-  });
+  };
 
   subscriptions.emplace(dstPrefix + "#");
 
-  keepAliveTimer.interval(1000);
-  keepAliveTimer.repeat(true);
-  keepAliveTimer >> [&](const TimerMsg &tm) {
+  _keepAliveTimer.interval(1000);
+  _keepAliveTimer.repeat(true);
+  _keepAliveTimer >> [&](const TimerMsg &tm) {
     INFO("");
     if (connected())
       outgoing.on({_lwt_topic, "true"});

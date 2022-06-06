@@ -182,7 +182,7 @@ class Requestable {
 //
 //#define BUSY (1 << 15) // busy read or write ptr
 
-#if defined(ESP_OPEN_RTOS) || defined(ESP8266_IDF)
+#if defined(ESP_OPEN_RTOS) || defined(ESP8266_RTOS_SDK)
 // Set Interrupt Level
 // level (0-15),
 // level 15 will disable ALL interrupts,
@@ -842,7 +842,7 @@ class ZeroFlow : public Flow<T, T> {
 //________________________________________________________________
 //
 template <class T>
-class ValueFlow : public Flow<T, T>, public Invoker {
+class ValueFlow : public Flow<T, T>, public Invoker,public Requestable {
   T _t;
   Thread *_thread = 0;
 
@@ -922,11 +922,11 @@ class Poller : public Actor {
     _requestables.push_back(&source);
     return source;
   }
-  /*
+  
     Poller &operator()(Requestable &rq) {
       _requestables.push_back(&rq);
       return *this;
-    }*/
+    }
 };
 
 #endif  // LIMERO_H

@@ -7,7 +7,7 @@
 #include "nvs_flash.h"
 nvs_handle _nvs = 0;
 
-#define __ESP_FILE__ __FILE__
+//#define __ESP_FILE__ __FILE__
 
 bool ConfigStore::save(const char *name, std::string* value,uint32_t length)
 {

@@ -28,14 +28,14 @@ class Wifi : public Actor  {
 		uint8_t _mac[6];
 		wifi_init_config_t _wifiConfig;
 	public:
-		ValueSource<bool> connected=false;
-		ValueSource<int> rssi;
-		ValueSource<std::string> ipAddress;
-		ValueSource<std::string> ssid;
-		ValueSource<uint64_t> mac;
-		ValueSource<std::string> macAddress;
-		ValueSource<std::string> password;
-		ValueSource<std::string> prefix;
+		ValueFlow<bool> connected=false;
+		ValueFlow<int> rssi;
+		ValueFlow<std::string> ipAddress;
+		ValueFlow<std::string> ssid;
+		ValueFlow<uint64_t> mac;
+		ValueFlow<std::string> macAddress;
+		ValueFlow<std::string> password;
+		ValueFlow<std::string> prefix;
 
 		Wifi( Thread& thr);
 		~Wifi();

@@ -39,9 +39,9 @@ class MqttWifi : public Mqtt {
   MqttOta mqttOta;
 
  public:
-  Sink<bool> wifiConnected;
-  ValueSource<bool> connected;
-  TimerSource keepAliveTimer;
+  QueueFlow<bool> wifiConnected;
+  ValueFlow<bool> connected;
+  ValueFlow<std::string> address;
   MqttWifi(Thread& thread);
   ~MqttWifi();
   void init();

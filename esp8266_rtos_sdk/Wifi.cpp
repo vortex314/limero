@@ -1,5 +1,6 @@
 #include <Config.h>
 #include "Wifi.h"
+#include <StringUtility.h>
 
 #define CHECK(x)                                                               \
     do {                                                                       \
@@ -27,8 +28,7 @@ void Wifi::init()
     };
     macInt=0L;
     if ( esp_efuse_mac_get_default(macBytes) != ESP_OK) WARN(" esp_efuse_mac_get_default() failed.");;
-    std::string macs;
-    string_format(macs,"%02X:%02X:%02X:%02X:%02X:%02X",macBytes[5],macBytes[4],macBytes[3],macBytes[2],macBytes[1],macBytes[0]);
+    std::string macs = stringFormat("%02X:%02X:%02X:%02X:%02X:%02X",macBytes[5],macBytes[4],macBytes[3],macBytes[2],macBytes[1],macBytes[0]);
     macAddress = macs;
     mac = macInt;
     connected = false;

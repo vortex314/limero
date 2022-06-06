@@ -11,7 +11,7 @@ public:
     bool save(const char *name, std::string* value,uint32_t length);
 };
 
-template <class T> class ConfigFlow : public Flow<T, T>, public ConfigStore,public Named
+template <class T> class ConfigFlow : public Flow<T, T>, public ConfigStore,public Named,public Requestable
 {
     std::string _name;
     T _value;

@@ -1,6 +1,7 @@
 #include "limero.h"
 
-NanoStats stats;
+std::unordered_map<void *, std::forward_list<Subscription *> *> Subscription::_subscriptions;
+
 /*
  _____ _                        _
 |_   _| |__  _ __ ___  __ _  __| |
@@ -15,6 +16,11 @@ Thread::Thread(const char *name) : Named(name)
     _queueSize = 20;
     _stackSize = 5000;
     _priority = 17;
+}
+
+void Thread::addTimer(TimerSource *ts)
+{
+  _timers.push_back(ts);
 }
 
 Thread::Thread(ThreadProperties props) : Named(props.name)
@@ -45,7 +51,6 @@ int Thread::enqueue(Invoker *invoker)
     if (_workQueue)
         if (xQueueSend(_workQueue, &invoker, (TickType_t)0) != pdTRUE)
         {
-            stats.threadQueueOverflow++;
             WARN("Thread '%s' queue overflow [%X]", name(), invoker);
             return ENOBUFS;
         }
@@ -58,7 +63,6 @@ int Thread::enqueueFromIsr(Invoker *invoker)
         if (xQueueSendFromISR(_workQueue, &invoker, (TickType_t)0) != pdTRUE)
         {
             //  WARN("queue overflow"); // cannot log here concurency issue
-            stats.threadQueueOverflow++;
             return ENOBUFS;
         }
     }

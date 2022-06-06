@@ -30,13 +30,9 @@ RedisSpine::RedisSpine(Thread &thr)
     if (error == DeserializationError::Ok && _jsonIn.is<JsonArray>())
     {
       jsonArrived.on(true);
-      if (_jsonIn[0] == "pmessage")
-      {
-        _jsonNestedIn.clear();
-        deserializeJson(_jsonNestedIn, _jsonIn[3].as<std::string>());
-        pmessageArrived.on(true);
-      }
-    } else {
+    }
+    else
+    {
       WARN("RedisSpine: deserializeJson error %d", error);
     }
   };
@@ -52,6 +48,12 @@ RedisSpine::RedisSpine(Thread &thr)
     {
       _state = READY;
       publish(_loopbackTopic.c_str(), Sys::micros());
+    }
+    else if (_jsonIn[0] == "pmessage")
+    {
+      _jsonNestedIn.clear();
+        if ( DeserializationError::Ok == deserializeJson(_jsonNestedIn, _jsonIn[3].as<std::string>()))
+          pmessageArrived.on(true);
     }
   };
 
