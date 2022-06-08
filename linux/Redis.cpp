@@ -113,7 +113,8 @@ void Redis::free_privdata(void *pvdata) {
 }
 
 void Redis::onPush(redisAsyncContext *ac, void *reply) {
-  INFO(" PUSH received ");  // why do I never come here ????
+  INFO(" PUSH received ");  
+  replyHandler(ac, reply, 0);
 }
 
 int Redis::connect() {
@@ -179,8 +180,8 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
     WARN(" replyHandler caught null %d : %s ", ac->err, ac->errstr);
     return;  // disconnect ?
   };
-  if ((reply->type == REDIS_REPLY_ARRAY || reply->type == REDIS_REPLY_PUSH) &&
-      strcmp(reply->element[0]->str, "pmessage") == 0) {  // no context
+  if ((reply->type == REDIS_REPLY_ARRAY || reply->type == REDIS_REPLY_PUSH) /*&&
+      strcmp(reply->element[0]->str, "pmessage") == 0)*/ ) {  // no context
     Redis *redis = (Redis *)ac->c.privdata;
     replyToJson(doc.as<JsonVariant>(), reply);
     std::string str;
@@ -188,6 +189,10 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
     INFO("Redis:push %s", str.c_str());
     redis->_response.on(doc);
     return;
+  }
+  if ( pv == 0 ) {
+    WARN(" replyHandler caught null %d : %s ", ac->err, ac->errstr);
+    return;  // disconnect ?
   }
 
   RedisReplyContext *redisReplyContext = (RedisReplyContext *)pv;
