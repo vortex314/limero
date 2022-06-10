@@ -39,7 +39,7 @@ static constexpr const char *past_last_slash(cstr str)
 			sf__;                                           \
 		})
 
-typedef void (*LogWriter)(uint8_t *, size_t);
+typedef void (*LogWriter)(char *, size_t);
 class Log
 {
 	LogWriter _logWriter = 0;
