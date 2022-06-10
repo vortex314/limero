@@ -9,14 +9,25 @@
 #include <ctime>
 #include <iomanip>
 
-Log::Log() {
-  _bufferSize = 10240;
-  _buffer = new char[_bufferSize];
+void consoleLogWriter(uint8_t *line, uint32_t length)
+{
+  fwrite(line, length, 1, stdout);
+  fwrite("\n", 1, 1, stdout);
 }
 
-Log &Log::logf(const char *format, ...) {
-  if (txBusy) return *this;
-  if (offset > _bufferSize) return *this;
+Log::Log()
+{
+  _bufferSize = 10240;
+  _buffer = new char[_bufferSize];
+  _logWriter = consoleLogWriter;
+}
+
+Log &Log::logf(const char *format, ...)
+{
+  if (txBusy)
+    return *this;
+  if (offset > _bufferSize)
+    return *this;
   va_list args;
   va_start(args, format);
   offset +=
@@ -27,16 +38,23 @@ Log &Log::logf(const char *format, ...) {
 
 void Log::setLevel(Level level) { _level = level; }
 
-void Log::flush() {
-  if (txBusy) return;
-  printf("%s\n", _buffer);
+void Log::flush()
+{
+  if (txBusy)
+    return;
+  if (_logWriter)
+    _logWriter(_buffer, offset);
+  else
+    consoleLogWriter(_buffer, offset);
   offset = 0;
   txBusy = false;
 }
 #include <sys/time.h>
 
-Log &Log::tfl(const char *lvl, const char *file, const uint32_t line) {
-  if (txBusy) return *this;
+Log &Log::tfl(const char *lvl, const char *file, const uint32_t line)
+{
+  if (txBusy)
+    return *this;
   struct timeval tv;
   gettimeofday(&tv, NULL);
   uint64_t tmsec = tv.tv_sec * 1000LL + tv.tv_usec / 1000;

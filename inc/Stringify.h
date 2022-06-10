@@ -8,6 +8,10 @@ inline std::string toString(const int &t)
 {
     return std::to_string(t);
 }
+inline std::string toString(const unsigned int &t)
+{
+    return std::to_string(t);
+}
 inline std::string toString(const unsigned long long &t)
 {
     #ifdef ESP8266_RTOS_SDK

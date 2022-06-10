@@ -7,7 +7,7 @@ set(CMAKE_BUILD_TYPE Debug)
 include(CTest)
 enable_testing()
 
-ADD_LIBRARY(limero limero.cpp MqttPaho.cpp MqttMosquitto.cpp Sys.cpp ../common/Base64.cpp ../common/Bytes.cpp Log.cpp Sema.cpp Gpio.cpp ) 
+ADD_LIBRARY(limero limero.cpp MqttPaho.cpp MqttMosquitto.cpp Sys.cpp ../common/Base64.cpp ../common/Bytes.cpp Log.cpp LogFile.cpp Sema.cpp Gpio.cpp ) 
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
