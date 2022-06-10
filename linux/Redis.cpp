@@ -82,17 +82,17 @@ Redis::Redis(Thread &thread, JsonObject config)
     INFO("Redis:request  %s ", s.c_str());
     //  if (!docIn.is<JsonArray>()) return;
     Json *js = (Json *)&docIn;
-    JsonArray array = js->as<JsonArray>();
+    JsonArray jsonRequest = js->as<JsonArray>();
     const char *argv[100];
     int argc;
-    for (size_t i = 0; i < array.size(); i++) {
-      if (!array[i].is<const char *>()) {
-        WARN("Redis:request  %s not a string array", s.c_str());
+    for (size_t i = 0; i < jsonRequest.size(); i++) {
+      if (!jsonRequest[i].is<const char *>()) {
+        WARN("Redis:request  %s not a string jsonRequest", s.c_str());
         return;
       } else
-        argv[i] = array[i].as<const char *>();
+        argv[i] = jsonRequest[i].as<const char *>();
     }
-    argc = array.size();
+    argc = jsonRequest.size();
     int rc = redisAsyncCommandArgv(_ac, replyHandler,
                                    new RedisReplyContext(argv[0], this), argc,
                                    argv, NULL);
@@ -126,9 +126,9 @@ void Redis::free_privdata(void *pvdata)
   WARN(" freeing private data of context %X", pvdata);
 }
 
-void Redis::onPush(redisAsyncContext *ac, void *reply)
-{
-  INFO(" PUSH received "); // why do I never come here ????
+void Redis::onPush(redisAsyncContext *ac, void *reply) {
+  INFO(" PUSH received ");  // why do I never come here ????
+  replyHandler(ac, reply, NULL);
 }
 
 int Redis::connect()
@@ -200,8 +200,7 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv)
     WARN(" replyHandler caught null %d : %s ", ac->err, ac->errstr);
     return; // disconnect ?
   };
-  if ((reply->type == REDIS_REPLY_ARRAY || reply->type == REDIS_REPLY_PUSH) &&
-      strcmp(reply->element[0]->str, "pmessage") == 0)
+  if ((reply->type == REDIS_REPLY_ARRAY || reply->type == REDIS_REPLY_PUSH) )
   { // no context
     Redis *redis = (Redis *)ac->c.privdata;
     replyToJson(doc.as<JsonVariant>(), reply);
@@ -211,8 +210,10 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv)
     redis->_response.on(doc);
     return;
   }
-
-  assert(pv);
+  if (pv == 0) {
+    WARN(" replyHandler caught null %d : %s ", ac->err, ac->errstr);
+    return;  // disconnect ?
+  };
   RedisReplyContext *redisReplyContext = (RedisReplyContext *)pv;
   Redis *redis = redisReplyContext->me;
   assert(redis);
@@ -301,10 +302,10 @@ void replyToJson(JsonVariant result, redisReply *reply)
 void Redis::publish(std::string channel, std::string message)
 {
   Json doc;
-  JsonArray array = doc.to<JsonArray>();
-  array.add("publish");
-  array.add(channel);
-  array.add(message);
+  JsonArray jsonRequest = doc.to<JsonArray>();
+  jsonRequest.add("publish");
+  jsonRequest.add(channel);
+  jsonRequest.add(message);
   _request.on(doc);
 }
 
