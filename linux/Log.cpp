@@ -9,12 +9,7 @@
 #include <ctime>
 #include <iomanip>
 
-<<<<<<< HEAD
 void consoleLogWriter(char *line, size_t length) {
-=======
-void consoleLogWriter(char *line, size_t length)
-{
->>>>>>> Log
   fwrite(line, length, 1, stdout);
   fwrite("\n", 1, 1, stdout);
 }
