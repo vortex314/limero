@@ -9,6 +9,16 @@ void replyToJson(JsonVariant, redisReply *);
 bool validate(JsonVariant js, std::string format);
 int token(JsonVariant v);
 
+struct RedisReplyContext {
+  std::string command;
+  Redis *me;
+  RedisReplyContext(const std::string &command, Redis *me)
+      : command(command), me(me) {
+    DEBUG("new RedisReplyContext %X", this);
+  }
+  ~RedisReplyContext() { DEBUG("delete RedisReplyContext %X", this); }
+};
+
 class Json : public DynamicJsonDocument {
  public:
   Json() : DynamicJsonDocument(10240) {}
@@ -36,6 +46,8 @@ class Redis : public Actor {
 
   static void onPush(redisAsyncContext *ac, void *reply);
   static void replyHandler(redisAsyncContext *ac, void *reply, void *me);
+  void makeEnvelope(JsonVariant envelope, RedisReplyContext *redisReplyContext);
+
   static void free_privdata(void *pvdata);
 
   int connect();
