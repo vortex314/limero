@@ -41,8 +41,9 @@ class Redis : public Actor {
 
   static void onPush(redisAsyncContext *ac, void *reply);
   static void replyHandler(redisAsyncContext *ac, void *reply, void *me);
-  static void free_privdata(void *pvdata);
   void makeEnvelope(JsonVariant envelope, RedisReplyContext *redisReplyContext);
+
+  static void free_privdata(void *pvdata);
 
   int connect();
   void disconnect();
