@@ -1,6 +1,6 @@
 #ifndef __REDIS_H__
 #define __REDIS_H__
-#include <ArduinoJson.h>
+#include <Json.h>
 #include <async.h>
 #include <hiredis.h>
 #include <limero.h>
@@ -9,11 +9,16 @@ void replyToJson(JsonVariant, redisReply *);
 bool validate(JsonVariant js, std::string format);
 int token(JsonVariant v);
 
-class Json : public DynamicJsonDocument {
- public:
-  Json() : DynamicJsonDocument(10240) {}
-  Json(int x) : DynamicJsonDocument(x){};
-  Json(DynamicJsonDocument jsd) : DynamicJsonDocument(jsd) {}
+class Redis;
+
+struct RedisReplyContext {
+  std::string command;
+  Redis *me;
+  RedisReplyContext(const std::string &command, Redis *me)
+      : command(command), me(me) {
+    DEBUG("new RedisReplyContext %X", this);
+  }
+  ~RedisReplyContext() { DEBUG("delete RedisReplyContext %X", this); }
 };
 
 class Redis : public Actor {
@@ -37,6 +42,7 @@ class Redis : public Actor {
   static void onPush(redisAsyncContext *ac, void *reply);
   static void replyHandler(redisAsyncContext *ac, void *reply, void *me);
   static void free_privdata(void *pvdata);
+  void makeEnvelope(JsonVariant envelope, RedisReplyContext *redisReplyContext);
 
   int connect();
   void disconnect();
@@ -47,6 +53,8 @@ class Redis : public Actor {
   Sink<std::string> &command();
   Source<Json> &response();
   Source<bool> &connected();
+
+  void responseFailure(int rc, std::string message);
 
   static void addWriteFd(void *pv);
   static void addReadFd(void *pv);
