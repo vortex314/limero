@@ -4,7 +4,7 @@
 
 class Json : public DynamicJsonDocument {
  public:
-  Json() : DynamicJsonDocument(10240) {}
+  Json() : DynamicJsonDocument(1024000) {}
   Json(int x) : DynamicJsonDocument(x){};
   Json(DynamicJsonDocument jsd) : DynamicJsonDocument(jsd) {}
   std::string toString() {

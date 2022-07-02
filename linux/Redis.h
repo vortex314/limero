@@ -5,7 +5,7 @@
 #include <hiredis.h>
 #include <limero.h>
 
-void replyToJson(JsonVariant, redisReply *);
+void redisReplyToJson(JsonVariant, redisReply *);
 bool validate(JsonVariant js, std::string format);
 int token(JsonVariant v);
 
@@ -34,6 +34,7 @@ class Redis : public Actor {
   bool _addReplyContext;
   SinkFunction<Json> *_jsonToRedis;
   std::vector<std::string> _ignoreReplies;
+  enum { CS_DISCONNECTED, CS_CONNECTED, CS_CONNECTING } _connectionStatus;
 
  public:
   Redis(Thread &thread, JsonObject config);

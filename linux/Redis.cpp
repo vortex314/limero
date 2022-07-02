@@ -50,6 +50,7 @@ Redis::Redis(Thread &thread, JsonObject config)
   _response.async(thread);
   _redisHost = config["host"] | "localhost";
   _redisPort = config["port"] | 6379;
+  _connectionStatus = CS_DISCONNECTED;
   std::string str;
   serializeJson(config, str);
   INFO("Redis host: %s config: %s", _redisHost.c_str(), str.c_str());
@@ -80,7 +81,7 @@ Redis::Redis(Thread &thread, JsonObject config)
 
   _jsonToRedis = new SinkFunction<Json>([&](const Json &docIn) {
     //    if (!_connected()) return; // otherwise first message lost
-    if (!_connected()) {
+    if (!_connected() && _connectionStatus == CS_DISCONNECTED) {
       responseFailure(ENOTCONN, "Not Connected");
       return;
     }
@@ -106,7 +107,7 @@ Redis::Redis(Thread &thread, JsonObject config)
                                    new RedisReplyContext(argv[0], this), argc,
                                    argv, NULL);
     if (rc) {
-      WARN("redisAsyncCommandArgv() failed %d : %s ", _ac->err, _ac->errstr);
+      WARN("redisAsyncCommandArgv() failed %d ", _ac->err);
       responseFailure(rc, "redisAsyncCommandArgv() failed ");
     }
   });
@@ -152,10 +153,12 @@ int Redis::connect() {
   options.connect_timeout = new timeval{3, 0};  // 3 sec
   options.async_push_cb = onPush;
   REDIS_OPTIONS_SET_PRIVDATA(&options, this, free_privdata);
+  _connectionStatus = CS_CONNECTING;
   _ac = redisAsyncConnectWithOptions(&options);
 
   if (_ac == NULL || _ac->err) {
     WARN(" Connection %s:%d failed", _redisHost.c_str(), _redisPort);
+    _connectionStatus = CS_DISCONNECTED;
     return ENOTCONN;
   }
 
@@ -171,6 +174,7 @@ int Redis::connect() {
         INFO("Redis connected status : %d fd : %d ", status, ac->c.fd);
         Redis *me = (Redis *)ac->c.privdata;
         me->_connected = true;
+        me->_connectionStatus = CS_CONNECTED;
       });
 
   assert(rc == 0);
@@ -181,6 +185,7 @@ int Redis::connect() {
 
         Redis *me = (Redis *)ac->c.privdata;
         me->_connected = false;
+        me->_connectionStatus = CS_DISCONNECTED;
         if (me->_reconnectOnConnectionLoss) me->connect();
       });
 
@@ -210,10 +215,19 @@ void Redis::makeEnvelope(JsonVariant envelope,
     delete redisReplyContext;
     return;
   }
-  if (_addReplyContext && redisReplyContext->command != "psubscribe") {
+  if (_addReplyContext) {
     envelope[0] = redisReplyContext->command;
-  } else {
   }
+}
+
+bool isPsubscribe(JsonVariant v) {
+  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "psubscribe") return true;
+  return false;
+}
+
+bool isPmessage(JsonVariant v) {
+  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "pmessage") return true;
+  return false;
 }
 
 void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
@@ -225,19 +239,16 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
   Redis *redis = (Redis *)ac->c.privdata;
 
   if (reply == 0) {
-    WARN(" replyHandler caught null %d : %s ", ac->err, ac->errstr);
+    WARN(" replyHandler caught null %d  ", ac->err);
     redis->responseFailure(EINVAL, "replyHandler caught null ");
     return;  // disconnect ?
   };
-  replyToJson(replyInJson.as<JsonVariant>(), reply);
+  redisReplyToJson(replyInJson.as<JsonVariant>(), reply);
   std::string r;
   serializeJson(replyInJson, r);
-  INFO(" replyHandler %s", r.c_str());
-  if (redisReplyContext && replyInJson[0] != "pmessage" &&
-      replyInJson[0] != "punsubscribe") {
+  // INFO(" replyHandler %s", r.c_str());
+  if (redisReplyContext &&  !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
     redis->makeEnvelope(envelope, redisReplyContext);
-    std::string replyString;
-    serializeJson(replyInJson, replyString);
     envelope[1] = replyInJson;
     redis->_response.on(envelope);
     delete redisReplyContext;
@@ -251,7 +262,7 @@ Sink<Json> &Redis::request() { return _request; }
 Source<Json> &Redis::response() { return _response; }
 Sink<std::string> &Redis::command() { return _command; }
 
-void replyToJson(JsonVariant result, redisReply *reply) {
+void redisReplyToJson(JsonVariant result, redisReply *reply) {
   if (reply == 0) {
     result.set(nullptr);
   };
@@ -282,15 +293,15 @@ void replyToJson(JsonVariant result, redisReply *reply) {
 
     case REDIS_REPLY_MAP:
       for (size_t i = 0; i < reply->elements; i += 2)
-        replyToJson(result[reply->element[i]->str].to<JsonVariant>(),
-                    reply->element[i + 1]);
+        redisReplyToJson(result[reply->element[i]->str].to<JsonVariant>(),
+                         reply->element[i + 1]);
       break;
 
     case REDIS_REPLY_SET:
     case REDIS_REPLY_PUSH:
     case REDIS_REPLY_ARRAY:
       for (size_t i = 0; i < reply->elements; i++)
-        replyToJson(result.addElement(), reply->element[i]);
+        redisReplyToJson(result.addElement(), reply->element[i]);
       break;
     default: {
       result.set(" Unhandled reply to JSON type");
@@ -309,8 +320,19 @@ void Redis::publish(std::string channel, std::string message) {
 }
 
 DynamicJsonDocument replyToJson(redisReply *reply) {
+  uint32_t size = 10240;
+  while (size < 10000000) {
+    DynamicJsonDocument doc(size);
+    redisReplyToJson(doc, reply);
+    if (!doc.overflowed()) {
+      doc.shrinkToFit();
+      return doc;
+    }
+    size *= 2;
+    INFO(" doubling JSON size %d", size);
+  }
   DynamicJsonDocument doc(10240);
-  replyToJson(doc.as<JsonVariant>(), reply);
-  doc.shrinkToFit();
+  doc["error"] = "JSON overflow error > 10M bytes";
+  doc["errno"] = ENOMEM;
   return doc;
 }
