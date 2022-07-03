@@ -209,6 +209,7 @@ void Redis::disconnect() {
 void Redis::makeEnvelope(JsonVariant envelope,
                          RedisReplyContext *redisReplyContext) {
   std::string command = redisReplyContext->command;
+  INFO("Redis context command: '%s'", command.c_str());
 
   if (std::find(_ignoreReplies.begin(), _ignoreReplies.end(), command) !=
       _ignoreReplies.end()) {
@@ -221,12 +222,14 @@ void Redis::makeEnvelope(JsonVariant envelope,
 }
 
 bool isPsubscribe(JsonVariant v) {
-  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "psubscribe") return true;
+  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "psubscribe")
+    return true;
   return false;
 }
 
 bool isPmessage(JsonVariant v) {
-  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "pmessage") return true;
+  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "pmessage")
+    return true;
   return false;
 }
 
@@ -247,8 +250,9 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
   std::string r;
   serializeJson(replyInJson, r);
   // INFO(" replyHandler %s", r.c_str());
-  if (redisReplyContext &&  !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
-    redis->makeEnvelope(envelope, redisReplyContext);
+  if (redis->_addReplyContext && redisReplyContext &&
+      !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
+    envelope[0] = redisReplyContext->command;
     envelope[1] = replyInJson;
     redis->_response.on(envelope);
     delete redisReplyContext;
