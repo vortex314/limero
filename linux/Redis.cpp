@@ -247,9 +247,6 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
     return;  // disconnect ?
   };
   redisReplyToJson(replyInJson.as<JsonVariant>(), reply);
-  std::string r;
-  serializeJson(replyInJson, r);
-  // INFO(" replyHandler %s", r.c_str());
   if (redis->_addReplyContext && redisReplyContext &&
       !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
     envelope[0] = redisReplyContext->command;
