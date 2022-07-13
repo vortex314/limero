@@ -87,7 +87,8 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
 void deepMerge(JsonVariant dst, JsonVariant src) {
   if (src.is<JsonObject>()) {
     for (auto kvp : src.as<JsonObject>()) {
-      deepMerge(dst.getOrAddMember(kvp.key()), kvp.value());
+      JsonObject obj = dst.as<JsonObject>();
+      deepMerge(obj[kvp.key()], kvp.value());
     }
   } else {
     dst.set(src);
