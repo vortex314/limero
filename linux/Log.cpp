@@ -56,11 +56,11 @@ Log &Log::tfl(const char *lvl, const char *file, const uint32_t line) {
   };
   time_t tim = ts.tv_sec;
   struct tm *tm = localtime(&tim);
- strftime(timbuf, sizeof(timbuf), "%H:%M:%S", tm);
+  strftime(timbuf, sizeof(timbuf), "%H:%M:%S", tm);
   uint32_t msec = ts.tv_nsec / 1000000;
 
-  offset = snprintf(_buffer, _bufferSize,
-                    "%s %s.%3.3u | %15.15s:%4u | ", lvl, timbuf,msec, file, line);
+  offset = snprintf(_buffer, _bufferSize, "%s %s.%3.3u | %15.15s:%4u | ", lvl,
+                    timbuf, msec, file, line);
   return *this;
 }
 
