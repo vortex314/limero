@@ -301,8 +301,10 @@ void redisReplyToJson(JsonVariant result, redisReply *reply) {
     case REDIS_REPLY_SET:
     case REDIS_REPLY_PUSH:
     case REDIS_REPLY_ARRAY:
-      for (size_t i = 0; i < reply->elements; i++)
-        redisReplyToJson(result.addElement(), reply->element[i]);
+      for (size_t i = 0; i < reply->elements; i++) {
+        redisReplyToJson(result[i].to<JsonVariant>(), reply->element[i]);
+      }
+      //       redisReplyToJson(result.addElement(), reply->element[i]);
       break;
     default: {
       result.set(" Unhandled reply to JSON type");
