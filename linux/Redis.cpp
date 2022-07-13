@@ -243,7 +243,7 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
 
   if (reply == 0) {
     WARN(" replyHandler caught null %d  ", ac->err);
-    redis->responseFailure(EINVAL, "replyHandler caught null ");
+    //    redis->responseFailure(EINVAL, "replyHandler caught null ");
     return;  // disconnect ?
   };
   redisReplyToJson(replyInJson.as<JsonVariant>(), reply);

@@ -59,8 +59,15 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
       case 'f': {
         std::string s = loadFile(optarg);
         DynamicJsonDocument doc(10240);
-        deserializeJson(doc, s);
-        deepMerge(cfg, doc);
+        DeserializationError error = deserializeJson(doc, s);
+        if (error) {
+          WARN("deserializeJson error %d", error.c_str());
+          return -1;
+        } else {
+          
+          deepMerge(cfg, doc);
+          logConfig(cfg.as<JsonObject>());
+        }
         break;
       }
       case 'v': {
