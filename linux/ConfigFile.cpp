@@ -66,7 +66,7 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
           WARN("deserializeJson error %d", error.c_str());
           exit(-1);
         } else {
-          deepMerge(cfg.as<JsonVariant>(), doc.as<JsonVariant>());
+          merge(cfg.as<JsonVariant>(), doc.as<JsonVariant>());
           logConfig(cfg.as<JsonObject>());
           std::string s1;
           serializeJson(cfg, s1);
@@ -88,13 +88,10 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
   return 0;
 };
 
-void deepMerge(JsonVariant dst, JsonVariant src) {
+void merge(JsonVariant dst, JsonVariantConst src) {
   if (src.is<JsonObject>()) {
-    for (auto kvp : src.as<JsonObject>()) {
-      if ( !dst.containsKey(kvp.key()) ) {
-        dst[kvp.key()]="";
-      }
-      deepMerge(dst[kvp.key()].as<JsonVariant>(), kvp.value());
+    for (auto kvp : src.as<JsonObjectConst>()) {
+      merge(dst[kvp.key()], kvp.value());
     }
   } else {
     dst.set(src);
