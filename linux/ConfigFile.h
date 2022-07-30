@@ -8,5 +8,5 @@
 std::string loadFile(const char* name);
 int configurator(Json& config, int argc, char** argv,
                  const char* configFile = "config.json");
-void deepMerge(JsonVariant dst, JsonVariantConst src);
+void deepMerge(JsonVariant dst, JsonVariant src) ;
 #endif
