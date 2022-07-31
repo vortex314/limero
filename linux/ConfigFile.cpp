@@ -89,9 +89,12 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
 };
 
 void merge(JsonVariant dst, JsonVariantConst src) {
-  if (src.is<JsonObject>()) {
-    for (auto kvp : src.as<JsonObjectConst>()) {
-      merge(dst[kvp.key()], kvp.value());
+  if (src.is<JsonObjectConst>()) {
+    for (JsonPairConst kvp : src.as<JsonObjectConst>()) {
+      if (dst[kvp.key()])
+        merge(dst[kvp.key()], kvp.value());
+      else
+        dst[kvp.key()] = kvp.value();
     }
   } else {
     dst.set(src);
