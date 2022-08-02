@@ -35,6 +35,7 @@ class Redis : public Actor {
   SinkFunction<Json> *_jsonToRedis;
   std::vector<std::string> _ignoreReplies;
   enum { CS_DISCONNECTED, CS_CONNECTED, CS_CONNECTING } _connectionStatus;
+  TimerSource _connectionTimer;
 
  public:
   Redis(Thread &thread, JsonObject config);
@@ -48,6 +49,7 @@ class Redis : public Actor {
 
   int connect();
   void disconnect();
+  void reconnect();
   void stop();
   void publish(std::string channel, std::string message);
 

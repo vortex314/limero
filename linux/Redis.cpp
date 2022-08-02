@@ -45,7 +45,10 @@ void Redis::responseFailure(int rc, std::string message) {
 }
 
 Redis::Redis(Thread &thread, JsonObject config)
-    : Actor(thread), _request(10, "request"), _response(100, "response") {
+    : Actor(thread),
+      _request(10, "request"),
+      _response(100, "response"),
+      _connectionTimer(thread, 10000,  true,"connectionTimer") {
   _request.async(thread);
   _response.async(thread);
   _redisHost = config["host"] | "localhost";
@@ -109,6 +112,7 @@ Redis::Redis(Thread &thread, JsonObject config)
     if (rc) {
       WARN("redisAsyncCommandArgv() failed %d ", _ac->err);
       responseFailure(rc, "redisAsyncCommandArgv() failed ");
+      reconnect();
     }
   });
   _request >> _jsonToRedis;
@@ -125,6 +129,12 @@ Redis::Redis(Thread &thread, JsonObject config)
     if (rc) {
       WARN("redisAsyncCommand() failed %d : %s ", _ac->err, _ac->errstr);
       responseFailure(rc, "redisAsyncCommand() failed ");
+    }
+  };
+
+  _connectionTimer >> [&](const TimerMsg &) {
+    if (_connectionStatus == CS_DISCONNECTED) {
+      reconnect();
     }
   };
 };
@@ -150,7 +160,7 @@ int Redis::connect() {
   INFO("Connecting to Redis %s:%d ... ", _redisHost.c_str(), _redisPort);
   redisOptions options = {0};
   REDIS_OPTIONS_SET_TCP(&options, _redisHost.c_str(), _redisPort);
-  options.connect_timeout = new timeval{3, 0};  // 3 sec
+  options.connect_timeout = new timeval{20, 0};  // 3 sec
   options.async_push_cb = onPush;
   REDIS_OPTIONS_SET_PRIVDATA(&options, this, free_privdata);
   _connectionStatus = CS_CONNECTING;
@@ -204,6 +214,12 @@ void Redis::stop() {
 void Redis::disconnect() {
   INFO(" disconnect called");
   redisAsyncDisconnect(_ac);
+}
+
+void Redis::reconnect() {
+  INFO(" reconnect called");
+  disconnect();
+  connect();
 }
 
 void Redis::makeEnvelope(JsonVariant envelope,
