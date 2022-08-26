@@ -45,7 +45,10 @@ void Redis::responseFailure(int rc, std::string message) {
 }
 
 Redis::Redis(Thread &thread, JsonObject config)
-    : Actor(thread), _request(10, "request"), _response(100, "response") {
+    : Actor(thread),
+      _request(10, "request"),
+      _response(100, "response"),
+      _connectionTimer(thread, 10000,  true,"connectionTimer") {
   _request.async(thread);
   _response.async(thread);
   _redisHost = config["host"] | "localhost";
@@ -109,6 +112,7 @@ Redis::Redis(Thread &thread, JsonObject config)
     if (rc) {
       WARN("redisAsyncCommandArgv() failed %d ", _ac->err);
       responseFailure(rc, "redisAsyncCommandArgv() failed ");
+      reconnect();
     }
   });
   _request >> _jsonToRedis;
@@ -125,6 +129,12 @@ Redis::Redis(Thread &thread, JsonObject config)
     if (rc) {
       WARN("redisAsyncCommand() failed %d : %s ", _ac->err, _ac->errstr);
       responseFailure(rc, "redisAsyncCommand() failed ");
+    }
+  };
+
+  _connectionTimer >> [&](const TimerMsg &) {
+    if (_connectionStatus == CS_DISCONNECTED) {
+      reconnect();
     }
   };
 };
@@ -150,7 +160,7 @@ int Redis::connect() {
   INFO("Connecting to Redis %s:%d ... ", _redisHost.c_str(), _redisPort);
   redisOptions options = {0};
   REDIS_OPTIONS_SET_TCP(&options, _redisHost.c_str(), _redisPort);
-  options.connect_timeout = new timeval{3, 0};  // 3 sec
+  options.connect_timeout = new timeval{20, 0};  // 3 sec
   options.async_push_cb = onPush;
   REDIS_OPTIONS_SET_PRIVDATA(&options, this, free_privdata);
   _connectionStatus = CS_CONNECTING;
@@ -206,9 +216,16 @@ void Redis::disconnect() {
   redisAsyncDisconnect(_ac);
 }
 
+void Redis::reconnect() {
+  INFO(" reconnect called");
+  disconnect();
+  connect();
+}
+
 void Redis::makeEnvelope(JsonVariant envelope,
                          RedisReplyContext *redisReplyContext) {
   std::string command = redisReplyContext->command;
+  INFO("Redis context command: '%s'", command.c_str());
 
   if (std::find(_ignoreReplies.begin(), _ignoreReplies.end(), command) !=
       _ignoreReplies.end()) {
@@ -221,12 +238,14 @@ void Redis::makeEnvelope(JsonVariant envelope,
 }
 
 bool isPsubscribe(JsonVariant v) {
-  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "psubscribe") return true;
+  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "psubscribe")
+    return true;
   return false;
 }
 
 bool isPmessage(JsonVariant v) {
-  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "pmessage") return true;
+  if (v.is<JsonArray>() && v[0].is<std::string>() && v[0] == "pmessage")
+    return true;
   return false;
 }
 
@@ -240,15 +259,13 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
 
   if (reply == 0) {
     WARN(" replyHandler caught null %d  ", ac->err);
-    redis->responseFailure(EINVAL, "replyHandler caught null ");
+    //    redis->responseFailure(EINVAL, "replyHandler caught null ");
     return;  // disconnect ?
   };
   redisReplyToJson(replyInJson.as<JsonVariant>(), reply);
-  std::string r;
-  serializeJson(replyInJson, r);
-  // INFO(" replyHandler %s", r.c_str());
-  if (redisReplyContext &&  !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
-    redis->makeEnvelope(envelope, redisReplyContext);
+  if (redis->_addReplyContext && redisReplyContext &&
+      !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
+    envelope[0] = redisReplyContext->command;
     envelope[1] = replyInJson;
     redis->_response.on(envelope);
     delete redisReplyContext;
@@ -300,8 +317,10 @@ void redisReplyToJson(JsonVariant result, redisReply *reply) {
     case REDIS_REPLY_SET:
     case REDIS_REPLY_PUSH:
     case REDIS_REPLY_ARRAY:
-      for (size_t i = 0; i < reply->elements; i++)
-        redisReplyToJson(result.addElement(), reply->element[i]);
+      for (size_t i = 0; i < reply->elements; i++) {
+        redisReplyToJson(result[i].to<JsonVariant>(), reply->element[i]);
+      }
+      //       redisReplyToJson(result.addElement(), reply->element[i]);
       break;
     default: {
       result.set(" Unhandled reply to JSON type");

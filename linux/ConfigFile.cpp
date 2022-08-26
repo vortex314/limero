@@ -57,10 +57,21 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
   int c;
   while ((c = getopt(argc, argv, "f:v")) != -1) switch (c) {
       case 'f': {
+        INFO("Using config file : '%s'", optarg);
         std::string s = loadFile(optarg);
-        DynamicJsonDocument doc(10240);
-        deserializeJson(doc, s);
-        deepMerge(cfg, doc);
+        DynamicJsonDocument doc(50000);
+        printf("config loaded : >%s<\n", s.c_str());
+        DeserializationError error = deserializeJson(doc, s);
+        if (error) {
+          WARN("deserializeJson error %d", error.c_str());
+          exit(-1);
+        } else {
+          merge(cfg.as<JsonVariant>(), doc.as<JsonVariant>());
+          logConfig(cfg.as<JsonObject>());
+          std::string s1;
+          serializeJson(cfg, s1);
+          printf("JSON config : %s\n", s1.c_str());
+        }
         break;
       }
       case 'v': {
@@ -77,10 +88,13 @@ int configurator(Json &cfg, int argc, char **argv, const char *configFile) {
   return 0;
 };
 
-void deepMerge(JsonVariant dst, JsonVariant src) {
-  if (src.is<JsonObject>()) {
-    for (auto kvp : src.as<JsonObject>()) {
-      deepMerge(dst.getOrAddMember(kvp.key()), kvp.value());
+void merge(JsonVariant dst, JsonVariantConst src) {
+  if (src.is<JsonObjectConst>()) {
+    for (JsonPairConst kvp : src.as<JsonObjectConst>()) {
+      if (dst[kvp.key()])
+        merge(dst[kvp.key()], kvp.value());
+      else
+        dst[kvp.key()] = kvp.value();
     }
   } else {
     dst.set(src);

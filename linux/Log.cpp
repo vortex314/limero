@@ -43,19 +43,24 @@ void Log::flush() {
   txBusy = false;
 }
 #include <sys/time.h>
+#define MSEC_PER_HOUR 3600 * 1000
+#define MSEC_PER_MIN 60 * 1000
 
 Log &Log::tfl(const char *lvl, const char *file, const uint32_t line) {
   if (txBusy) return *this;
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  uint64_t tmsec = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
-  uint32_t sec = tmsec / 1000;
-  uint32_t min = sec / 60;
-  uint32_t hr = min / 60;
-  uint32_t msec = tmsec % 1000;
-  offset = snprintf(_buffer, _bufferSize,
-                    "%s %2.2u:%2.2u:%2.2u.%3.3u | %15.15s:%4u | ", lvl, hr % 24,
-                    min % 60, sec % 60, msec % 1000, file, line);
+  struct timespec ts = {0, 0};
+
+  char timbuf[64];
+  if (clock_gettime(CLOCK_REALTIME, &ts)) {
+    perror("clock_gettime"), exit(EXIT_FAILURE);
+  };
+  time_t tim = ts.tv_sec;
+  struct tm *tm = localtime(&tim);
+  strftime(timbuf, sizeof(timbuf), "%H:%M:%S", tm);
+  uint32_t msec = ts.tv_nsec / 1000000;
+
+  offset = snprintf(_buffer, _bufferSize, "%s %s.%3.3u | %15.15s:%4u | ", lvl,
+                    timbuf, msec, file, line);
   return *this;
 }
 
