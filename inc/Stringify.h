@@ -38,7 +38,8 @@ inline std::string toString(const char *t)
 }
 inline std::string toString(const std::string &t)
 {
-    return t;
+    std::string s ="\"" + t + "\"";
+    return s;
 }
 inline std::string toString(const char *t, size_t len)
 {

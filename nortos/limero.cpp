@@ -55,7 +55,7 @@ void Thread::loop()
 {
   // execute thread waiters
   Invoker *prq;
-  if (_workQueue.pop(prq) == true)
+  while (_workQueue.pop(prq) == true)
   {
     prq->invoke();
   }

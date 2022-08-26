@@ -29,7 +29,7 @@ RedisSpine::RedisSpine(Thread &thr)
     auto error = deserializeJson(_jsonIn, b.data(), b.size());
     if (error == DeserializationError::Ok && _jsonIn.is<JsonArray>())
     {
-      jsonArrived.on(true);
+      messageArrived.on(true);
     }
     else
     {
@@ -37,7 +37,7 @@ RedisSpine::RedisSpine(Thread &thr)
     }
   };
 
-  jsonArrived >> [&](bool)
+  messageArrived >> [&](bool)
   {
     if (_jsonIn[0] == "hello" && _jsonIn[1]["proto"] == 3)
     {
@@ -53,7 +53,7 @@ RedisSpine::RedisSpine(Thread &thr)
     {
       _jsonNestedIn.clear();
         if ( DeserializationError::Ok == deserializeJson(_jsonNestedIn, _jsonIn[3].as<std::string>()))
-          pmessageArrived.on(true);
+          pubArrived.on(true);
     }
   };
 
