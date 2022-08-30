@@ -1,24 +1,16 @@
-/*
- * Spine.h
- *
- *  Created on: Nov 21, 2021
- *      Author: lieven
- */
-
 #ifndef SRC_SPINE_H_
 #define SRC_SPINE_H_
 
-#include "ArduinoJson.h"
 #include "limero.h"
 #include <Stringify.h>
+#include <Protocol.h>
 
-#define FRAME_MAX_SIZE 1024 // > 384 hello 3 response
+#define MAX_SIZE 1024 // > 384 hello 3 response
 
-class RedisSpine : public Actor
+class RedisSpineCbor : public Actor
 {
-  DynamicJsonDocument _jsonOut;
-  DynamicJsonDocument _jsonIn;
-  DynamicJsonDocument _jsonNestedIn;
+  ProtocolEncoder _cborOut;
+  ProtocolDecoder _cborIn;
 
   ZeroFlow<bool> messageArrived;
   ZeroFlow<bool> pubArrived;
@@ -31,7 +23,6 @@ class RedisSpine : public Actor
   enum
   {
     CONNECTING,
-    SUBSCRIBING,
     READY
   } _state;
 
@@ -43,24 +34,18 @@ public:
   std::string srcPrefix;
   std::string node;
 
-  RedisSpine(Thread &thread);
+  RedisSpineCbor(Thread &thread);
   void init();
   void setNode(const char *);
 
-  void sendJson(DynamicJsonDocument &json);
-  void hello_3();
-  void psubscribe(const char *pattern);
+  void sendCbor(ProtocolEncoder &);
+  void subscribe(const char *pattern);
 
   template <typename T>
   void publish(const char *topic, T t)
   {
-    if (_state != READY)
-      return;
-    _jsonOut.clear();
-    _jsonOut[0] = "publish";
-    _jsonOut[1] = topic;
-    _jsonOut[2] = toString(t);
-    sendJson(_jsonOut);
+    _cborOut.start().write('[').write("pub").write(srcPrefix).write('{').write(topic).write(t).write('}').write(']').end();
+    sendCbor(_cborOut);
   }
 
   template <typename T>
@@ -80,16 +65,22 @@ public:
   template <typename T>
   Source<T> &subscriber(std::string topic)
   {
-    std::string absTopic = dstPrefix + topic;
+    std::string absTopic;
+
     if (topic.rfind("src/", 0) == 0 || topic.rfind("dst/", 0) == 0)
       absTopic = topic;
-
+    else
+      absTopic = dstPrefix + topic;
     auto vf = new ValueFlow<T>();
     pubArrived >> [&, absTopic, vf](const bool &)
     {
-      //     INFO("%s:%s", absTopic.c_str(), _jsonIn[2].as<std::string>().c_str());
-      if (_jsonIn[2].as<std::string>() == absTopic)
-        vf->emit(_jsonNestedIn.as<T>());
+      std::string rcvTopic, cmd;
+      T value;
+      if (_cborIn.rewind().readArrayStart().read(cmd).read(rcvTopic).ok() && absTopic == rcvTopic)
+      {
+        if (_cborIn.read(value).ok())
+          vf->emit(value);
+      }
     };
     return *vf;
   }
