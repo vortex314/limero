@@ -12,7 +12,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     : Actor(thr),
       _cborOut(MAX_SIZE),
       _cborIn(MAX_SIZE),
-      _loopbackTimer(thr, 1000, true, "loopbackTimer"),
+      _loopbackTimer(thr, 950, true, "loopbackTimer"),
       _connectionWatchdog(thr, 6000, true, "connectTimer"),
       rxdFrame(5, "Redis:rxdFrame"),
       txdFrame(5, "Redis:txdFrame")
@@ -24,6 +24,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   txdFrame.async(thread());
   rxdFrame >> [&](const Bytes &bs)
   {
+    _cborIn.clear();
     _cborIn.put_bytes(bs.data(), bs.size());
     messageArrived.on(true);
   };
@@ -48,8 +49,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     {
       if (cnt & 1)
       {
-        _cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
-        sendCbor(_cborOut);
+        ProtocolEncoder cborOut(128);
+        cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
+        sendCbor(cborOut);
       }
       else
       {
@@ -58,8 +60,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     }
     else
     {
-      _cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
-      sendCbor(_cborOut);
+      ProtocolEncoder cborOut(128);
+      cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
+      sendCbor(cborOut);
     }
   };
 
@@ -74,8 +77,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   {
     connected = true;
     _state = READY;
-    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::micros()-in).write(']').end();
-      sendCbor(_cborOut);
+    uint64_t delta = Sys::micros() - in;
+    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(delta).write(']').end();
+    sendCbor(_cborOut);
     _connectionWatchdog.reset();
   };
 };
@@ -89,7 +93,7 @@ void RedisSpineCbor::setNode(const char *n)
   node = n;
   srcPrefix = "src/" + node + "/";
   dstPrefix = "dst/" + node + "/";
-  _loopbackTopic = dstPrefix  + "system/loopback";
+  _loopbackTopic = dstPrefix + "system/loopback";
   _latencyTopic = srcPrefix + "system/latency";
   _subscribePattern = dstPrefix + "*";
   connected = false;
@@ -97,7 +101,7 @@ void RedisSpineCbor::setNode(const char *n)
 
 void RedisSpineCbor::sendCbor(ProtocolEncoder &out)
 {
-  txdFrame.on(Bytes(out.buffer(), out.buffer() + out.size()));
+  txdFrame.on(out);
 }
 
 void RedisSpineCbor::subscribe(const char *pattern)
