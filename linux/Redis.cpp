@@ -184,13 +184,13 @@ int Redis::connect() {
   _ac->ev.data = this;
 
   int rc =
-      redisAsyncSetConnectCallback(_ac, [](redisAsyncContext *ac, int status) {
+      redisAsyncSetConnectCallback(_ac, [](const redisAsyncContext *ac, int status) {
         INFO("Redis connected status : %d fd : %d ", status, ac->c.fd);
         Redis *me = (Redis *)ac->c.privdata;
         me->_connected = true;
         me->_connectionStatus = CS_CONNECTED;
         for (std::string cmd : me->_initCommands) {
-          int rc = redisAsyncCommand(ac, replyHandler,
+          int rc = redisAsyncCommand((redisAsyncContext*)ac, replyHandler,
                                      new RedisReplyContext(cmd.c_str(), me),
                                      cmd.c_str(), NULL);
           if (rc) {
