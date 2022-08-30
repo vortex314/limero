@@ -40,17 +40,17 @@ bool Fcs::write(uint8_t b)
 //=============================================================================
 ProtocolEncoder::ProtocolEncoder(uint32_t size)
 {
-    auto pui = new uint32_t[(size / 4) + 1]; // allocate space for the array in 4 byte words
-    _buffer = (uint8_t *)pui;
-    _capacity = ((size / 4) + 1) * 4;
-    _index = 0;
+ //   auto pui = new uint32_t[(size / 4) + 1]; // allocate space for the array in 4 byte words
+    reserve(size);
+  //  _buffer = (uint8_t *)pui;
+    _capacity = size;
 }
 
 ProtocolEncoder &ProtocolEncoder::start()
 {
-    _index = 0;
     _error = 0;
     _fcs.clear();
+    clear();
     addByte(PPP_FLAG_CHAR);
     return *this;
 }
@@ -278,26 +278,27 @@ void ProtocolEncoder::addEscaped(uint8_t value)
 }
 void ProtocolEncoder::addByte(uint8_t value)
 {
-    if (_index + 1 > _capacity)
+    if (size() + 1 > _capacity)
     {
         _error = ENOMEM;
         return;
     }
-    _buffer[_index++] = value;
+    push_back(value);
 }
 
 //===============================================================
 
 ProtocolDecoder::ProtocolDecoder(uint32_t size)
 {
-    _buffer = new uint8_t[size];
+   // _buffer = new uint8_t[size];
+   reserve(size);
     _capacity = size;
-    _writePtr = 0;
+   // _writePtr = 0;
 }
 
 void ProtocolDecoder::reset()
 {
-    _writePtr = 0;
+    clear();
     _error = 0;
     _readPtr = 0;
 }
@@ -312,7 +313,7 @@ ProtocolDecoder &ProtocolDecoder::rewind()
 void ProtocolDecoder::addUnEscaped(uint8_t c)
 {
     static bool escFlag = false;
-    if (_writePtr + 1 > _capacity)
+    if (size() + 1 > _capacity)
     {
         _error = ENOMEM;
         return;
@@ -320,7 +321,7 @@ void ProtocolDecoder::addUnEscaped(uint8_t c)
     if (escFlag)
     {
         escFlag = false;
-        _buffer[_writePtr++] = c ^ PPP_MASK_CHAR;
+        push_back( c ^ PPP_MASK_CHAR);
     }
     else
     {
@@ -330,7 +331,7 @@ void ProtocolDecoder::addUnEscaped(uint8_t c)
         }
         else
         {
-            _buffer[_writePtr++] = c;
+            push_back( c);
         }
     }
 }
@@ -384,14 +385,16 @@ bool ProtocolDecoder::next()
 
 bool ProtocolDecoder::checkCrc()
 {
+
     Fcs fcs;
-    for (uint32_t i = 0; i < _writePtr; i++)
+    for (uint32_t i = 0; i < size(); i++)
     {
-        fcs.write(_buffer[i]);
+        fcs.write(at(i));
     }
     if (fcs.result() == 0x0F47)
     {
-        _writePtr -= 2;
+        pop_back();
+        pop_back();
         return true;
     }
     return false;
@@ -523,17 +526,17 @@ ProtocolDecoder &ProtocolDecoder::read(bool &b)
 
 uint8_t ProtocolDecoder::get_byte()
 {
-    if (_readPtr < _writePtr)
+    if (_readPtr < size())
     {
-        return _buffer[_readPtr++];
+        return at(_readPtr++);
     };
     return 0;
 }
 
 void ProtocolDecoder::put_byte(uint8_t b)
 {
-    if (_writePtr < _capacity)
-        _buffer[_writePtr++] = b;
+    if (size() < _capacity)
+        push_back(b);
     else
         error(ENOMEM);
 }
@@ -542,4 +545,20 @@ void ProtocolDecoder::put_bytes(const uint8_t *b, uint32_t size)
 {
     for (uint32_t i = 0; i < size; i++)
         put_byte(b[i]);
+}
+
+ProtocolDecoder &ProtocolDecoder::read(char c)
+{
+    switch (c)
+    {
+    case '{':
+        return readMapStart();
+    case '}':
+        return readMapEnd();
+    case '[':
+        return readArrayStart();
+    case ']':
+        return readArrayEnd();
+    }
+    return *this;
 }
