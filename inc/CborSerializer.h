@@ -2,8 +2,7 @@
 #define __CBOR_SERIALIZER_H__
 #include <assert.h>
 #include <cbor.h>
-#include <context.h>
-#include <log.h>
+#include <Log.h>
 
 using namespace std;
 

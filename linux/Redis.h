@@ -36,6 +36,7 @@ class Redis : public Actor {
   std::vector<std::string> _ignoreReplies;
   enum { CS_DISCONNECTED, CS_CONNECTED, CS_CONNECTING } _connectionStatus;
   TimerSource _connectionTimer;
+  std::vector<std::string> _initCommands;
 
  public:
   Redis(Thread &thread, JsonObject config);
