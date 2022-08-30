@@ -46,13 +46,17 @@ void Redis::responseFailure(int rc, std::string message) {
 
 Redis::Redis(Thread &thread, JsonObject config)
     : Actor(thread),
-      _request(10, "request"),
+      _request(100, "request"),
       _response(100, "response"),
-      _connectionTimer(thread, 10000,  true,"connectionTimer") {
+      _connectionTimer(thread, 10000, true, "connectionTimer") {
   _request.async(thread);
   _response.async(thread);
   _redisHost = config["host"] | "localhost";
   _redisPort = config["port"] | 6379;
+  JsonArray cmds = config["initCommands"];
+  for (std::string cmd : cmds) {
+    _initCommands.push_back(cmd);
+  };
   _connectionStatus = CS_DISCONNECTED;
   std::string str;
   serializeJson(config, str);
@@ -64,13 +68,13 @@ Redis::Redis(Thread &thread, JsonObject config)
   _response >> [](const Json &response) {
     std::string str;
     serializeJson(response, str);
-    INFO("Redis response: '%s'", str.c_str());
+    DEBUG("Redis response: '%s'", str.c_str());
   };
 
   _request >> [](const Json &request) {
     std::string str;
     serializeJson(request, str);
-    INFO("Redis request: '%s'", str.c_str());
+    DEBUG("Redis request: '%s'", str.c_str());
   };
 
   if (config["ignoreReplies"].is<JsonArray>()) {
@@ -179,12 +183,21 @@ int Redis::connect() {
   _ac->ev.cleanup = cleanupFd;
   _ac->ev.data = this;
 
-  int rc = redisAsyncSetConnectCallback(
-      _ac, [](const redisAsyncContext *ac, int status) {
+  int rc =
+      redisAsyncSetConnectCallback(_ac, [](redisAsyncContext *ac, int status) {
         INFO("Redis connected status : %d fd : %d ", status, ac->c.fd);
         Redis *me = (Redis *)ac->c.privdata;
         me->_connected = true;
         me->_connectionStatus = CS_CONNECTED;
+        for (std::string cmd : me->_initCommands) {
+          int rc = redisAsyncCommand(ac, replyHandler,
+                                     new RedisReplyContext(cmd.c_str(), me),
+                                     cmd.c_str(), NULL);
+          if (rc) {
+            WARN("redisAsyncCommand() failed %d :%s for %s ", ac->err,
+                 ac->errstr, cmd.c_str());
+          }
+        }
       });
 
   assert(rc == 0);
@@ -258,7 +271,7 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
   Redis *redis = (Redis *)ac->c.privdata;
 
   if (reply == 0) {
-    WARN(" replyHandler caught null %d  ", ac->err);
+    WARN(" replyHandler = null %d : %s  ", ac->err, ac->errstr);
     //    redis->responseFailure(EINVAL, "replyHandler caught null ");
     return;  // disconnect ?
   };

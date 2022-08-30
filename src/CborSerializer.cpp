@@ -3,7 +3,7 @@
 #undef assert
 #define assert(xxx) \
   if (!(xxx))       \
-    LOGW << " assert failed " << #xxx << LEND;
+    WARN(" assert failed "  #xxx );
 
 CborSerializer::CborSerializer(int size)
 {
@@ -74,7 +74,7 @@ CborSerializer &CborSerializer::add(Bytes t)
   if ( !_err)
   _err = cbor_encode_byte_string(&_encoder, t.data(), t.size());
   if (_err)
-    LOGW << "cbor error " << _err << LEND;
+    WARN("cbor error %d",_err);
   assert(_err == 0);
   return *this;
 }
@@ -95,7 +95,7 @@ CborSerializer &CborSerializer::end()
   _err = cbor_encoder_close_container(&_encoderRoot, &_encoder);
   assert(_err == 0);
   if (_err)
-    LOGW << "cbor error in end()" << _err << LEND;
+    WARN("cbor error in end() %d",_err);
   _size = cbor_encoder_get_buffer_size(&_encoderRoot, _buffer);
   return *this;
 }

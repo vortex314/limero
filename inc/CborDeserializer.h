@@ -2,26 +2,36 @@
 #define AA72A63D_3140_4FF2_BCAF_6F744DBBD62B
 #include <assert.h>
 #include <cbor.h>
-#include <context.h>
-#include <log.h>
+
+#include <string>
+#include <vector>
+
+typedef std::vector<uint8_t> Bytes;
 
 class CborDeserializer {
   CborParser _decoder;
-  CborValue _rootIt, _it;
-  CborError _err;
+  std::vector<CborValue *> _stack;
+  CborValue *_currentValue;
+  CborError _cborError;
   uint8_t *_buffer;
   size_t _size;
   size_t _capacity;
+  int _error;
 
-public:
+ public:
   CborDeserializer(size_t size);
   ~CborDeserializer();
   CborDeserializer &begin();
   CborDeserializer &end();
-  template <typename T> CborDeserializer &operator>>(T& t) {
+  template <typename T>
+  CborDeserializer &operator>>(T &t) {
     get(t);
     return *this;
   };
+  CborDeserializer &startArray();
+  CborDeserializer &endArray();
+  CborDeserializer &startMap();
+  CborDeserializer &endMap();
   CborDeserializer &get(Bytes &t);
   CborDeserializer &get(std::string &t);
   CborDeserializer &get(int &t);
@@ -34,6 +44,6 @@ public:
   CborDeserializer &get(double &t);
   CborDeserializer &get(const int &t);
   CborDeserializer &fromBytes(const Bytes &bs);
-  bool success();
+  inline bool ok() { return _error == 0; };
 };
 #endif /* AA72A63D_3140_4FF2_BCAF_6F744DBBD62B */
