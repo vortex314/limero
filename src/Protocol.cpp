@@ -431,6 +431,44 @@ ProtocolDecoder &ProtocolDecoder::readMapStart()
         error(EPROTO);
     return *this;
 }
+// check if string is expected value
+ProtocolDecoder &ProtocolDecoder::read(const char *s)
+{
+    std::string str;
+    if (read(str).ok() && s == str)
+        return *this;
+    error(EINVAL);
+    return *this;
+}
+
+// check if string is expected value
+ProtocolDecoder &ProtocolDecoder::read(const char c)
+{
+    switch (c)
+    {
+    case '[':
+    {
+        readArrayStart();
+        break;
+    }
+    case ']':
+    {
+        readArrayEnd();
+        break;
+    }
+    case '{':
+    {
+        readMapStart();
+        break;
+    }
+    case '}':
+    {
+        readMapEnd();
+        break;
+    }
+    }
+    return *this;
+}
 
 ProtocolDecoder &ProtocolDecoder::read(std::string &s)
 {

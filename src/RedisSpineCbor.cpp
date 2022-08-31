@@ -31,12 +31,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   messageArrived >> [&](bool)
   {
     std::string cmd;
-    if (_cborIn.rewind().readArrayStart().read(cmd).ok())
+    if (_cborIn.rewind().read('[').read("pub").ok())
     {
-      if (cmd == "pub")
-      {
-        pubArrived.on(true);
-      }
+      pubArrived.on(true);
     }
   };
 
@@ -53,7 +50,8 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
       }
       else
       {
-        subscribe(_subscribePattern.c_str());
+        _cborOut.start().write('[').write("sub").write(_subscribePattern).write(']').end();
+        sendCbor(_cborOut);
       }
     }
     else
@@ -74,8 +72,8 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   {
     connected = true;
     _state = READY;
-    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::micros()-in).write(']').end();
-      sendCbor(_cborOut);
+    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::micros() - in).write(']').end();
+    sendCbor(_cborOut);
     _connectionWatchdog.reset();
   };
 };
@@ -89,7 +87,7 @@ void RedisSpineCbor::setNode(const char *n)
   node = n;
   srcPrefix = "src/" + node + "/";
   dstPrefix = "dst/" + node + "/";
-  _loopbackTopic = dstPrefix  + "system/loopback";
+  _loopbackTopic = dstPrefix + "system/loopback";
   _latencyTopic = srcPrefix + "system/latency";
   _subscribePattern = dstPrefix + "*";
   connected = false;

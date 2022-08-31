@@ -197,6 +197,8 @@ public:
     ProtocolDecoder &read(double &);
     ProtocolDecoder &read(char *, uint32_t);
     ProtocolDecoder &read(std::string &);
+    ProtocolDecoder &read(const char *);
+    ProtocolDecoder &read(const char );
     CborHeader peek();
     inline void error(int x)
     {
