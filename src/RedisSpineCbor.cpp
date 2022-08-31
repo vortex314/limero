@@ -32,12 +32,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   messageArrived >> [&](bool)
   {
     std::string cmd;
-    if (_cborIn.rewind().readArrayStart().read(cmd).ok())
+    if (_cborIn.rewind().read('[').read("pub").ok())
     {
-      if (cmd == "pub")
-      {
-        pubArrived.on(true);
-      }
+      pubArrived.on(true);
     }
   };
 
@@ -55,7 +52,8 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
       }
       else
       {
-        subscribe(_subscribePattern.c_str());
+        _cborOut.start().write('[').write("sub").write(_subscribePattern).write(']').end();
+        sendCbor(_cborOut);
       }
     }
     else
@@ -77,8 +75,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   {
     connected = true;
     _state = READY;
-    uint64_t delta = Sys::micros() - in;
-    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(delta).write(']').end();
+    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::micros() - in).write(']').end();
     sendCbor(_cborOut);
     _connectionWatchdog.reset();
   };
