@@ -3,47 +3,6 @@
 
 #include <algorithm>
 
-void Redis::addWriteFd(void *pv) {
-  Redis *redis = (Redis *)pv;
-  redis->thread().addWriteInvoker(redis->_ac->c.fd, redis, [](void *pv) {
-    redisAsyncHandleWrite(((Redis *)pv)->_ac);
-  });
-}
-
-void Redis::addReadFd(void *pv) {
-  Redis *redis = (Redis *)pv;
-  redis->thread().addReadInvoker(redis->_ac->c.fd, redis, [](void *pv) {
-    redisAsyncHandleRead(((Redis *)pv)->_ac);
-  });
-}
-
-void Redis::delWriteFd(void *pv) {
-  Redis *redis = (Redis *)pv;
-  redis->thread().delWriteInvoker(redis->_ac->c.fd);
-}
-
-void Redis::delReadFd(void *pv) {
-  Redis *redis = (Redis *)pv;
-  redis->thread().delReadInvoker(redis->_ac->c.fd);
-}
-
-void Redis::cleanupFd(void *pv) {
-  Redis *redis = (Redis *)pv;
-  if (redis->_ac->c.fd < 0) {
-    WARN(" cleanupFd for negative fd");
-    return;
-  }
-  redis->thread().delAllInvoker(redis->_ac->c.fd);
-}
-
-void Redis::responseFailure(int rc, std::string message) {
-  Json response;
-  response[0] = "error";
-  response[2] = message;
-  response[1] = rc;
-  _response.on(response);
-}
-
 Redis::Redis(Thread &thread, JsonObject config)
     : Actor(thread),
       _request(100, "request"),
@@ -183,14 +142,15 @@ int Redis::connect() {
   _ac->ev.cleanup = cleanupFd;
   _ac->ev.data = this;
 
-  int rc =
-      redisAsyncSetConnectCallback(_ac, [](const redisAsyncContext *ac, int status) {
+  int rc = redisAsyncSetConnectCallback(
+      _ac, [](const redisAsyncContext *ac, int status) {
         INFO("Redis connected status : %d fd : %d ", status, ac->c.fd);
         Redis *me = (Redis *)ac->c.privdata;
         me->_connected = true;
         me->_connectionStatus = CS_CONNECTED;
+        INFO("Executing init commands");
         for (std::string cmd : me->_initCommands) {
-          int rc = redisAsyncCommand((redisAsyncContext*)ac, replyHandler,
+          int rc = redisAsyncCommand((redisAsyncContext *)ac, replyHandler,
                                      new RedisReplyContext(cmd.c_str(), me),
                                      cmd.c_str(), NULL);
           if (rc) {
@@ -198,6 +158,16 @@ int Redis::connect() {
                  ac->errstr, cmd.c_str());
           }
         }
+        INFO(" (re-)subscribing to channels");
+        for (auto channel : me->_subscribedChannels) {
+          int rc = redisAsyncCommand((redisAsyncContext *)ac, replyHandler,
+                                     new RedisReplyContext(channel.c_str(), me),
+                                     "PSUBSCRIBE %s", channel.c_str());
+          if (rc) {
+            WARN("redisAsyncCommand() failed %d :%s for %s ", ac->err,
+                 ac->errstr, channel.c_str());
+          }
+        };
       });
 
   assert(rc == 0);
@@ -351,6 +321,15 @@ void Redis::publish(std::string channel, std::string message) {
   _request.on(doc);
 }
 
+void Redis::subscribe(std::string channel) {
+  Json doc;
+  JsonArray jsonRequest = doc.to<JsonArray>();
+  jsonRequest.add("subscribe");
+  jsonRequest.add(channel);
+  _request.on(doc);
+  _subscribedChannels.push_back(channel);
+}
+
 DynamicJsonDocument replyToJson(redisReply *reply) {
   uint32_t size = 10240;
   while (size < 10000000) {
@@ -367,4 +346,45 @@ DynamicJsonDocument replyToJson(redisReply *reply) {
   doc["error"] = "JSON overflow error > 10M bytes";
   doc["errno"] = ENOMEM;
   return doc;
+}
+
+void Redis::addWriteFd(void *pv) {
+  Redis *redis = (Redis *)pv;
+  redis->thread().addWriteInvoker(redis->_ac->c.fd, redis, [](void *pv) {
+    redisAsyncHandleWrite(((Redis *)pv)->_ac);
+  });
+}
+
+void Redis::addReadFd(void *pv) {
+  Redis *redis = (Redis *)pv;
+  redis->thread().addReadInvoker(redis->_ac->c.fd, redis, [](void *pv) {
+    redisAsyncHandleRead(((Redis *)pv)->_ac);
+  });
+}
+
+void Redis::delWriteFd(void *pv) {
+  Redis *redis = (Redis *)pv;
+  redis->thread().delWriteInvoker(redis->_ac->c.fd);
+}
+
+void Redis::delReadFd(void *pv) {
+  Redis *redis = (Redis *)pv;
+  redis->thread().delReadInvoker(redis->_ac->c.fd);
+}
+
+void Redis::cleanupFd(void *pv) {
+  Redis *redis = (Redis *)pv;
+  if (redis->_ac->c.fd < 0) {
+    WARN(" cleanupFd for negative fd");
+    return;
+  }
+  redis->thread().delAllInvoker(redis->_ac->c.fd);
+}
+
+void Redis::responseFailure(int rc, std::string message) {
+  Json response;
+  response[0] = "error";
+  response[2] = message;
+  response[1] = rc;
+  _response.on(response);
 }

@@ -34,6 +34,7 @@ class Redis : public Actor {
   bool _addReplyContext;
   SinkFunction<Json> *_jsonToRedis;
   std::vector<std::string> _ignoreReplies;
+  std::vector<std::string> _subscribedChannels;
   enum { CS_DISCONNECTED, CS_CONNECTED, CS_CONNECTING } _connectionStatus;
   TimerSource _connectionTimer;
   std::vector<std::string> _initCommands;
@@ -53,6 +54,7 @@ class Redis : public Actor {
   void reconnect();
   void stop();
   void publish(std::string channel, std::string message);
+  void subscribe(std::string channel);
 
   Sink<Json> &request();
   Sink<std::string> &command();
@@ -69,10 +71,7 @@ class Redis : public Actor {
 
   template <typename T>
   Source<T> &subscriber(std::string pattern) {
-    Json sub;
-    sub[0] = "psubscribe";
-    sub[1] = pattern;
-    _request.on(sub);
+    subscribe(pattern);
     auto lf = new LambdaFlow<Json, T>([&, pattern](T &t, const Json &msg) {
       std::string s;
       serializeJson(msg, s);
@@ -97,10 +96,7 @@ class Redis : public Actor {
       Json valueJson(1024);
       valueJson.as<JsonVariant>().set(t);
       serializeJson(valueJson, s);
-      json[0] = "publish";
-      json[1] = topic;
-      json[2] = s;
-      _request.on(json);
+      publish(topic, s);
     });
     return *sf;
   }
