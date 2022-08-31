@@ -150,6 +150,7 @@ int Redis::connect() {
         me->_connectionStatus = CS_CONNECTED;
         INFO("Executing init commands");
         for (std::string cmd : me->_initCommands) {
+          INFO(" ==> %s", cmd.c_str());
           int rc = redisAsyncCommand((redisAsyncContext *)ac, replyHandler,
                                      new RedisReplyContext(cmd.c_str(), me),
                                      cmd.c_str(), NULL);
@@ -158,8 +159,9 @@ int Redis::connect() {
                  ac->errstr, cmd.c_str());
           }
         }
-        INFO(" (re-)subscribing to channels");
+        INFO("Subscribing to channels");
         for (auto channel : me->_subscribedChannels) {
+          INFO(" ==> %s", channel.c_str());
           int rc = redisAsyncCommand((redisAsyncContext *)ac, replyHandler,
                                      new RedisReplyContext(channel.c_str(), me),
                                      "PSUBSCRIBE %s", channel.c_str());
@@ -170,7 +172,9 @@ int Redis::connect() {
         };
       });
 
-  assert(rc == 0);
+  if (rc)
+    WARN("redisAsyncSetConnectCallback() failed %d :%s ", _ac->err,
+         _ac->errstr);
 
   rc = redisAsyncSetDisconnectCallback(
       _ac, [](const redisAsyncContext *ac, int status) {
@@ -182,7 +186,9 @@ int Redis::connect() {
         if (me->_reconnectOnConnectionLoss) me->connect();
       });
 
-  assert(rc == 0);
+  if (rc)
+    WARN("redisAsyncSetDisconnectCallback() failed %d :%s ", _ac->err,
+         _ac->errstr);
 
   redisAsyncSetPushCallback(_ac, onPush);
 
@@ -313,6 +319,7 @@ void redisReplyToJson(JsonVariant result, redisReply *reply) {
 }
 
 void Redis::publish(std::string channel, std::string message) {
+  INFO(" publish %s = %s", channel.c_str(), message.c_str());
   Json doc;
   JsonArray jsonRequest = doc.to<JsonArray>();
   jsonRequest.add("publish");
@@ -322,6 +329,7 @@ void Redis::publish(std::string channel, std::string message) {
 }
 
 void Redis::subscribe(std::string channel) {
+  INFO(" subscribe %s", channel.c_str());
   Json doc;
   JsonArray jsonRequest = doc.to<JsonArray>();
   jsonRequest.add("subscribe");
