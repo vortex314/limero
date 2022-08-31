@@ -278,7 +278,7 @@ public:
   size_t capacity() const { return _size; }
   size_t size() const
   {
-    if (_writePtr > _readPtr)
+    if (_writePtr >= _readPtr)
       return _writePtr - _readPtr;
     else
       return _writePtr + _size - _readPtr;

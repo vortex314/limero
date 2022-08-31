@@ -47,8 +47,8 @@ typedef enum CborType
     CborBreakType = 0xff,
     CborInvalidType = 0xff /* equivalent to the break byte, so it will never be used */
 } CborType;
-
-class ProtocolEncoder
+typedef std::vector<uint8_t> Bytes;
+class ProtocolEncoder : public Bytes
 {
 public:
     ProtocolEncoder(uint32_t);
@@ -79,8 +79,8 @@ public:
     ProtocolEncoder &write(char);
     ProtocolEncoder &writeTag(uint64_t);
 
-    inline uint8_t *buffer() { return _buffer; }
-    inline uint32_t size() { return _index; }
+    inline uint8_t *buffer() { return data(); }
+ //   inline uint32_t size() { return _index; }
     inline void error(int x)
     {
         _error = x;
@@ -88,9 +88,9 @@ public:
     inline bool ok() { return _error == 0; }
 
 private:
-    uint8_t *_buffer;
+//    uint8_t *_buffer;
     uint32_t _capacity;
-    uint32_t _index;
+ //   uint32_t _index;
     int _error;
     Fcs _fcs;
     void addByte(uint8_t value);
@@ -167,7 +167,7 @@ public:
     uint64_t val = 0;
 };
 
-class ProtocolDecoder
+class ProtocolDecoder : public Bytes
 {
 public:
     ProtocolDecoder(uint32_t);
@@ -175,8 +175,8 @@ public:
     bool checkCrc();
     void addUnEscaped(uint8_t);
     void addUnEscaped(const std::vector<uint8_t>);
-    uint8_t *buffer() { return _buffer; }
-    uint32_t size() { return _writePtr; }
+    uint8_t *buffer() { return data(); }
+ //   uint32_t size() { return _writePtr; }
     ProtocolDecoder &rewind();
     uint8_t get_byte();
     void put_byte(uint8_t);
@@ -207,9 +207,9 @@ public:
     inline bool ok() { return _error == 0; }
 
 private:
-    uint8_t *_buffer;
+ //   uint8_t *_buffer;
     uint32_t _capacity;
-    uint32_t _writePtr;
+ //   uint32_t _writePtr;
     uint32_t _readPtr;
     Fcs _fcs;
     int _error;

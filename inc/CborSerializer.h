@@ -1,14 +1,12 @@
 #ifndef __CBOR_SERIALIZER_H__
 #define __CBOR_SERIALIZER_H__
+#include <Log.h>
 #include <assert.h>
 #include <cbor.h>
-#include <context.h>
-#include <log.h>
 
 using namespace std;
 
-class CborSerializer
-{
+class CborSerializer {
   uint32_t _capacity;
   size_t _size;
   CborError _err;
@@ -16,22 +14,23 @@ class CborSerializer
   CborEncoder _encoder;
   uint8_t *_buffer;
 
-public:
+ public:
   CborSerializer(int size);
   ~CborSerializer();
   template <typename T>
-  CborSerializer &operator<<(T t)
-  {
+  CborSerializer &operator<<(T t) {
     return add(t);
   }
   // CborSerializer &addRaw(const Bytes& );
 
   CborSerializer &add(int t);
   //  CborSerializer &add(int32_t &t);
+  CborSerializer &add(bool t);
   CborSerializer &add(uint32_t t);
   CborSerializer &add(int64_t t);
   CborSerializer &add(uint64_t t);
   CborSerializer &add(std::string t);
+  CborSerializer &add(const char *t);
   CborSerializer &add(float t);
   CborSerializer &add(double t);
   CborSerializer &add(Bytes t);

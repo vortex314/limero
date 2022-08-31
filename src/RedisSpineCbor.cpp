@@ -12,7 +12,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     : Actor(thr),
       _cborOut(MAX_SIZE),
       _cborIn(MAX_SIZE),
-      _loopbackTimer(thr, 1000, true, "loopbackTimer"),
+      _loopbackTimer(thr, 950, true, "loopbackTimer"),
       _connectionWatchdog(thr, 6000, true, "connectTimer"),
       rxdFrame(5, "Redis:rxdFrame"),
       txdFrame(5, "Redis:txdFrame")
@@ -24,6 +24,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
   txdFrame.async(thread());
   rxdFrame >> [&](const Bytes &bs)
   {
+    _cborIn.clear();
     _cborIn.put_bytes(bs.data(), bs.size());
     messageArrived.on(true);
   };
@@ -45,8 +46,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     {
       if (cnt & 1)
       {
-        _cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
-        sendCbor(_cborOut);
+        ProtocolEncoder cborOut(128);
+        cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
+        sendCbor(cborOut);
       }
       else
       {
@@ -56,8 +58,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     }
     else
     {
-      _cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
-      sendCbor(_cborOut);
+      ProtocolEncoder cborOut(128);
+      cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
+      sendCbor(cborOut);
     }
   };
 
@@ -95,7 +98,7 @@ void RedisSpineCbor::setNode(const char *n)
 
 void RedisSpineCbor::sendCbor(ProtocolEncoder &out)
 {
-  txdFrame.on(Bytes(out.buffer(), out.buffer() + out.size()));
+  txdFrame.on(out);
 }
 
 void RedisSpineCbor::subscribe(const char *pattern)
