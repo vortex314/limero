@@ -16,9 +16,9 @@ struct RedisReplyContext {
   Redis *me;
   RedisReplyContext(const std::string &command, Redis *me)
       : command(command), me(me) {
-    DEBUG("new RedisReplyContext %X", this);
+    INFO("new RedisReplyContext %X : %s", this,command.c_str());
   }
-  ~RedisReplyContext() { DEBUG("delete RedisReplyContext %X", this); }
+  ~RedisReplyContext() { INFO("delete RedisReplyContext %X", this); }
 };
 
 class Redis : public Actor {

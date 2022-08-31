@@ -141,6 +141,7 @@ int Redis::connect() {
   _ac->ev.delWrite = delWriteFd;
   _ac->ev.cleanup = cleanupFd;
   _ac->ev.data = this;
+  redisAsyncSetPushCallback(_ac, onPush);
 
   int rc = redisAsyncSetConnectCallback(
       _ac, [](const redisAsyncContext *ac, int status) {
@@ -163,7 +164,7 @@ int Redis::connect() {
         for (auto channel : me->_subscribedChannels) {
           INFO(" ==> %s", channel.c_str());
           int rc = redisAsyncCommand((redisAsyncContext *)ac, replyHandler,
-                                     new RedisReplyContext(channel.c_str(), me),
+                                     new RedisReplyContext("PSUBSCRIBE", me),
                                      "PSUBSCRIBE %s", channel.c_str());
           if (rc) {
             WARN("redisAsyncCommand() failed %d :%s for %s ", ac->err,
@@ -240,11 +241,10 @@ bool isPmessage(JsonVariant v) {
 
 void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
   redisReply *reply = (redisReply *)repl;
+  RedisReplyContext *redisReplyContext = (RedisReplyContext *)pv;
+  Redis *redis = (Redis *)ac->c.privdata;
   Json replyInJson;
   Json envelope;
-  RedisReplyContext *redisReplyContext =
-      (RedisReplyContext *)pv;  // can be null
-  Redis *redis = (Redis *)ac->c.privdata;
 
   if (reply == 0) {
     WARN(" replyHandler = null %d : %s  ", ac->err, ac->errstr);
@@ -257,7 +257,8 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
     envelope[0] = redisReplyContext->command;
     envelope[1] = replyInJson;
     redis->_response.on(envelope);
-    delete redisReplyContext;
+    // don't delete redisReplyContext, it's needed for the next reply pub/sub
+    if (reply->type != REDIS_REPLY_PUSH) delete redisReplyContext;
   } else {
     redis->_response.on(replyInJson);
   }
@@ -303,8 +304,10 @@ void redisReplyToJson(JsonVariant result, redisReply *reply) {
                          reply->element[i + 1]);
       break;
 
+    case REDIS_REPLY_PUSH: {
+      DEBUG("REDIS_REPLY_PUSH");
+    }
     case REDIS_REPLY_SET:
-    case REDIS_REPLY_PUSH:
     case REDIS_REPLY_ARRAY:
       for (size_t i = 0; i < reply->elements; i++) {
         redisReplyToJson(result[i].to<JsonVariant>(), reply->element[i]);
