@@ -2,6 +2,7 @@
 #define _GPIO_H_
 #include <limero.h>
 #include <vector>
+#include <Log.h>
 #ifdef HAS_GPIO
 #include <wiringPi.h>
 #endif

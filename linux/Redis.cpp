@@ -27,7 +27,7 @@ Redis::Redis(Thread &thread, JsonObject config)
   _response >> [](const Json &response) {
     std::string str;
     serializeJson(response, str);
-    DEBUG("Redis response: '%s'", str.c_str());
+    INFO("Redis response: '%s'", str.c_str());
   };
 
   _request >> [](const Json &request) {
@@ -304,7 +304,7 @@ void redisReplyToJson(JsonVariant result, redisReply *reply) {
                          reply->element[i + 1]);
       break;
 
-    case REDIS_REPLY_PUSH: {
+    case REDIS_REPLY_PUSH: { 
       DEBUG("REDIS_REPLY_PUSH");
     }
     case REDIS_REPLY_SET:
