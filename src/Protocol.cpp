@@ -38,11 +38,16 @@ bool Fcs::write(uint8_t b)
     return true;
 }
 //=============================================================================
+
+Special Start(1);
+Special End(2);
+Special Break(3);
+
 ProtocolEncoder::ProtocolEncoder(uint32_t size)
 {
- //   auto pui = new uint32_t[(size / 4) + 1]; // allocate space for the array in 4 byte words
+    //   auto pui = new uint32_t[(size / 4) + 1]; // allocate space for the array in 4 byte words
     reserve(size);
-  //  _buffer = (uint8_t *)pui;
+    //  _buffer = (uint8_t *)pui;
     _capacity = size;
 }
 
@@ -122,6 +127,10 @@ ProtocolEncoder &ProtocolEncoder::write(char c)
 {
     switch (c)
     {
+    case '<':
+        return start();
+    case '>':
+        return end();
     case '{':
         return writeMapStart();
     case '}':
@@ -290,10 +299,10 @@ void ProtocolEncoder::addByte(uint8_t value)
 
 ProtocolDecoder::ProtocolDecoder(uint32_t size)
 {
-   // _buffer = new uint8_t[size];
-   reserve(size);
+    // _buffer = new uint8_t[size];
+    reserve(size);
     _capacity = size;
-   // _writePtr = 0;
+    // _writePtr = 0;
 }
 
 void ProtocolDecoder::reset()
@@ -321,7 +330,7 @@ void ProtocolDecoder::addUnEscaped(uint8_t c)
     if (escFlag)
     {
         escFlag = false;
-        push_back( c ^ PPP_MASK_CHAR);
+        push_back(c ^ PPP_MASK_CHAR);
     }
     else
     {
@@ -331,17 +340,17 @@ void ProtocolDecoder::addUnEscaped(uint8_t c)
         }
         else
         {
-            push_back( c);
+            push_back(c);
         }
     }
 }
 
 bool ProtocolDecoder::next()
 {
-    _h.hdr = get_byte();
+    _h.firstByte = get_byte();
     if (!ok())
         return false;
-    const uint8_t t = _h.hdr & 31u;
+    const uint8_t t = _h.firstByte & 31u;
 
     if (t < 24)
     {
@@ -444,7 +453,7 @@ ProtocolDecoder &ProtocolDecoder::read(const char *s)
     return *this;
 }
 
-// check if string is expected value
+// check special marker is found
 ProtocolDecoder &ProtocolDecoder::read(const char c)
 {
     switch (c)
@@ -494,10 +503,19 @@ ProtocolDecoder &ProtocolDecoder::read(float &d)
         {
             float f;
             uint8_t b[4];
-        } u;
-        for (uint32_t i = 0; i < 4; i++)
-            u.b[3 - i] = get_byte();
-        d = u.f;
+        } output;
+#ifdef __LITTLE_ENDIAN__
+        output.b[0] = _h.val;
+        output.b[1] = _h.val >> 8;
+        output.b[2] = _h.val >> 16;
+        output.b[3] = _h.val >> 24;
+#else
+        output.b[3] = _h.val;
+        output.b[2] = _h.val >> 8;
+        output.b[1] = _h.val >> 16;
+        output.b[0] = _h.val >> 24;
+#endif
+        d = output.f;
     }
     else
         error(EPROTO);
@@ -585,3 +603,10 @@ void ProtocolDecoder::put_bytes(const uint8_t *b, uint32_t size)
         put_byte(b[i]);
 }
 
+CborHeader ProtocolDecoder::peek()
+{
+    CborHeader hdr;
+    uint8_t b = at(_readPtr);
+    hdr.firstByte = b;
+    return hdr;
+}
