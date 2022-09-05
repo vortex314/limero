@@ -304,7 +304,7 @@ void redisReplyToJson(JsonVariant result, redisReply *reply) {
                          reply->element[i + 1]);
       break;
 
-    case REDIS_REPLY_PUSH: { 
+    case REDIS_REPLY_PUSH: {
       DEBUG("REDIS_REPLY_PUSH");
     }
     case REDIS_REPLY_SET:
@@ -332,10 +332,10 @@ void Redis::publish(std::string channel, std::string message) {
 }
 
 void Redis::subscribe(std::string channel) {
-  INFO(" subscribe %s", channel.c_str());
+  INFO(" psubscribe %s", channel.c_str());
   Json doc;
   JsonArray jsonRequest = doc.to<JsonArray>();
-  jsonRequest.add("subscribe");
+  jsonRequest.add("psubscribe");
   jsonRequest.add(channel);
   _request.on(doc);
   _subscribedChannels.push_back(channel);
