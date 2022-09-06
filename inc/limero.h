@@ -75,20 +75,20 @@ struct Subscription {
   void *sink;
 
   static std::unordered_map<void *, std::forward_list<Subscription *> *>
-      _subscriptions;
+      _subscriptionsPerSource;
 
   Subscription(void *src, void *snk) : source(src), sink(snk) {}
 
   ~Subscription() { INFO("dtor Subscription"); }
 
   static void addSource(void *source, std::forward_list<Subscription *> *list) {
-    _subscriptions.emplace(source, list);
+    _subscriptionsPerSource.emplace(source, list);
   }
 
   static void eraseSink(void *sink) {
     INFO(" erase Sink from subscriptions : %X ", sink);
-    auto it = _subscriptions.begin();
-    while (it != _subscriptions.end()) {
+    auto it = _subscriptionsPerSource.begin();
+    while (it != _subscriptionsPerSource.end()) {
       auto sub_list = it->second;
       auto prev = sub_list->before_begin();
       for (auto sl_it = sub_list->begin(); sl_it != sub_list->end();) {
@@ -104,7 +104,10 @@ struct Subscription {
     }
   }
 
-  static void eraseSource(void *source) { _subscriptions.erase(source); }
+  static void eraseSource(void *source) {
+    INFO("erase source from _subscriptionsPerSource");
+    _subscriptionsPerSource.erase(source);
+  }
 };
 //______________________________________________________________________
 //
@@ -124,6 +127,7 @@ class Named {
   Named(){};
   Named(const char *name) { _name = name == 0 ? "NULL" : name; }
   const char *name() { return _name.c_str(); }
+  void name(const char *name) { _name = name; }
 };
 //--------------- something that can be invoked or execute something
 class Invoker {
@@ -148,6 +152,9 @@ class SinkFunction : public Sink<T> {
   void on(const T &t) { _func(t); }
 };
 //------------ generator of messages
+template <class IN, class OUT>
+class LambdaFlow;
+
 template <class T>
 class Source {
   std::forward_list<Subscription *> _subscriptions;
@@ -156,10 +163,18 @@ class Source {
   void subscribe(Sink<T> *listener) {
     _subscriptions.push_front(new Subscription(this, listener));
   }
+
   void unsubscribe(Sink<T> *listener) { _subscriptions.remove(listener); }
+
   Source() { Subscription::addSource(this, &_subscriptions); }
+
   ~Source() { Subscription::eraseSource(this); }
+
   void emit(const T &t) {
+    if (_subscriptions.empty()) {
+      WARN("no subscribers for %s", typeid(T).name());
+      return;
+    }
     for (auto sub : _subscriptions) {
       ((Sink<T> *)sub->sink)->on(t);
     }
@@ -169,6 +184,10 @@ class Source {
   void operator>>(Sink<T> *listener) { subscribe(listener); }
   void operator>>(std::function<void(const T &t)> func) {
     subscribe(new SinkFunction<T>(func));
+  }
+  template <class OUT>  // OUT is the type of the output
+  void operator>>(std::function<bool(OUT &out, const T &t)> func) {
+    subscribe(new LambdaFlow<T, OUT>(func));
   }
 };
 //-----------------  can be pooked to publish something
@@ -610,15 +629,11 @@ public:
 template <class IN, class OUT>
 class Flow : public Sink<IN>, public Source<OUT> {
  public:
-  ~Flow(){};
+  ~Flow() { WARN(" Flow destructor. Really ? "); };
   void operator==(Flow<OUT, IN> &flow) {
     this->subscribe(&flow);
     flow.subscribe(this);
   };
-  /*  void operator>>(std::function<void(const OUT &t)> func)
-    {
-      this->subscribe(new SinkFunction<OUT>(func));
-    }*/
 };
 // -------------------------------------------------------- Cache
 template <class T>
@@ -739,28 +754,16 @@ class LambdaFlow : public Flow<IN, OUT>, public Named {
     };
   };
   LambdaFlow(std::function<bool(OUT &, const IN &)> func) : _func(func){};
+  ~LambdaFlow() { WARN(" LambdaFlow destructor. Really ? "); };
   void lambda(std::function<bool(OUT &, const IN &)> func) { _func = func; }
   virtual void on(const IN &in) {
     OUT out;
     if (_func(out, in)) {
-      uint64_t now = Sys::millis();
       this->emit(out);
-      uint32_t delta = Sys::millis() - now;
-      if (delta > 10)
-        WARN("LambdaFlow  %s invoke too slow %d", this->name(), delta);
     }
   }
   void request(){};
-  /*  static LambdaFlow<IN, OUT> &nw(std::function<bool(OUT &, const IN &)>
-    func)
-    {
-      auto lf = new LambdaFlow(func);
-      return *lf;
-    }
-    void operator>>(std::function<void(const OUT &t)> func)
-    {
-      subscribe(new SinkFunction<OUT>(func));
-    }*/
+
 };
 
 template <class T>
@@ -812,11 +815,11 @@ Source<OUT2> &operator>>(Flow<IN, OUT1> &flow1, Flow<OUT1, OUT2> &flow2) {
   return flow2;
 }
 template <class IN, class OUT>
-Source<OUT> &operator>>(Source<IN> &publisher,
+Source<OUT> operator>>(Source<IN> &publisher,
                         std::function<bool(OUT &, const IN &)> func) {
   auto flow = new LambdaFlow<IN, OUT>(func);
   publisher.subscribe(flow);
-  return *flow;
+  return flow;
 }
 
 //________________________________________________________________
@@ -839,11 +842,11 @@ Source<OUT2> *operator>>(Flow<IN, OUT1> *flow1, Flow<OUT1, OUT2> &flow2) {
   flow1->subscribe(&flow2);
   return flow2;
 }
-
+/*
 template <class T>
 void operator>>(Source<T> *source, std::function<void(const T &t)> func) {
   source->subscribe(new SinkFunction<T>(func));
-}
+}*/
 /*
 template <class IN, class OUT>
 Sink<IN> &operator>>(Flow<IN, OUT> *flow ,Sink<OUT> &sink )

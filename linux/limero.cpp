@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 std::unordered_map<void *, std::forward_list<Subscription *> *>
-    Subscription::_subscriptions;
+    Subscription::_subscriptionsPerSource;
 
 /*
  _____ _                        _
@@ -48,7 +48,7 @@ void Thread::buildFdSet() {
 
 void Thread::addReadInvoker(int fd, void *arg, CallbackFunction fn) {
   Callback cb = {fn, arg};
-  _readInvokers.emplace(fd,cb);
+  _readInvokers.emplace(fd, cb);
   //  _readInvokers[fd] = {fn, arg};
   buildFdSet();
 }
@@ -60,7 +60,7 @@ void Thread::delReadInvoker(const int fd) {
 
 void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn) {
   Callback cb = {fn, arg};
-  _writeInvokers.emplace(fd,cb);
+  _writeInvokers.emplace(fd, cb);
   buildFdSet();
 }
 
@@ -71,7 +71,7 @@ void Thread::delWriteInvoker(const int fd) {
 
 void Thread::addErrorInvoker(int fd, void *arg, CallbackFunction fn) {
   Callback cb = {fn, arg};
-  _errorInvokers.emplace(fd,cb);
+  _errorInvokers.emplace(fd, cb);
   buildFdSet();
 }
 
