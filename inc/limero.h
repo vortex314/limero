@@ -140,6 +140,8 @@ class Sink {
  public:
   virtual void on(const T &t) = 0;
   virtual ~Sink() { Subscription::eraseSink(this); }
+  Sink(const Sink &) = delete;
+  Sink() = default;
 };
 #include <bits/atomic_word.h>
 //------------- handler function for certain messages or events
@@ -169,6 +171,7 @@ class Source {
   Source() { Subscription::addSource(this, &_subscriptions); }
 
   ~Source() { Subscription::eraseSource(this); }
+  Source(const Source &) = delete;
 
   void emit(const T &t) {
     if (_subscriptions.empty()) {
@@ -505,7 +508,7 @@ class TimerMsg {
   TimerSource *source;
 };
 
-class TimerSource : public Source<TimerMsg>, public Named {
+class TimerSource : public Source<TimerMsg>, public Requestable, public Named {
   uint32_t _interval = UINT32_MAX;
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
@@ -518,17 +521,14 @@ class TimerSource : public Source<TimerMsg>, public Named {
 
  public:
   TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
-              const char *name = "unknownTimer1")
-      : Named(name) {
+              const char *label = "unknownTimer1") {
+    name(label);
     _interval = interval;
     _repeat = repeat;
     if (repeat) start();
     thr.addTimer(this);
   }
-  /*
-    TimerSource(const char *name = "unknownTimer3") : Named(name) {
-      _expireTime = Sys::now() + _interval;
-    };*/
+
   ~TimerSource() { WARN(" timer destructor. Really ? "); }
 
   // void attach(Thread &thr) { thr.addTimer(this); }
@@ -763,7 +763,6 @@ class LambdaFlow : public Flow<IN, OUT>, public Named {
     }
   }
   void request(){};
-
 };
 
 template <class T>
@@ -816,7 +815,7 @@ Source<OUT2> &operator>>(Flow<IN, OUT1> &flow1, Flow<OUT1, OUT2> &flow2) {
 }
 template <class IN, class OUT>
 Source<OUT> operator>>(Source<IN> &publisher,
-                        std::function<bool(OUT &, const IN &)> func) {
+                       std::function<bool(OUT &, const IN &)> func) {
   auto flow = new LambdaFlow<IN, OUT>(func);
   publisher.subscribe(flow);
   return flow;
@@ -884,6 +883,7 @@ class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
  public:
   ValueFlow(){};
   ValueFlow(T t) { _t = t; }
+  ValueFlow(const ValueFlow &other) = delete;
   void request() { this->emit(_t); }
   void operator=(T t) { on(t); }
   T &operator()() { return _t; }
@@ -917,8 +917,11 @@ class Poller : public Actor {
 
  public:
   ValueFlow<bool> connected;
-  ValueFlow<uint32_t> interval = 500;
-  Poller(Thread &t) : Actor(t), _pollInterval(t, 500, true) {
+  ValueFlow<uint32_t> interval;
+  Poller(Thread &t)
+      : Actor(t), _pollInterval(t, 500, true) {
+        connected.on(false);
+        interval.on(500);
     _pollInterval >> [&](const TimerMsg) {
       if (_requestables.size() && connected())
         _requestables[_idx++ % _requestables.size()]->request();
