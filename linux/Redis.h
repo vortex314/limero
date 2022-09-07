@@ -82,16 +82,19 @@ class Redis : public Actor {
         if (rc == DeserializationError::Ok && doc.is<T>()) {
           t = doc.as<T>();
           return true;
+        } else {
+          WARN("subscriber %s failed to deserialize %s", pattern.c_str(),
+               msg[3].as<std::string>().c_str());
         }
       }
       return false;
     });
     _response >> lf;
-    return * lf;
+    return *lf;
   }
   template <typename T>
   SinkFunction<T> &publisher(std::string topic) {
-    return * new SinkFunction<T>([&, topic](const T &t) {
+    return *new SinkFunction<T>([&, topic](const T &t) {
       std::string s;
       Json valueJson(1024);
       valueJson.as<JsonVariant>().set(t);

@@ -918,10 +918,9 @@ class Poller : public Actor {
  public:
   ValueFlow<bool> connected;
   ValueFlow<uint32_t> interval;
-  Poller(Thread &t)
-      : Actor(t), _pollInterval(t, 500, true) {
-        connected.on(false);
-        interval.on(500);
+  Poller(Thread &t) : Actor(t), _pollInterval(t, 500, true) {
+    connected.on(false);
+    interval.on(500);
     _pollInterval >> [&](const TimerMsg) {
       if (_requestables.size() && connected())
         _requestables[_idx++ % _requestables.size()]->request();
