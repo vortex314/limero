@@ -68,6 +68,22 @@ class TimerSource;
 #undef min
 #undef max
 
+class LogStack {
+  std::vector<std::string> _stack;
+
+ public:
+  void clear() { _stack.clear(); }
+  void push(std::string s) { _stack.push_back(s); }
+  void pop() { _stack.pop_back(); }
+  std::string toString() {
+    std::string s;
+    for (auto &i : _stack) {
+      s += i + "' -> '";
+    }
+    return s;
+  }
+} logStack;
+
 class Thread;
 //====================================================================================
 struct Subscription {
@@ -136,7 +152,7 @@ class Invoker {
 };
 //-------------- handler class for certain messages or events
 template <class T>
-class Sink {
+class Sink : public Named {
  public:
   virtual void on(const T &t) = 0;
   virtual ~Sink() { Subscription::eraseSink(this); }
@@ -158,7 +174,7 @@ template <class IN, class OUT>
 class LambdaFlow;
 
 template <class T>
-class Source {
+class Source : public Named {
   std::forward_list<Subscription *> _subscriptions;
 
  public:
@@ -179,7 +195,9 @@ class Source {
       return;
     }
     for (auto sub : _subscriptions) {
+      logStack.push(((Sink<T> *)sub->sink)->name());
       ((Sink<T> *)sub->sink)->on(t);
+      logStack.pop();
     }
   }
   //  void operator>>(Sink<T> listener) { subscribe(&listener); }
@@ -548,6 +566,8 @@ class TimerSource : public Source<TimerMsg>, public Requestable, public Named {
         _expireTime = Sys::millis() + UINT32_MAX;
       TimerMsg tm = {this};
       uint64_t now = Sys::millis();
+      logStack.clear();
+      logStack.push("timer " + name());
       this->emit(tm);
       uint32_t diff = Sys::millis() - now;
       if (diff > 10) WARN(" timer %s took %d ms to emit ", this->name(), diff);
@@ -558,72 +578,7 @@ class TimerSource : public Source<TimerMsg>, public Requestable, public Named {
   inline uint32_t interval() { return _interval; }
 };
 //____________________________________  SINK ______________________
-/*template <class T>
-class SinkQueue : public Sink<T>, public Invoker, public Named
-{
-  ArrayQueue<T> _queue;
-  std::function<void(const T &)> _func;
-  Thread *_thread = 0;
-  T _lastValue;
 
-public:
-  SinkQueue(int capacity, const char *nme = "unknown")
-      : Named(nme), _queue(capacity)
-  {
-    _func = [&](const T &t)
-    {
-      (void)t;
-      WARN(" no handler attached to this sink %s ", name());
-    };
-  }
-  ~SinkQueue() { WARN(" Sink destructor. Really ? "); }
-  SinkQueue(int capacity, std::function<void(const T &)> handler,
-            const char *name = "unknown")
-      : Named(name), _queue(capacity), _func(handler){};
-
-  void on(const T &t)
-  {
-    if (_thread)
-    {
-      if (_queue.push(t))
-        _thread->enqueue(this);
-      else
-      {
-        WARN("push failed on '%s' [%d/%d] ", name(), _queue.size(),
-             _queue.capacity());
-        stats.bufferOverflow++;
-      }
-    }
-    else
-    {
-      _func(t);
-    }
-  }
-
-  //  virtual void request() { invoke(); }
-  void invoke()
-  {
-    if (_queue.pop(_lastValue))
-    {
-      _func(_lastValue);
-    }
-    else
-      WARN(" no data in queue '%s'[%d]", name(), _queue.capacity());
-  }
-
-  void async(Thread &thread, std::function<void(const T &)> func)
-  {
-    _func = func;
-    _thread = &thread;
-  }
-  void sync(std::function<void(const T &)> func)
-  {
-    _thread = 0;
-    _func = func;
-  }
-  //  T operator()() { return _lastValue; }
-};
-*/
 //_________________________________________________ Flow ________________
 //
 template <class IN, class OUT>
@@ -690,13 +645,14 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg> {
 //_____________________________________________________________________________
 //
 template <class T>
-class QueueFlow : public Flow<T, T>, public Invoker, public Named {
+class QueueFlow : public Flow<T, T>, public Invoker {
   ArrayQueue<T> _queue;
   Thread *_thread = 0;
 
  public:
-  QueueFlow(size_t capacity, const char *name = "no-name")
-      : Named(name), _queue(capacity){};
+  QueueFlow(size_t capacity, const char *label = "no-name") : _queue(capacity) {
+    name(label);
+  };
   void on(const T &t) {
     if (_thread) {
       if (_queue.push(t)) {
