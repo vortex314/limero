@@ -5,8 +5,8 @@
 
 Redis::Redis(Thread &thread, JsonObject config)
     : Actor(thread),
-      _request(100, "request"),
-      _response(100, "response"),
+      _request(100, "Redis:request"),
+      _response(100, "Redis:response"),
       _connectionTimer(thread, 10000, true, "connectionTimer") {
   _request.async(thread);
   _response.async(thread);
