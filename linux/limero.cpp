@@ -11,6 +11,7 @@
 
 std::unordered_map<void *, std::forward_list<Subscription *> *>
     Subscription::_subscriptionsPerSource;
+LogStack logStack;
 
 /*
  _____ _                        _

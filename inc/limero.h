@@ -82,7 +82,8 @@ class LogStack {
     }
     return s;
   }
-} logStack;
+};
+extern LogStack logStack;
 
 class Thread;
 //====================================================================================
@@ -526,7 +527,7 @@ class TimerMsg {
   TimerSource *source;
 };
 
-class TimerSource : public Source<TimerMsg>, public Requestable, public Named {
+class TimerSource : public Source<TimerMsg>, public Requestable {
   uint32_t _interval = UINT32_MAX;
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
@@ -540,12 +541,14 @@ class TimerSource : public Source<TimerMsg>, public Requestable, public Named {
  public:
   TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
               const char *label = "unknownTimer1") {
-    name(label);
+    Source::name(label);
     _interval = interval;
     _repeat = repeat;
     if (repeat) start();
     thr.addTimer(this);
   }
+
+  const char *name() { return Source::name(); }
 
   ~TimerSource() { WARN(" timer destructor. Really ? "); }
 
@@ -567,7 +570,7 @@ class TimerSource : public Source<TimerMsg>, public Requestable, public Named {
       TimerMsg tm = {this};
       uint64_t now = Sys::millis();
       logStack.clear();
-      logStack.push("timer " + name());
+      logStack.push(name());
       this->emit(tm);
       uint32_t diff = Sys::millis() - now;
       if (diff > 10) WARN(" timer %s took %d ms to emit ", this->name(), diff);
@@ -651,7 +654,7 @@ class QueueFlow : public Flow<T, T>, public Invoker {
 
  public:
   QueueFlow(size_t capacity, const char *label = "no-name") : _queue(capacity) {
-    name(label);
+    Source<T>::name(label);
   };
   void on(const T &t) {
     if (_thread) {
@@ -664,6 +667,7 @@ class QueueFlow : public Flow<T, T>, public Invoker {
       // this->emit(t);
     }
   }
+  const char *name() { return Source<T>::name(); }
   void onIsr(const T &t) {
     if (_thread) {
       if (_queue.push(t)) {
@@ -699,7 +703,7 @@ class QueueFlow : public Flow<T, T>, public Invoker {
 //
 
 template <class IN, class OUT>
-class LambdaFlow : public Flow<IN, OUT>, public Named {
+class LambdaFlow : public Flow<IN, OUT> {
   std::function<bool(OUT &, const IN &)> _func;
 
  public:
@@ -718,6 +722,8 @@ class LambdaFlow : public Flow<IN, OUT>, public Named {
       this->emit(out);
     }
   }
+  const char *name() { return Source<OUT>::name(); }
+  void name(const char *name) { Source<OUT>::name(name); }
   void request(){};
 };
 
@@ -840,6 +846,7 @@ class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
   ValueFlow(){};
   ValueFlow(T t) { _t = t; }
   ValueFlow(const ValueFlow &other) = delete;
+  T &value() { return _t; }
   void request() { this->emit(_t); }
   void operator=(T t) { on(t); }
   T &operator()() { return _t; }
