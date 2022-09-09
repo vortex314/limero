@@ -1,6 +1,7 @@
 #ifndef LIMERO_H
 #define LIMERO_H
 #include <Log.h>
+#include <StringUtility.h>
 #include <Sys.h>
 #include <errno.h>
 #include <stdint.h>
@@ -68,20 +69,39 @@ class TimerSource;
 #undef min
 #undef max
 
-class LogStack {
-  std::vector<std::string> _stack;
+//--------------- give an object a name, useful for debugging
+class Named {
+  std::string _name = "no-name";
 
  public:
+  Named(){};
+  Named(const char *name) { _name = name == 0 ? "NULL" : name; }
+  const char *name() { return _name.c_str(); }
+  void name(const char *name) { _name = name; }
+  void name(const std::string &name) { _name = name; }
+};
+//-------------------------- Stack of named objects to backtrace events
+class LogStack {
+  std::vector<Named *> _stack;
+
+ public:
+#ifdef LINUX
   void clear() { _stack.clear(); }
-  void push(std::string s) { _stack.push_back(s); }
+  inline void push(Named *n) { _stack.push_back(n); }
   void pop() { _stack.pop_back(); }
   std::string toString() {
     std::string s;
-    for (auto &i : _stack) {
-      s += i + "' -> '";
+    for (auto i : _stack) {
+      s += i->name();
+      s += "' -> '";
     }
     return s;
   }
+#else
+  inline void clear() {}
+  inline void push(Named *n) {}  // avoid code overhead
+  inline void pop() {}
+#endif
 };
 extern LogStack logStack;
 
@@ -136,16 +156,7 @@ class AbstractQueue {
   virtual bool push(const T &t) = 0;  // const to be able to do something like
                                       // push({"topic","message"});
 };
-//--------------- give an object a name, useful for debugging
-class Named {
-  std::string _name = "no-name";
 
- public:
-  Named(){};
-  Named(const char *name) { _name = name == 0 ? "NULL" : name; }
-  const char *name() { return _name.c_str(); }
-  void name(const char *name) { _name = name; }
-};
 //--------------- something that can be invoked or execute something
 class Invoker {
  public:
@@ -196,7 +207,7 @@ class Source : public Named {
       return;
     }
     for (auto sub : _subscriptions) {
-      logStack.push(((Sink<T> *)sub->sink)->name());
+      logStack.push(this);
       ((Sink<T> *)sub->sink)->on(t);
       logStack.pop();
     }
@@ -541,7 +552,8 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
  public:
   TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
               const char *label = "unknownTimer1") {
-    Source::name(label);
+    Source::name(
+        stringFormat("TimerSource %s : %d msec", label, interval).c_str());
     _interval = interval;
     _repeat = repeat;
     if (repeat) start();
@@ -570,7 +582,7 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
       TimerMsg tm = {this};
       uint64_t now = Sys::millis();
       logStack.clear();
-      logStack.push(name());
+      logStack.push(this);
       this->emit(tm);
       uint32_t diff = Sys::millis() - now;
       if (diff > 10) WARN(" timer %s took %d ms to emit ", this->name(), diff);
@@ -653,8 +665,10 @@ class QueueFlow : public Flow<T, T>, public Invoker {
   Thread *_thread = 0;
 
  public:
-  QueueFlow(size_t capacity, const char *label = "no-name") : _queue(capacity) {
+  QueueFlow(size_t capacity, const char *label = "QueueFlow")
+      : _queue(capacity) {
     Source<T>::name(label);
+    Sink<T>::name(label);
   };
   void on(const T &t) {
     if (_thread) {
@@ -723,7 +737,14 @@ class LambdaFlow : public Flow<IN, OUT> {
     }
   }
   const char *name() { return Source<OUT>::name(); }
-  void name(const char *name) { Source<OUT>::name(name); }
+  void name(std::string &name) {
+    Source<OUT>::name(name);
+    Sink<IN>::name(name);
+  }
+  void name(const char *name) {
+    Source<OUT>::name(name);
+    Sink<IN>::name(name);
+  }
   void request(){};
 };
 
@@ -846,6 +867,11 @@ class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
   ValueFlow(){};
   ValueFlow(T t) { _t = t; }
   ValueFlow(const ValueFlow &other) = delete;
+  const char *name() { return Source<T>::name(); }
+  void name(const char *name) {
+    Source<T>::name(name);
+    Sink<T>::name(name);
+  }
   T &value() { return _t; }
   void request() { this->emit(_t); }
   void operator=(T t) { on(t); }
