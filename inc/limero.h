@@ -192,7 +192,7 @@ class Source : public Named {
 
   void emit(const T &t) {
     if (_subscriptions.empty()) {
-      WARN("no subscribers for %s", typeid(T).name());
+      WARN("no subscribers ");
       return;
     }
     for (auto sub : _subscriptions) {
