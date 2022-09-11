@@ -75,7 +75,7 @@ class Named {
 
  public:
   Named(){};
-  Named(const char *newName) { _name = newName == 0 ? "NULL" : name; }
+  Named(const char *newName) { _name = newName == 0 ? "NULL" : newName; }
   const char *name() { return _name.c_str(); }
   void name(const char *newName) { _name = newName; }
   void name(const std::string &newName) { _name = newName; }
@@ -99,7 +99,7 @@ class LogStack {
   }
 #else
   inline void clear() {}
-  inline void push(Named *n) {}  // avoid code overhead
+  inline void push(Named *) {}  // avoid code overhead
   inline void pop() {}
 #endif
 };
@@ -550,13 +550,13 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
   }
 
  public:
-  TimerSource(Thread &thr, uint32_t interval = UINT32_MAX, bool repeat = false,
+  TimerSource(Thread &thr, uint32_t __interval = UINT32_MAX, bool __repeat = false,
               const char *label = "unknownTimer1") {
     Source::name(
-        stringFormat("TimerSource %s : %d msec", label, interval).c_str());
-    _interval = interval;
-    _repeat = repeat;
-    if (repeat) start();
+        stringFormat("TimerSource %s : %d msec", label, __interval).c_str());
+    _interval = __interval;
+    _repeat = __repeat;
+    if (_repeat) start();
     thr.addTimer(this);
   }
 
@@ -567,8 +567,8 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
   // void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
   void start() { _expireTime = Sys::millis() + _interval; }
-  void start(uint32_t interval) {
-    _interval = interval;
+  void start(uint32_t __interval) {
+    _interval = __interval;
     start();
   }
   void stop() { _expireTime = UINT64_MAX; }
@@ -616,12 +616,11 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg> {
   TimerSource _timerSource;
 
  public:
-  Cache(Thread &thread, uint32_t minimum, uint32_t maximum,
-        bool request = false)
-      : _thread(thread),
+  Cache(Thread &thr, uint32_t minimum, uint32_t maximum)
+      : _thread(thr),
         _minimum(minimum),
         _maximum(maximum),
-        _timerSource(thread) {
+        _timerSource(thr) {
     _timerSource.interval(minimum);
     _timerSource.start();
     _timerSource.subscribe(this);
@@ -737,13 +736,13 @@ class LambdaFlow : public Flow<IN, OUT> {
     }
   }
   const char *name() { return Source<OUT>::name(); }
-  void name(std::string &name) {
-    Source<OUT>::name(name);
-    Sink<IN>::name(name);
+  void name(std::string &nme) {
+    Source<OUT>::name(nme);
+    Sink<IN>::name(nme);
   }
-  void name(const char *name) {
-    Source<OUT>::name(name);
-    Sink<IN>::name(name);
+  void name(const char *_name) {
+    Source<OUT>::name(_name);
+    Sink<IN>::name(_name);
   }
   void request(){};
 };
@@ -868,9 +867,9 @@ class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
   ValueFlow(T t) { _t = t; }
   ValueFlow(const ValueFlow &other) = delete;
   const char *name() { return Source<T>::name(); }
-  void name(const char *name) {
-    Source<T>::name(name);
-    Sink<T>::name(name);
+  void name(const char *_name) {
+    Source<T>::name(_name);
+    Sink<T>::name(_name);
   }
   T &value() { return _t; }
   void request() { this->emit(_t); }

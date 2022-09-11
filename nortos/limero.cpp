@@ -19,7 +19,7 @@ std::unordered_map<void *, std::forward_list<Subscription *> *>
 // int Thread::_id = 0;
 std::vector<Thread *> _threads;
 
-Thread::Thread(const char *name) : Named(name), _workQueue(10) {
+Thread::Thread(const char *__name) : Named(__name), _workQueue(10) {
   _threads.push_back(this);
 };
 

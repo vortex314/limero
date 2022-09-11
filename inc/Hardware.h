@@ -28,7 +28,7 @@ typedef void (*ErrorHandler)(Error &error);
 
 class Driver
 {
-    ErrorHandler _errorHandler = [](Error &error) {};
+    ErrorHandler _errorHandler = [](Error &) {};
 
 public:
     virtual int init() { return 0;};

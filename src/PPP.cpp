@@ -39,7 +39,7 @@ class Fcs
 
 public:
   Fcs() { _fcs = 0xFFFF; }
-  bool hasSpace(int size = 1) { return true; };
+  bool hasSpace(int ) { return true; };
   bool write(uint8_t b)
   {
     _fcs = (_fcs >> 8) ^ fcsTable[(_fcs & 0xFF) ^ b];
@@ -50,7 +50,7 @@ public:
   void clear() { _fcs = 0xFFFF; }
 };
 
-PppDeframer::PppDeframer(Thread &thread, size_t maxFrameLength) : Actor(thread)
+PppDeframer::PppDeframer(Thread &exec, size_t maxFrameLength) : Actor(exec)
 {
   _maxFrameLength = maxFrameLength;
   _escFlag = false;

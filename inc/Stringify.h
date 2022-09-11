@@ -1,16 +1,23 @@
 #include <string>
+#include <printf.h>
 #include <StringUtility.h>
 
 inline std::string toString(const float f){
-    return std::to_string(f);
+    char buffer[32];
+    sprintf_(buffer, "%f", f);
+    return buffer;
 }
 inline std::string toString(const int &t)
 {
-    return std::to_string(t);
+    char buffer[32];
+    sprintf_(buffer, "%d", t);
+    return buffer;
 }
 inline std::string toString(const unsigned int &t)
 {
-    return std::to_string(t);
+    char buffer[32];
+    sprintf_(buffer, "%u", t);
+    return buffer;
 }
 inline std::string toString(const unsigned long long &t)
 {
@@ -18,7 +25,9 @@ inline std::string toString(const unsigned long long &t)
     std::string s = stringFormat("%llu", t);
     return s;
     #else
-    return std::to_string(t);
+    char buffer[32];
+    sprintf_(buffer, "%llu", t);
+    return buffer;
     #endif
     
 }
@@ -26,11 +35,15 @@ inline std::string toString(const unsigned long long &t)
 
 inline std::string toString(const unsigned long &t)
 {
-    return std::to_string(t);
+    char buffer[32];
+    sprintf_(buffer, "%lu", t);
+    return buffer;
 }
 inline std::string toString(const  long &t)
 {
-    return std::to_string(t);
+    char buffer[32];
+    sprintf_(buffer, "%ld", t);
+    return buffer;
 }
 inline std::string toString(const char *t)
 {

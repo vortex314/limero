@@ -43,12 +43,12 @@ Special Start(1);
 Special End(2);
 Special Break(3);
 
-ProtocolEncoder::ProtocolEncoder(uint32_t size)
+ProtocolEncoder::ProtocolEncoder(uint32_t _size)
 {
     //   auto pui = new uint32_t[(size / 4) + 1]; // allocate space for the array in 4 byte words
-    reserve(size);
+    reserve(_size);
     //  _buffer = (uint8_t *)pui;
-    _capacity = size;
+    _capacity = _size;
 }
 
 ProtocolEncoder &ProtocolEncoder::start()
@@ -201,9 +201,9 @@ ProtocolEncoder &ProtocolEncoder::write(const std::string &s)
 
 ProtocolEncoder &ProtocolEncoder::write(const char *s)
 {
-    size_t size = strlen(s);
-    write_type_and_value(3, size);
-    for (size_t i = 0; i < size; i++)
+    size_t length = strlen(s);
+    write_type_and_value(3, length);
+    for (size_t i = 0; i < length; i++)
         addEscaped(s[i]);
     return *this;
 }
@@ -219,15 +219,15 @@ ProtocolEncoder &ProtocolEncoder::writeArrayEnd()
     return writeBreak();
 }
 
-ProtocolEncoder &ProtocolEncoder::writeArray(uint64_t size)
+ProtocolEncoder &ProtocolEncoder::writeArray(uint64_t __size)
 {
-    write_type_and_value(4, size);
+    write_type_and_value(4, __size);
     return *this;
 }
 
-ProtocolEncoder &ProtocolEncoder::writeMap(uint64_t size)
+ProtocolEncoder &ProtocolEncoder::writeMap(uint64_t __size)
 {
-    write_type_and_value(5, size);
+    write_type_and_value(5, __size);
     return *this;
 }
 
@@ -266,9 +266,9 @@ ProtocolEncoder &ProtocolEncoder::write(double d)
     return *this;
 }
 
-void ProtocolEncoder::addEscaped(uint8_t *buffer, uint32_t size)
+void ProtocolEncoder::addEscaped(uint8_t *buffer, uint32_t __size)
 {
-    for (uint32_t i = 0; i < size; i++)
+    for (uint32_t i = 0; i < __size; i++)
         addEscaped(buffer[i]);
 }
 
@@ -297,11 +297,11 @@ void ProtocolEncoder::addByte(uint8_t value)
 
 //===============================================================
 
-ProtocolDecoder::ProtocolDecoder(uint32_t size)
+ProtocolDecoder::ProtocolDecoder(uint32_t __size)
 {
     // _buffer = new uint8_t[size];
-    reserve(size);
-    _capacity = size;
+    reserve(__size);
+    _capacity = __size;
     // _writePtr = 0;
 }
 
@@ -597,9 +597,9 @@ void ProtocolDecoder::put_byte(uint8_t b)
         error(ENOMEM);
 }
 
-void ProtocolDecoder::put_bytes(const uint8_t *b, uint32_t size)
+void ProtocolDecoder::put_bytes(const uint8_t *b, uint32_t __size)
 {
-    for (uint32_t i = 0; i < size; i++)
+    for (uint32_t i = 0; i < __size; i++)
         put_byte(b[i]);
 }
 

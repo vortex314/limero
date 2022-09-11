@@ -7,10 +7,10 @@
 // readPos==writePos => empty
 // writePos-readPos== limit ==> full
 
-CircBuf::CircBuf(uint32_t size) {
-    start = new uint8_t[size];
+CircBuf::CircBuf(uint32_t _size) {
+    start = new uint8_t[_size];
     clear();
-    limit = size;
+    limit = _size;
 }
 
 void CircBuf::clear() {

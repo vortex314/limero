@@ -8,13 +8,13 @@
 #include "Register.h"
 #include "printf.h"
 
-Register::Register(const char* name, const char* format,uint32_t* regAddress)
-    :  _name(name),_format(format),_regAddress(regAddress)
+Register::Register(const char* name, const char* __format,uint32_t* regAddress)
+    :  _name(name),_format(__format),_regAddress(regAddress)
 {
     _reg = 0;
 }
-Register::Register(const char* name, const char* format)
-    :  _name(name),_format(format),_regAddress(0)
+Register::Register(const char* name, const char* __format)
+    :  _name(name),_format(__format),_regAddress(0)
 {
     _reg = 0;
 }
