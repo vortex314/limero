@@ -75,7 +75,7 @@ class Named {
 
  public:
   Named(){};
-  Named(const char *newName) { _name = newName == 0 ? "NULL" : name; }
+  Named(const char *newName) { _name = newName == 0 ? "NULL" : newName; }
   const char *name() { return _name.c_str(); }
   void name(const char *newName) { _name = newName; }
   void name(const std::string &newName) { _name = newName; }
