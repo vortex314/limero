@@ -1,9 +1,7 @@
 #include <Log.h>
 #include <Sys.h>
 #include <string.h>
-#include <unistd.h>
 #include <Arduino.h>
-//#include <ArduinoUnit.h>
 
 uint64_t Sys::_upTime;
 char Sys::_hostname[30] = "";

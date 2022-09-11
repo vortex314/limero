@@ -1,137 +1,61 @@
-/*
- * LOg.cpp
- *
- *  Created on: Jul 3, 2016
- *      Author: lieven
- */
-#include <Log.h>
-extern "C" {
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+
+#include "Log.h"
+
+#include <assert.h>
+#include <string.h>
+
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <printf.h>
+
+extern "C" void uartSendBytes(uint8_t* ,size_t,uint32_t);
+
+#define LOG_SIZE  256
+
+Log::Log(){
+	_logWriter=0;
+	_level=L_INFO;
+	_buffer=(char*)(new char[LOG_SIZE]);
+	_bufferSize=LOG_SIZE;
+	offset=0;
+	txBufferOverflow=0;
+	txBusy=false;
 }
 
-char Log::_logLevel[7] = {'T', 'D', 'I', 'W', 'E', 'F', 'N'};
 
-#include <Arduino.h>
-#include <WString.h>
-
-
-std::string& string_format(std::string& str, const char* fmt, ...) {
-    int size = strlen(fmt) * 2 + 50; // Use a rubric appropriate for your code
-    va_list ap;
-    while (1) { // Maximum two passes on a POSIX system...
-        ASSERT(size < 1024);
-        str.resize(size);
-        va_start(ap, fmt);
-        int n = vsprintf((char*)str.data(), fmt, ap);
-        va_end(ap);
-        if (n > -1 && n < size) { // Everything worked
-            str.resize(n);
-            return str;
-        }
-        if (n > -1)       // Needed size returned
-            size = n + 1; // For null char
-        else
-            size *= 2; // Guess at a larger size (OS specific)
-    }
-    return str;
-}
-
-void bytesToHex(std::string& ret, uint8_t* input, uint32_t length, char sep) {
-    static const char characters[] = "0123456789ABCDEF";
-    for (uint32_t i = 0; i < length; i++) {
-        ret += (characters[input[i] >> 4]);
-        ret += characters[input[i] & 0x0F];
-        if (sep != 0)
-            ret += sep;
-    }
-}
-
-void Log::serialLog(char* start, uint32_t length) {
-    Serial.write((const uint8_t*)start, length);
-    Serial.write("\r\n");
-}
-
-Log::Log(uint32_t size)
-    : _enabled(true), _logFunction(serialLog), _level(LOG_INFO),logging(true) {
-    if (_line == 0) {
-        _line = new std::string;
-        _line->reserve(size);
-    }
-    _application[0] = 0;
-    _hostname[0] = 0;
-}
-
-Log::~Log() {}
-
-void Log::setLogLevel(char c) {
-    for (uint32_t i = 0; i < sizeof(_logLevel); i++)
-        if (_logLevel[i] == c) {
-            _level = (Log::LogLevel)i;
-            break;
-        }
-}
-
-bool Log::enabled(LogLevel level) {
-    if (level >= _level) {
-        return true;
-    }
-    return false;
-}
-
-void Log::disable() { _enabled = false; }
-
-void Log::enable() { _enabled = true; }
-
-void Log::defaultOutput() { _logFunction = serialLog; }
-
-void Log::writer(LogFunction function) { _logFunction = function; }
-
-LogFunction Log::writer() { return _logFunction; }
-
-
-void Log::application(const char* app) {
-    strncpy(_application, app, sizeof(_application));
-}
-
-void Log::log(char level, const char* file, uint32_t lineNbr,
-              const char* function, const char* fmt, ...) {
-    if (_line == 0) {
-        ::printf("%s:%d %s:%u\n", __FILE__, __LINE__, file,
-                 (unsigned int)lineNbr);
-        //		_sema.release();
-        return;
-    }
-
-    va_list args;
-    va_start(args, fmt);
-    static char logLine[256];
-    vsnprintf(logLine, sizeof(logLine) - 1, fmt, args);
-    va_end(args);
-    string_format(*_line, "%+10.10s %c | %8s | %s | %15s:%4d | %s",
-                  _application, level, time(), Sys::hostname(), file, lineNbr,
-                  logLine);
-    logger.flush();
+Log& Log::logf(const char *format, ...) {
+	if ( txBusy ) return *this;
+	if (offset > _bufferSize) return *this;
+	va_list args;
+	va_start(args, format);
+	offset +=
+			vsnprintf(&Log::_buffer[offset], _bufferSize - offset, format, args);
+	va_end(args);
+	return *this;
 }
 
 void Log::flush() {
-    if (_logFunction)
-        _logFunction((char*)_line->c_str(), _line->size());
-    *_line = "";
+	if ( txBusy ) return;
+	if (offset >= (_bufferSize - 2)) return;
+	Log::_buffer[offset++] = '\r';
+	Log::_buffer[offset++] = '\n';
+	txBusy=true;
+	uartSendBytes((uint8_t*)Log::_buffer,offset,0);
+	offset = 0;
+	txBusy=false;
 }
 
-void Log::level(LogLevel l) { _level = l; }
+Log& Log::tfl(const char * lvl,const char *file, const uint32_t line) {
+	if ( txBusy ) return *this;
+	uint64_t t = Sys::millis();
+	uint32_t sec = t / 1000;
+	uint32_t msec = t % 1000;
+	uint32_t min = sec / 60  ;
+	uint32_t hour = min / 60;
 
-Log::LogLevel Log::level() { return _level; }
-//---------------------------------------------------------------------------------------------
-
-
-//_________________________________________ EMBEDDED
-
-const char* Log::time() {
-    static char szTime[20];
-    snprintf(szTime, sizeof(szTime), "%llu", Sys::millis());
-    return szTime;
+	offset = snprintf(_buffer, _bufferSize, 
+	"%s %3.3u:%2.2u:%2.2u.%3.3u | %s:%4lu | ",
+	lvl, hour ,min %60,sec % 60,msec, file, line);
+	return *this;
 }
-

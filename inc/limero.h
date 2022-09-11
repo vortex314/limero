@@ -75,10 +75,10 @@ class Named {
 
  public:
   Named(){};
-  Named(const char *name) { _name = name == 0 ? "NULL" : name; }
+  Named(const char *newName) { _name = newName == 0 ? "NULL" : name; }
   const char *name() { return _name.c_str(); }
-  void name(const char *name) { _name = name; }
-  void name(const std::string &name) { _name = name; }
+  void name(const char *newName) { _name = newName; }
+  void name(const std::string &newName) { _name = newName; }
 };
 //-------------------------- Stack of named objects to backtrace events
 class LogStack {
@@ -344,24 +344,24 @@ class ArrayQueue {
   AlignedAtomicU64 m_tail;
 
  public:
-  explicit ArrayQueue(size_t capacity)
-#if defined(STM32_OPENCM3) || defined(ESP8266_RTOS_SDK)
-      : m_items(static_cast<Item *>(malloc(sizeof(Item) * capacity))),
-        m_capacity(capacity),
+  explicit ArrayQueue(size_t reserve)
+#if defined(OPENCM3) || defined(ESP8266_RTOS_SDK) || PIOFRAMWORK == libopenCM3
+      : m_items(static_cast<Item *>(malloc(sizeof(Item) * reserve))),
+        m_capacity(reserve),
         m_head(0),
         m_tail(0)
 #else
       // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) *
       // capacity ))),
       //      m_capacity(capacity), m_head(0), m_tail(0)
-      : m_capacity(capacity),
+      : m_capacity(reserve),
         m_head(0),
         m_tail(0)
 
 #endif
   {
-    m_items = new Item[capacity];
-    for (size_t i = 0; i < capacity; ++i) {
+    m_items = new Item[reserve];
+    for (size_t i = 0; i < reserve; ++i) {
       m_items[i].version = i;
     }
   }
@@ -722,7 +722,7 @@ class LambdaFlow : public Flow<IN, OUT> {
 
  public:
   LambdaFlow() {
-    _func = [](OUT &out, const IN &in) {
+    _func = [](OUT &, const IN &) {
       WARN("no handler for this flow");
       return false;
     };
@@ -893,7 +893,7 @@ class Actor {
   Thread &_thread;
 
  public:
-  Actor(Thread &thread) : _thread(thread) {}
+  Actor(Thread &thr) : _thread(thr) {}
   Thread &thread() { return _thread; }
 };
 

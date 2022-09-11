@@ -1,17 +1,41 @@
-/*
- * sys.cpp
- *
- *  Created on: Nov 7, 2021
- *      Author: lieven
- */
-#ifdef __STM32__
-#include "stm32f1xx_hal.h"
-#endif
 #include "Sys.h"
 
 #include <string>
 
-std::string __hostname;
+
+
+#if PIOFRAMWORK == libopenCM3
+#include <libopencm3/lm4f/rcc.h>
+static volatile uint64_t system_millis;
+
+/* Called when systick fires */
+void sys_tick_handler(void)
+{
+	system_millis++;
+}
+
+/* simple sleep for delay milliseconds */
+uint64_t Sys::millis()
+{
+	return system_millis;
+}
+enum
+{
+	PLL_DIV_80MHZ = 5,
+	PLL_DIV_57MHZ = 7,
+	PLL_DIV_40MHZ = 10,
+	PLL_DIV_20MHZ = 20,
+	PLL_DIV_16MHZ = 25,
+};
+void Sys::init()
+{
+	rcc_sysclk_config(OSCSRC_MOSC, XTAL_16M, PLL_DIV_80MHZ);
+}
+#endif
+
+
+#ifdef __STM32__
+#include "stm32f1xx_hal.h"
 
 uint64_t __millis = 0;
 
@@ -31,7 +55,6 @@ uint64_t Sys::millis()
 	return __millis;
 }
 
-#ifdef CPU_STM32
 static inline uint32_t LL_SYSTICK_IsActiveCounterFlag(void)
 {
 	return ((SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) == (SysTick_CTRL_COUNTFLAG_Msk));
@@ -56,6 +79,8 @@ uint64_t Sys::micros()
 	return Sys::millis() * 1000;
 }
 #endif
+
+std::string __hostname;
 
 const char *Sys::hostname()
 {

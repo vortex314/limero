@@ -6,7 +6,7 @@
  */
 
 #include "Register.h"
-//#include "printf.h"
+#include "printf.h"
 
 Register::Register(const char* name, const char* format,uint32_t* regAddress)
     :  _name(name),_format(format),_regAddress(regAddress)
@@ -57,7 +57,7 @@ void Register::format(std::string& str)
             str.append("=");
             char numstr[21]; // enough to hold all numbers up to 64-bits
  //           tfp_sprintf(numstr, "%d", bitsValue);
-            snprintf(numstr,21,"%d",bitsValue);
+            snprintf_(numstr,21,"%d",bitsValue);
             str +=  numstr;
             bitsValue = 0;
             bitCount = 0;

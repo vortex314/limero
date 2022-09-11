@@ -16,7 +16,7 @@ class Fcs
 
 public:
     Fcs() { _fcs = 0xFFFF; }
-    bool hasSpace(int size = 1) { return true; };
+    bool hasSpace(int ) { return true; };
     bool write(uint8_t b);
     uint16_t intermediate() const { return _fcs; };
     uint16_t result() const { return ~_fcs; }

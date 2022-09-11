@@ -38,7 +38,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     }
   };
 
-  _loopbackTimer >> [&](const TimerMsg &tm)
+  _loopbackTimer >> [&](const TimerMsg &)
   {
     static int cnt = 0;
     cnt++;

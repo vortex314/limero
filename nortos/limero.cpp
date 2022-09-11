@@ -9,21 +9,14 @@
 #include <stdint.h>
 //#include <sys/ioctl.h>
 #include <string.h>
-#include <sys/select.h>
 #include <unistd.h>
 
 std::unordered_map<void *, std::forward_list<Subscription *> *>
     Subscription::_subscriptionsPerSource;
     LogStack logStack;
 
-/*
- _____ _                        _
-|_   _| |__  _ __ ___  __ _  __| |
-  | | | '_ \| '__/ _ \/ _` |/ _` |
-  | | | | | | | |  __/ (_| | (_| |
-  |_| |_| |_|_|  \___|\__,_|\__,_|
-*/
-int Thread::_id = 0;
+
+// int Thread::_id = 0;
 std::vector<Thread *> _threads;
 
 Thread::Thread(const char *name) : Named(name), _workQueue(10) {
