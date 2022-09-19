@@ -68,8 +68,8 @@ public:
 
     ProtocolEncoder &start();
     ProtocolEncoder &end();
-    ProtocolEncoder &write(int);
-    ProtocolEncoder &write(unsigned int);
+//    ProtocolEncoder &write(int);
+ //   ProtocolEncoder &write(unsigned int);
     ProtocolEncoder &write(int32_t);
     ProtocolEncoder &write(uint32_t);
     ProtocolEncoder &write(int64_t);
@@ -199,13 +199,15 @@ public:
     void reset();
     bool checkCrc();
     void addUnEscaped(uint8_t);
-    void addUnEscaped(const std::vector<uint8_t>);
+    void feed(const Bytes&);
+    void addUnEscaped(const Bytes& );
     uint8_t *buffer() { return data(); }
     //   uint32_t size() { return _writePtr; }
     ProtocolDecoder &rewind();
     uint8_t get_byte();
     void put_byte(uint8_t);
     void put_bytes(const uint8_t *, uint32_t);
+    void put_bytes(const Bytes &);
 
     ProtocolDecoder &readArrayStart();
     ProtocolDecoder &readArrayEnd();

@@ -3,20 +3,18 @@
 
 #include "limero.h"
 #include <Stringify.h>
-#include <Protocol.h>
-
-#define MAX_SIZE 1024 // > 384 hello 3 response
+#include <Cbor.h>
 
 class RedisSpineCbor : public Actor
 {
-  ProtocolEncoder _cborOut;
-  ProtocolDecoder _cborIn;
+  CborEncoder _cborOut;
+  CborDecoder _cborIn;
 
-  ZeroFlow<bool> messageArrived;
   ZeroFlow<bool> pubArrived;
 
   std::string _loopbackTopic;
   std::string _latencyTopic;
+  std::string _aliveTopic;
   std::string _subscribePattern;
   TimerSource _loopbackTimer;
   TimerSource _connectionWatchdog;
@@ -25,26 +23,27 @@ class RedisSpineCbor : public Actor
     CONNECTING,
     READY
   } _state;
+  void setNode(const char *);
 
 public:
-  QueueFlow<Bytes> rxdFrame;
-  QueueFlow<Bytes> txdFrame;
+  ZeroFlow<Bytes> rxdBytes;
+  QueueFlow<Bytes> rxdCbor;
+  QueueFlow<Bytes> txdCbor;
   ValueFlow<bool> connected;
   std::string dstPrefix;
   std::string srcPrefix;
   std::string node;
 
-  RedisSpineCbor(Thread &thread);
+  RedisSpineCbor(Thread &thread, const char *node);
   void init();
-  void setNode(const char *);
 
-  void sendCbor(ProtocolEncoder &);
+  void sendCbor(CborEncoder &);
   void subscribe(const char *pattern);
 
   template <typename T>
   void publish(const char *topic, T t)
   {
-    _cborOut.start().write('[').write("pub").write(srcPrefix).write('{').write(topic).write(t).write('}').write(']').end();
+    _cborOut.start().write('[').write("pub").write(topic).write(t).write(']').end();
     sendCbor(_cborOut);
   }
 

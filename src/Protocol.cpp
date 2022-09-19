@@ -103,11 +103,11 @@ ProtocolEncoder &ProtocolEncoder::write(uint32_t value)
 {
     return write((uint64_t)value);
 }
-
+/*
 ProtocolEncoder &ProtocolEncoder::write(int value)
 {
     return write((int64_t)value);
-}
+}*/
 
 ProtocolEncoder &ProtocolEncoder::write(int32_t value)
 {
@@ -318,6 +318,7 @@ ProtocolDecoder &ProtocolDecoder::rewind()
     _readPtr = 0;
     return *this;
 }
+
 
 void ProtocolDecoder::addUnEscaped(uint8_t c)
 {
@@ -597,11 +598,12 @@ void ProtocolDecoder::put_byte(uint8_t b)
         error(ENOMEM);
 }
 
-void ProtocolDecoder::put_bytes(const uint8_t *b, uint32_t __size)
+void ProtocolDecoder::put_bytes(const Bytes& bs)
 {
-    for (uint32_t i = 0; i < __size; i++)
-        put_byte(b[i]);
+    for (auto b:bs)
+        put_byte(b);
 }
+
 
 CborHeader ProtocolDecoder::peek()
 {

@@ -31,7 +31,7 @@ class Wifi : public Actor  {
 		uint8_t _mac[6];
 		wifi_init_config_t _wifiConfig;
 	public:
-		ValueFlow<bool> connected=false;
+		ValueFlow<bool> connected;
 		ValueFlow<int> rssi;
 		ValueFlow<std::string> ipAddress;
 		ValueFlow<std::string> ssid;

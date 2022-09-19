@@ -2,12 +2,9 @@
 
 #include "Log.h"
 
-// #include <asm-generic/ioctls.h>
 #include <errno.h>
 #include <fcntl.h>
-// #include <poll.h>
 #include <stdint.h>
-//#include <sys/ioctl.h>
 #include <string.h>
 #include <unistd.h>
 

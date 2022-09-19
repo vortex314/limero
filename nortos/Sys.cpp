@@ -4,9 +4,10 @@
 
 
 
-#if PIOFRAMWORK == libopenCM3
-#include <libopencm3/lm4f/rcc.h>
-static volatile uint64_t system_millis;
+#if defined(FRAMEWORK_libopencm3) && defined(STM32F1)
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/cm3/nvic.h>
+static volatile uint64_t system_millis=0;
 
 /* Called when systick fires */
 void sys_tick_handler(void)
@@ -29,7 +30,7 @@ enum
 };
 void Sys::init()
 {
-	rcc_sysclk_config(OSCSRC_MOSC, XTAL_16M, PLL_DIV_80MHZ);
+
 }
 #endif
 

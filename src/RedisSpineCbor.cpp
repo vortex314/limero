@@ -8,29 +8,24 @@
 #include "RedisSpineCbor.h"
 #include "StringUtility.h"
 
-RedisSpineCbor::RedisSpineCbor(Thread &thr)
+RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
     : Actor(thr),
-      _cborOut(MAX_SIZE),
-      _cborIn(MAX_SIZE),
+      _cborOut(256), // initial size of the buffer
+      _cborIn(256),
       _loopbackTimer(thr, 950, true, "loopbackTimer"),
       _connectionWatchdog(thr, 6000, true, "connectTimer"),
-      rxdFrame(5, "Redis:rxdFrame"),
-      txdFrame(5, "Redis:txdFrame")
+      rxdCbor(5, "Redis:rxdCbor"),
+      txdCbor(5, "Redis:txdCbor")
 {
-  setNode(Sys::hostname());
+  setNode(nodeName);
   _state = CONNECTING;
   connected = false;
-  rxdFrame.async(thread());
-  txdFrame.async(thread());
-  rxdFrame >> [&](const Bytes &bs)
+  rxdCbor.async(thread());
+  txdCbor.async(thread());
+  
+  rxdCbor >> [&](const Bytes &bs)
   {
-    _cborIn.clear();
-    _cborIn.put_bytes(bs.data(), bs.size());
-    messageArrived.on(true);
-  };
-
-  messageArrived >> [&](bool)
-  {
+    _cborIn.put_bytes(bs);
     std::string cmd;
     if (_cborIn.rewind().read('[').read("pub").ok())
     {
@@ -46,7 +41,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     {
       if (cnt & 1)
       {
-        ProtocolEncoder cborOut(128);
+        CborEncoder cborOut(128);
         cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
         sendCbor(cborOut);
       }
@@ -58,7 +53,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr)
     }
     else
     {
-      ProtocolEncoder cborOut(128);
+      CborEncoder cborOut(128);
       cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
       sendCbor(cborOut);
     }
@@ -92,13 +87,14 @@ void RedisSpineCbor::setNode(const char *n)
   dstPrefix = "dst/" + node + "/";
   _loopbackTopic = dstPrefix + "system/loopback";
   _latencyTopic = srcPrefix + "system/latency";
+  _aliveTopic = srcPrefix + "system/alive";
   _subscribePattern = dstPrefix + "*";
   connected = false;
 }
 
-void RedisSpineCbor::sendCbor(ProtocolEncoder &out)
+void RedisSpineCbor::sendCbor(CborEncoder &out)
 {
-  txdFrame.on(out);
+  txdCbor.on(out);
 }
 
 void RedisSpineCbor::subscribe(const char *pattern)

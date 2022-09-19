@@ -2,6 +2,7 @@
 #define LIMERO_H
 #include <Log.h>
 #include <StringUtility.h>
+#include <Stringify.h>
 #include <Sys.h>
 #include <errno.h>
 #include <stdint.h>
@@ -24,7 +25,7 @@ class TimerSource;
 #endif
 //--------------------------------------------------  ESP8266
 #if defined(ESP_OPEN_RTOS) || \
-    defined(ESP8266_RTOS_SDK)  // ESP_PLATFORM for ESP8266_RTOS_SDK
+    defined(ESP8266_RTOS_SDK) // ESP_PLATFORM for ESP8266_RTOS_SDK
 #define FREERTOS
 #define NO_ATOMIC
 #include <FreeRTOS.h>
@@ -34,9 +35,13 @@ class TimerSource;
 //-------------------------------------------------- STM32
 #ifdef CPU_STM32
 #define interrupts() \
-  { asm("cpsie i"); }
+  {                  \
+    asm("cpsie i");  \
+  }
 #define noInterrupts() \
-  { asm("cpsid i"); }
+  {                    \
+    asm("cpsid i");    \
+  }
 #endif
 #ifdef STM32_OPENCM3
 #define FREERTOS
@@ -70,10 +75,11 @@ class TimerSource;
 #undef max
 
 //--------------- give an object a name, useful for debugging
-class Named {
+class Named
+{
   std::string _name = "no-name";
 
- public:
+public:
   Named(){};
   Named(const char *newName) { _name = newName == 0 ? "NULL" : newName; }
   const char *name() { return _name.c_str(); }
@@ -81,25 +87,33 @@ class Named {
   void name(const std::string &newName) { _name = newName; }
 };
 //-------------------------- Stack of named objects to backtrace events
-class LogStack {
+class LogStack
+{
   std::vector<Named *> _stack;
 
- public:
+public:
 #ifdef LINUX
-  void clear() { _stack.clear(); }
+  void clear()
+  {
+    _stack.clear();
+  }
   inline void push(Named *n) { _stack.push_back(n); }
   void pop() { _stack.pop_back(); }
-  std::string toString() {
+  std::string toString()
+  {
     std::string s;
-    for (auto i : _stack) {
+    for (auto i : _stack)
+    {
       s += i->name();
       s += "' -> '";
     }
     return s;
   }
 #else
-  inline void clear() {}
-  inline void push(Named *) {}  // avoid code overhead
+  inline void clear()
+  {
+  }
+  inline void push(Named *) {} // avoid code overhead
   inline void pop() {}
 #endif
 };
@@ -107,7 +121,8 @@ extern LogStack logStack;
 
 class Thread;
 //====================================================================================
-struct Subscription {
+struct Subscription
+{
   void *source;
   void *sink;
 
@@ -118,21 +133,28 @@ struct Subscription {
 
   ~Subscription() { INFO("dtor Subscription"); }
 
-  static void addSource(void *source, std::forward_list<Subscription *> *list) {
+  static void addSource(void *source, std::forward_list<Subscription *> *list)
+  {
     _subscriptionsPerSource.emplace(source, list);
   }
 
-  static void eraseSink(void *sink) {
+  static void eraseSink(void *sink)
+  {
     INFO(" erase Sink from subscriptions : %X ", sink);
     auto it = _subscriptionsPerSource.begin();
-    while (it != _subscriptionsPerSource.end()) {
+    while (it != _subscriptionsPerSource.end())
+    {
       auto sub_list = it->second;
       auto prev = sub_list->before_begin();
-      for (auto sl_it = sub_list->begin(); sl_it != sub_list->end();) {
-        if ((*sl_it)->sink == sink) {
+      for (auto sl_it = sub_list->begin(); sl_it != sub_list->end();)
+      {
+        if ((*sl_it)->sink == sink)
+        {
           delete (*sl_it);
           sl_it = sub_list->erase_after(prev);
-        } else {
+        }
+        else
+        {
           prev = sl_it;
           sl_it++;
         }
@@ -141,7 +163,8 @@ struct Subscription {
     }
   }
 
-  static void eraseSource(void *source) {
+  static void eraseSource(void *source)
+  {
     INFO("erase source from _subscriptionsPerSource");
     _subscriptionsPerSource.erase(source);
   }
@@ -150,22 +173,25 @@ struct Subscription {
 //
 
 template <class T>
-class AbstractQueue {
- public:
+class AbstractQueue
+{
+public:
   virtual bool pop(T &t) = 0;
-  virtual bool push(const T &t) = 0;  // const to be able to do something like
-                                      // push({"topic","message"});
+  virtual bool push(const T &t) = 0; // const to be able to do something like
+                                     // push({"topic","message"});
 };
 
 //--------------- something that can be invoked or execute something
-class Invoker {
- public:
+class Invoker
+{
+public:
   virtual void invoke() = 0;
 };
 //-------------- handler class for certain messages or events
 template <class T>
-class Sink : public Named {
- public:
+class Sink : public Named
+{
+public:
   virtual void on(const T &t) = 0;
   virtual ~Sink() { Subscription::eraseSink(this); }
   Sink(const Sink &) = delete;
@@ -174,23 +200,26 @@ class Sink : public Named {
 #include <bits/atomic_word.h>
 //------------- handler function for certain messages or events
 template <class T>
-class SinkFunction : public Sink<T> {
+class SinkFunction : public Sink<T>
+{
   std::function<void(const T &t)> _func;
 
- public:
+public:
   SinkFunction(std::function<void(const T &t)> func) { _func = func; }
-  void on(const T &t) { _func(t); }
+  inline void on(const T &t) { _func(t); }
 };
 //------------ generator of messages
 template <class IN, class OUT>
 class LambdaFlow;
 
 template <class T>
-class Source : public Named {
+class Source : public Named
+{
   std::forward_list<Subscription *> _subscriptions;
 
- public:
-  void subscribe(Sink<T> *listener) {
+public:
+  void subscribe(Sink<T> *listener)
+  {
     _subscriptions.push_front(new Subscription(this, listener));
   }
 
@@ -201,12 +230,15 @@ class Source : public Named {
   ~Source() { Subscription::eraseSource(this); }
   Source(const Source &) = delete;
 
-  void emit(const T &t) {
-    if (_subscriptions.empty()) {
-      WARN("no subscribers ");
+  void emit(const T &t)
+  {
+    if (_subscriptions.empty())
+    {
+      WARN("no subscribers in %s for %s", this->name(),typeToString(&t));
       return;
     }
-    for (auto sub : _subscriptions) {
+    for (auto sub : _subscriptions)
+    {
       logStack.push(this);
       ((Sink<T> *)sub->sink)->on(t);
       logStack.pop();
@@ -215,17 +247,20 @@ class Source : public Named {
   //  void operator>>(Sink<T> listener) { subscribe(&listener); }
   void operator>>(Sink<T> &listener) { subscribe(&listener); }
   void operator>>(Sink<T> *listener) { subscribe(listener); }
-  void operator>>(std::function<void(const T &t)> func) {
+  void operator>>(std::function<void(const T &t)> func)
+  {
     subscribe(new SinkFunction<T>(func));
   }
-  template <class OUT>  // OUT is the type of the output
-  void operator>>(std::function<bool(OUT &out, const T &t)> func) {
+  template <class OUT> // OUT is the type of the output
+  void operator>>(std::function<bool(OUT &out, const T &t)> func)
+  {
     subscribe(new LambdaFlow<T, OUT>(func));
   }
 };
 //-----------------  can be pooked to publish something
-class Requestable {
- public:
+class Requestable
+{
+public:
   virtual void request() = 0;
 };
 //___________________________________________________________________________
@@ -239,39 +274,47 @@ class Requestable {
 // level 15 will disable ALL interrupts,
 // level 0 will enable ALL interrupts
 //
-#define xt_rsil(level)                                               \
-  (__extension__({                                                   \
-    uint32_t state;                                                  \
-    __asm__ __volatile__("rsil %0," STRINGIFY(level) : "=a"(state)); \
-    state;                                                           \
+#define xt_rsil(level)                               \
+  (__extension__({                                   \
+    uint32_t state;                                  \
+    __asm__ __volatile__("rsil %0," STRINGIFY(level) \
+                         : "=a"(state));             \
+    state;                                           \
   }))
-#define xt_wsr_ps(state) \
-  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) : "memory")
+#define xt_wsr_ps(state)                               \
+  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) \
+                       : "memory")
 #define interrupts() xt_rsil(0)
 #define noInterrupts() xt_rsil(15)
+#else
+
 #endif
 //#pragma GCC diagnostic ignored "-Warray-bounds"
 
 #ifdef NO_ATOMIC
 template <class T>
-class ArrayQueue : public AbstractQueue<T> {
+class ArrayQueue : public AbstractQueue<T>
+{
   T *_array;
   int _size;
   int _readPtr;
   int _writePtr;
   inline int next(int idx) { return (idx + 1) % _size; }
 
- public:
-  ArrayQueue(int size) : _size(size) {
+public:
+  ArrayQueue(int size) : _size(size)
+  {
     _readPtr = _writePtr = 0;
     _array = (T *)new T[size];
   }
-  bool push(const T &t) {
+  bool push(const T &t)
+  {
     //   INFO("push %X", (unsigned int)this);
     noInterrupts();
     int expected = _writePtr;
     int desired = next(expected);
-    if (desired == _readPtr) {
+    if (desired == _readPtr)
+    {
       interrupts();
       //      WARN("ArrayQueue sz %d rd %d wr %d ", size(), _readPtr,
       //      _writePtr);
@@ -283,11 +326,13 @@ class ArrayQueue : public AbstractQueue<T> {
     return true;
   }
 
-  bool pop(T &t) {
+  bool pop(T &t)
+  {
     noInterrupts();
     int expected = _readPtr;
     int desired = next(expected);
-    if (expected == _writePtr) {
+    if (expected == _writePtr)
+    {
       interrupts();
       return false;
     }
@@ -297,7 +342,8 @@ class ArrayQueue : public AbstractQueue<T> {
     return true;
   }
   size_t capacity() const { return _size; }
-  size_t size() const {
+  size_t size() const
+  {
     if (_writePtr >= _readPtr)
       return _writePtr - _readPtr;
     else
@@ -324,15 +370,18 @@ template <typename T, size_t cache_line_size = 64>
 #define INDEX_TYPE uint64_t
 #endif
 
-class ArrayQueue {
- private:
-  struct alignas(cache_line_size) Item {
+class ArrayQueue
+{
+private:
+  struct alignas(cache_line_size) Item
+  {
     T value;
     std::atomic<INDEX_TYPE> version;
   };
 
   struct alignas(cache_line_size) AlignedAtomicU64
-      : public std::atomic<INDEX_TYPE> {
+      : public std::atomic<INDEX_TYPE>
+  {
     using std::atomic<INDEX_TYPE>::atomic;
   };
 
@@ -343,7 +392,7 @@ class ArrayQueue {
   AlignedAtomicU64 m_head;
   AlignedAtomicU64 m_tail;
 
- public:
+public:
   explicit ArrayQueue(size_t reserve)
 #if defined(OPENCM3) || defined(ESP8266_RTOS_SDK) || PIOFRAMWORK == libopenCM3
       : m_items(static_cast<Item *>(malloc(sizeof(Item) * reserve))),
@@ -361,7 +410,8 @@ class ArrayQueue {
 #endif
   {
     m_items = new Item[reserve];
-    for (size_t i = 0; i < reserve; ++i) {
+    for (size_t i = 0; i < reserve; ++i)
+    {
       m_items[i].version = i;
     }
   }
@@ -374,16 +424,19 @@ class ArrayQueue {
   ArrayQueue<T> &operator=(const ArrayQueue<T> &) = delete;
   ArrayQueue<T> &operator=(const ArrayQueue<T> &&) = delete;
 
-  bool push(const T &value) {
+  bool push(const T &value)
+  {
     INDEX_TYPE tail = m_tail.load(std::memory_order_relaxed);
 
     if (m_items[tail % m_capacity].version.load(std::memory_order_acquire) !=
-        tail) {
+        tail)
+    {
       return false;
     }
 
     if (!m_tail.compare_exchange_strong(tail, tail + 1,
-                                        std::memory_order_relaxed)) {
+                                        std::memory_order_relaxed))
+    {
       return false;
     }
 
@@ -397,18 +450,21 @@ class ArrayQueue {
     return true;
   }
 
-  bool pop(T &out) {
+  bool pop(T &out)
+  {
     INDEX_TYPE head = m_head.load(std::memory_order_relaxed);
 
     // Acquire here makes sure read of m_data[head].value is not reordered
     // before this Also makes sure side effects in try_enqueue are visible here
     if (m_items[head % m_capacity].version.load(std::memory_order_acquire) !=
-        (head + 1)) {
+        (head + 1))
+    {
       return false;
     }
 
     if (!m_head.compare_exchange_strong(head, head + 1,
-                                        std::memory_order_relaxed)) {
+                                        std::memory_order_relaxed))
+    {
       return false;
     }
     out = m_items[head % m_capacity].value;
@@ -427,7 +483,8 @@ class ArrayQueue {
 #endif
 
 //____________________________________________________________________ THREAD __
-struct ThreadProperties {
+struct ThreadProperties
+{
   const char *name;
   int stackSize;
   int queueSize;
@@ -435,12 +492,14 @@ struct ThreadProperties {
 };
 
 typedef void (*CallbackFunction)(void *);
-typedef struct {
+typedef struct
+{
   CallbackFunction fn;
   void *arg;
 } Callback;
 
-class Thread : public Named {
+class Thread : public Named
+{
 #ifdef LINUX
   int _pipeFd[2];
   int _writePipe = 0;
@@ -454,7 +513,7 @@ class Thread : public Named {
   std::unordered_map<int, Callback> _errorInvokers;
   void buildFdSet();
 
- public:
+public:
   void addReadInvoker(int, void *, CallbackFunction);
   void addWriteInvoker(int, void *, CallbackFunction);
   void addErrorInvoker(int, void *, CallbackFunction);
@@ -465,7 +524,7 @@ class Thread : public Named {
   int waitInvoker(uint32_t timeout);
 #endif
 
- private:
+private:
 #if defined(FREERTOS)
   QueueHandle_t _workQueue = 0;
 #elif defined(NO_RTOS)
@@ -480,7 +539,7 @@ class Thread : public Named {
   int _stackSize;
   int _priority;
 
- public:
+public:
   Thread(const char *name = "noname");
   Thread(ThreadProperties props);
   void start();
@@ -496,10 +555,11 @@ class Thread : public Named {
 //____________________________________________________________ LAMBDASOURCE
 //
 template <class T>
-class LambdaSource : public Source<T>, public Requestable {
+class LambdaSource : public Source<T>, public Requestable
+{
   std::function<T()> _handler;
 
- public:
+public:
   LambdaSource(std::function<T()> handler) : _handler(handler){};
   T operator()() { return _handler(); }
   void request() { this->emit(_handler()); }
@@ -507,14 +567,16 @@ class LambdaSource : public Source<T>, public Requestable {
 //_____________________________________________________________ RefSource
 //
 template <class T>
-class RefSource : public Source<T> {
+class RefSource : public Source<T>
+{
   T &_t;
   //  bool _pass = true;
 
- public:
+public:
   RefSource(T &t) : _t(t){};
   void request() { this->emit(_t); }
-  void operator=(T t) {
+  void operator=(T t)
+  {
     _t = t;
     //   if (_pass)
     this->emit(_t);
@@ -534,21 +596,25 @@ class RefSource : public Source<T> {
 //	start : restart timer from now+interval
 //_______________________________________________________________ TimerSource
 //
-class TimerMsg {
- public:
+class TimerMsg
+{
+public:
   TimerSource *source;
 };
 
-class TimerSource : public Source<TimerMsg>, public Requestable {
-  uint32_t _interval = UINT32_MAX;
+class TimerSource : public Source<TimerMsg>, public Requestable
+{
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
   Thread& _thr;
+  uint32_t _interval;
 
-  void setNewExpireTime() {
+  void setNewExpireTime()
+  {
     uint64_t now = Sys::millis();
     _expireTime += _interval;
-    if (_expireTime < now && _repeat) _expireTime = now + _interval;
+    if (_expireTime < now && _repeat)
+      _expireTime = now + _interval;
   }
 
  public:
@@ -569,14 +635,16 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
   // void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
   void start() { _expireTime = Sys::millis() + _interval; }
-  void start(uint32_t __interval) {
+  void start(uint32_t __interval)
+  {
     _interval = __interval;
     start();
   }
   void stop() { _expireTime = UINT64_MAX; }
-  void interval(uint32_t i) { _interval = i; }
-  void request() {
-    if (Sys::millis() >= _expireTime) {
+  void request()
+  {
+    if (Sys::millis() >= _expireTime)
+    {
       if (_repeat)
         setNewExpireTime();
       else
@@ -587,29 +655,34 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
       logStack.push(this);
       this->emit(tm);
       uint32_t diff = Sys::millis() - now;
-      if (diff > 10) WARN(" timer %s took %d ms to emit ", this->name(), diff);
+      if (diff > 10)
+        WARN(" timer %s took %d ms to emit ", this->name(), diff);
     }
   }
   void repeat(bool r) { _repeat = r; };
   uint64_t expireTime() { return _expireTime; }
-  inline uint32_t interval() { return _interval; }
+  uint32_t interval() { return _interval; }
+  void interval(uint32_t i) { _interval = i; }
 };
 //____________________________________  SINK ______________________
 
 //_________________________________________________ Flow ________________
 //
 template <class IN, class OUT>
-class Flow : public Sink<IN>, public Source<OUT> {
- public:
+class Flow : public Sink<IN>, public Source<OUT>
+{
+public:
   ~Flow() { WARN(" Flow destructor. Really ? "); };
-  void operator==(Flow<OUT, IN> &flow) {
+  void operator==(Flow<OUT, IN> &flow)
+  {
     this->subscribe(&flow);
     flow.subscribe(this);
   };
 };
 // -------------------------------------------------------- Cache
 template <class T>
-class Cache : public Flow<T, T>, public Sink<TimerMsg> {
+class Cache : public Flow<T, T>, public Sink<TimerMsg>
+{
   Thread &_thread;
   uint32_t _minimum, _maximum;
   bool _unsendValue = false;
@@ -617,31 +690,36 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg> {
   T _t;
   TimerSource _timerSource;
 
- public:
+public:
   Cache(Thread &thr, uint32_t minimum, uint32_t maximum)
       : _thread(thr), _minimum(minimum), _maximum(maximum), _timerSource(thr) {
     _timerSource.interval(minimum);
     _timerSource.start();
     _timerSource.subscribe(this);
   }
-  void on(const T &t) {
+  void on(const T &t)
+  {
     _t = t;
     uint64_t now = Sys::millis();
     _unsendValue = true;
-    if (_lastSend + _minimum < now) {
+    if (_lastSend + _minimum < now)
+    {
       this->emit(t);
       _unsendValue = false;
       _lastSend = now;
     }
   }
-  void on(const TimerMsg &tm) {
+  void on(const TimerMsg &tm)
+  {
     uint64_t now = Sys::millis();
-    if (_unsendValue) {
+    if (_unsendValue)
+    {
       this->emit(_t);
       _unsendValue = false;
       _lastSend = now;
     }
-    if (now > _lastSend + _maximum) {
+    if (now > _lastSend + _maximum)
+    {
       this->emit(_t);
       _unsendValue = false;
       _lastSend = now;
@@ -650,7 +728,8 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg> {
   }
   void request() { this->emit(_t); }
 
-  static Cache<T> &nw(Thread &t, uint32_t min, uint32_t max) {
+  static Cache<T> &nw(Thread &t, uint32_t min, uint32_t max)
+  {
     auto cache = new Cache<T>(t, min, max);
     return *cache;
   }
@@ -658,50 +737,68 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg> {
 //_____________________________________________________________________________
 //
 template <class T>
-class QueueFlow : public Flow<T, T>, public Invoker {
+class QueueFlow : public Flow<T, T>, public Invoker
+{
   ArrayQueue<T> _queue;
   Thread *_thread = 0;
 
- public:
+public:
   QueueFlow(size_t capacity, const char *label = "QueueFlow")
-      : _queue(capacity) {
+      : _queue(capacity)
+  {
     Source<T>::name(label);
     Sink<T>::name(label);
   };
-  void on(const T &t) {
-    if (_thread) {
-      if (_queue.push(t)) {
-        if (_thread->enqueue(this)) WARN("enqueue failed");
-      } else
+  void on(const T &t)
+  {
+    if (_thread)
+    {
+      if (_queue.push(t))
+      {
+        if (_thread->enqueue(this))
+          WARN("enqueue failed");
+      }
+      else
         WARN("QueueFlow '%s' push failed", name());
-    } else {
+    }
+    else
+    {
       WARN("QueueFlow '%s' no thread found", name());
       // this->emit(t);
     }
   }
   const char *name() { return Source<T>::name(); }
-  void onIsr(const T &t) {
-    if (_thread) {
-      if (_queue.push(t)) {
-        if (_thread->enqueueFromIsr(this)) {
+  void onIsr(const T &t)
+  {
+    if (_thread)
+    {
+      if (_queue.push(t))
+      {
+        if (_thread->enqueueFromIsr(this))
+        {
           //          WARN("enqueueFromIsr failed");
         }
       }
       //      else
       //        WARN("QueueFlow '%s' push failed", name());
-    } else {
+    }
+    else
+    {
       WARN("QueueFlow '%s' no thread found", name());
       // this->emit(t);
     }
   }
   void request() { invoke(); }
-  void invoke() {
+  void invoke()
+  {
     T value;
-    while (_queue.pop(value)) {
+    while (_queue.pop(value))
+    {
       uint64_t now = Sys::millis();
       this->emit(value);
       uint32_t delta = Sys::millis() - now;
-      if (delta > 10) WARN("QueueFlow '%s' invoke too slow %d", name(), delta);
+      if (delta > 10)
+        WARN("QueueFlow '%s' invoke too slow %d", name(), delta);
     }
     /* else
        WARN(" no data in queue ");*/
@@ -715,12 +812,15 @@ class QueueFlow : public Flow<T, T>, public Invoker {
 //
 
 template <class IN, class OUT>
-class LambdaFlow : public Flow<IN, OUT> {
+class LambdaFlow : public Flow<IN, OUT>
+{
   std::function<bool(OUT &, const IN &)> _func;
 
- public:
-  LambdaFlow() {
-    _func = [](OUT &, const IN &) {
+public:
+  LambdaFlow()
+  {
+    _func = [](OUT &, const IN &)
+    {
       WARN("no handler for this flow");
       return false;
     };
@@ -728,18 +828,22 @@ class LambdaFlow : public Flow<IN, OUT> {
   LambdaFlow(std::function<bool(OUT &, const IN &)> func) : _func(func){};
   ~LambdaFlow() { WARN(" LambdaFlow destructor. Really ? "); };
   void lambda(std::function<bool(OUT &, const IN &)> func) { _func = func; }
-  virtual void on(const IN &in) {
+  virtual void on(const IN &in)
+  {
     OUT out;
-    if (_func(out, in)) {
+    if (_func(out, in))
+    {
       this->emit(out);
     }
   }
   const char *name() { return Source<OUT>::name(); }
-  void name(std::string &nme) {
+  void name(std::string &nme)
+  {
     Source<OUT>::name(nme);
     Sink<IN>::name(nme);
   }
-  void name(const char *_name) {
+  void name(const char *_name)
+  {
     Source<OUT>::name(_name);
     Sink<IN>::name(_name);
   }
@@ -747,56 +851,67 @@ class LambdaFlow : public Flow<IN, OUT> {
 };
 
 template <class T>
-class Filter : public Flow<T, T> {
+class Filter : public Flow<T, T>
+{
   std::function<bool(const T &t)> _func;
 
- public:
-  Filter() {
-    _func = [](const T &t) {
+public:
+  Filter()
+  {
+    _func = [](const T &t)
+    {
       WARN("no handler for this filter");
       return false;
     };
   };
   Filter(std::function<bool(const T &)> func) : _func(func){};
-  virtual void on(const T &in) {
-    if (_func(in)) this->emit(in);
+  virtual void on(const T &in)
+  {
+    if (_func(in))
+      this->emit(in);
   }
   void request(){};
 };
 
 template <typename T>
-Flow<T, T> &filter(std::function<bool(const T &t)> f) {
+Flow<T, T> &filter(std::function<bool(const T &t)> f)
+{
   return *new Filter<T>(f);
 }
 
 //________________________________________________________________
 //
 template <class IN, class OUT>
-Source<OUT> &operator>>(Source<IN> &publisher, Flow<IN, OUT> &flow) {
+Source<OUT> &operator>>(Source<IN> &publisher, Flow<IN, OUT> &flow)
+{
   publisher.subscribe(&flow);
   return flow;
 }
 
 template <class IN, class OUT>
-Source<OUT> &operator>>(Source<IN> &publisher, Flow<IN, OUT> *flow) {
+Source<OUT> &operator>>(Source<IN> &publisher, Flow<IN, OUT> *flow)
+{
   publisher.subscribe(flow);
   return *flow;
 }
 
 template <class IN, class OUT>
-Sink<IN> &operator>>(Flow<IN, OUT> &flow, Sink<OUT> &sink) {
+Sink<IN> &operator>>(Flow<IN, OUT> &flow, Sink<OUT> &sink)
+{
   flow.subscribe(&sink);
   return flow;
 }
 
 template <class IN, class OUT1, class OUT2>
-Source<OUT2> &operator>>(Flow<IN, OUT1> &flow1, Flow<OUT1, OUT2> &flow2) {
+Source<OUT2> &operator>>(Flow<IN, OUT1> &flow1, Flow<OUT1, OUT2> &flow2)
+{
   flow1.subscribe(&flow2);
   return flow2;
 }
 template <class IN, class OUT>
 Source<OUT> operator>>(Source<IN> &publisher,
-                       std::function<bool(OUT &, const IN &)> func) {
+                       std::function<bool(OUT &, const IN &)> func)
+{
   auto flow = new LambdaFlow<IN, OUT>(func);
   publisher.subscribe(flow);
   return flow;
@@ -806,19 +921,22 @@ Source<OUT> operator>>(Source<IN> &publisher,
 //
 
 template <class IN, class OUT>
-Source<OUT> *operator>>(Source<IN> *publisher, Flow<IN, OUT> &flow) {
+Source<OUT> *operator>>(Source<IN> *publisher, Flow<IN, OUT> &flow)
+{
   publisher.subscribe(flow);
   return &flow;
 }
 
 template <class IN, class OUT>
-Sink<IN> *operator>>(Flow<IN, OUT> *flow, Sink<OUT> &sink) {
+Sink<IN> *operator>>(Flow<IN, OUT> *flow, Sink<OUT> &sink)
+{
   flow->subscribe(&sink);
   return flow;
 }
 
 template <class IN, class OUT1, class OUT2>
-Source<OUT2> *operator>>(Flow<IN, OUT1> *flow1, Flow<OUT1, OUT2> &flow2) {
+Source<OUT2> *operator>>(Flow<IN, OUT1> *flow1, Flow<OUT1, OUT2> &flow2)
+{
   flow1->subscribe(&flow2);
   return flow2;
 }
@@ -848,25 +966,28 @@ Sink<IN>& operator>>(Flow<IN,OUT>* flow,std::function<void(const OUT &t)> func){
 }
 */
 template <class T>
-class ZeroFlow : public Flow<T, T> {
- public:
+class ZeroFlow : public Flow<T, T>
+{
+public:
   ZeroFlow(){};
-  void operator=(T t) { this->emit(t); }
-  void on(const T &t) { this->emit(t); }
+  inline void operator=(T t) { this->emit(t); }
+  inline void on(const T &t) { this->emit(t); }
 };
 //________________________________________________________________
 //
 template <class T>
-class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
+class ValueFlow : public Flow<T, T>, public Invoker, public Requestable
+{
   T _t;
   Thread *_thread = 0;
 
- public:
+public:
   ValueFlow(){};
   ValueFlow(T t) { _t = t; }
   ValueFlow(const ValueFlow &other) = delete;
   const char *name() { return Source<T>::name(); }
-  void name(const char *_name) {
+  void name(const char *_name)
+  {
     Source<T>::name(_name);
     Sink<T>::name(_name);
   }
@@ -874,7 +995,8 @@ class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
   void request() { this->emit(_t); }
   void operator=(T t) { on(t); }
   T &operator()() { return _t; }
-  void on(const T &t) {
+  void on(const T &t)
+  {
     _t = t;
     if (_thread)
       _thread->enqueue(this);
@@ -887,32 +1009,37 @@ class ValueFlow : public Flow<T, T>, public Invoker, public Requestable {
 };
 //______________________________________ Actor __________________________
 //
-class Actor {
+class Actor
+{
   Thread &_thread;
 
- public:
+public:
   Actor(Thread &thr) : _thread(thr) {}
   Thread &thread() { return _thread; }
 };
 
 //____________________________________________________________________________________
 //
-class Poller : public Actor {
+class Poller : public Actor
+{
   TimerSource _pollInterval;
   std::vector<Requestable *> _requestables;
   uint32_t _idx = 0;
 
- public:
+public:
   ValueFlow<bool> connected;
   ValueFlow<uint32_t> interval;
-  Poller(Thread &t) : Actor(t), _pollInterval(t, 500, true) {
+  Poller(Thread &t) : Actor(t), _pollInterval(t, 500, true)
+  {
     connected.on(false);
     interval.on(500);
-    _pollInterval >> [&](const TimerMsg) {
+    _pollInterval >> [&](const TimerMsg)
+    {
       if (_requestables.size() && connected())
         _requestables[_idx++ % _requestables.size()]->request();
     };
-    interval >> [&](const uint32_t iv) { _pollInterval.interval(iv); };
+    interval >> [&](const uint32_t iv)
+    { _pollInterval.interval(iv); };
   };
 
   /*
@@ -924,33 +1051,81 @@ class Poller : public Actor {
     }*/
 
   template <class T>
-  LambdaSource<T> &operator>>(LambdaSource<T> &source) {
+  LambdaSource<T> &operator>>(LambdaSource<T> &source)
+  {
     _requestables.push_back(&source);
     return source;
   }
 
   template <class T>
-  Source<T> &operator>>(Source<T> &source) {
+  Source<T> &operator>>(Source<T> &source)
+  {
     _requestables.push_back(&source);
     return source;
   }
 
   template <class T>
-  ValueFlow<T> &operator>>(ValueFlow<T> &source) {
+  ValueFlow<T> &operator>>(ValueFlow<T> &source)
+  {
     _requestables.push_back(&source);
     return source;
   }
 
   template <class T>
-  RefSource<T> &operator>>(RefSource<T> &source) {
+  RefSource<T> &operator>>(RefSource<T> &source)
+  {
     _requestables.push_back(&source);
     return source;
   }
 
-  Poller &operator()(Requestable &rq) {
+  Poller &operator()(Requestable &rq)
+  {
     _requestables.push_back(&rq);
     return *this;
   }
 };
 
-#endif  // LIMERO_H
+template <typename IN, typename OUT>
+LambdaFlow<IN, OUT> &timeout(Thread &thread, int timeout_msec, OUT v)
+{
+  TimerSource *timer =
+      new TimerSource(thread, timeout_msec, true, "timeout_timer");
+  auto &lf = *new LambdaFlow<IN, OUT>([&, timer](OUT &out, const IN &in)
+                                      {
+    timer->reset();
+    return false; });
+  *timer >> [&, v](const TimerMsg &tm)
+  { lf.emit(v); };
+  lf.name((std::to_string(timeout_msec) + " msec timeout").c_str());
+  return lf;
+}
+
+template <typename IN, typename OUT>
+LambdaFlow<IN, OUT> &map(IN v1, OUT v2)
+{
+  auto lf = new LambdaFlow<IN, OUT>([v1, v2](OUT &out, const IN &in)
+                                    {
+    if (in == v1) {
+      out = v2;
+      return true;
+    }
+    return false; });
+  lf->name(("map(" + std::to_string(v1) + " -> " + std::to_string(v2) + ")")
+               .c_str());
+  return *lf;
+}
+
+template <typename T>
+LambdaFlow<T, T> &when(int &state, const int stateValue)
+{
+  auto lf = new LambdaFlow<T, T>([state, stateValue](T &out, const T &in)
+                                 {
+    if (state == stateValue) {
+      out = in;
+      return true;
+    }
+    return false; });
+  lf->name(("when(" + std::to_string(stateValue) + ")").c_str());
+  return *lf;
+}
+#endif // LIMERO_H
