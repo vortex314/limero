@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include <algorithm>
 
 std::unordered_map<void *, std::forward_list<Subscription *> *>
     Subscription::_subscriptionsPerSource;
