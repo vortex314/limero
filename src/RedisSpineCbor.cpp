@@ -25,6 +25,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
   
   rxdCbor >> [&](const Bytes &bs)
   {
+    _cborIn.reset();
     _cborIn.put_bytes(bs);
     std::string cmd;
     if (_cborIn.rewind().read('[').read("pub").ok())

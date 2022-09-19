@@ -1,5 +1,7 @@
 #include "limero.h"
 
+#include <algorithm>
+
 std::unordered_map<void *, std::forward_list<Subscription *> *>
     Subscription::_subscriptionsPerSource;
 
@@ -24,6 +26,11 @@ Thread::Thread(ThreadProperties props)
       _priority(props.priority) {}
 
 void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
+
+void Thread::delTimer(TimerSource *ts) { 
+  auto pos = std::find(_timers.begin(), _timers.end(), ts);
+  if ( pos != _timers.end() )  _timers.erase(pos);
+ }
 
 void Thread::createQueue() {
   _workQueue = xQueueCreate(_queueSize ? _queueSize : 20, sizeof(Invoker *));
