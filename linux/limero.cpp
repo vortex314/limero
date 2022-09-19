@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include <algorithm>
 
 std::unordered_map<void *, std::forward_list<Subscription *> *>
     Subscription::_subscriptionsPerSource;
@@ -159,11 +160,10 @@ void Thread::createQueue() {
 
 void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
 
-void Thread::delTimer(TimerSource *ts) { 
+void Thread::delTimer(TimerSource *ts) {
   auto pos = std::find(_timers.begin(), _timers.end(), ts);
-  if ( pos != _timers.end() )  _timers.erase(pos);
- }
-
+  if (pos != _timers.end()) _timers.erase(pos);
+}
 
 void SetThreadName(std::thread *thread, const char *threadName) {
   auto handle = thread->native_handle();

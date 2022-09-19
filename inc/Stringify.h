@@ -1,148 +1,83 @@
 #ifndef __STRINGIFY_H__
 #define __STRINGIFY_H__
-#include <string>
-#include <printf.h>
 #include <StringUtility.h>
+#include <printf.h>
+
+#include <string>
 
 #define TOSTRING(x) STRINGIFY(x)
 #define AT __FILE__ ":" TOSTRING(__LINE__)
-#define TYPE_TO_STRING(x) #x
-class TimerMsg;
-inline const char* typeToString(const TimerMsg*) {
-    return "TimerMsg";
-}
-inline const char* typeToString(const std::vector<uint8_t>*) {
-    return "Bytes";
-}
-inline const char* typeToString(const bool*) {
-    return "bool";
-}
 
-inline const char* typeToString(const  int*) {
-    return "int";
-}
+#define TYPE_TO_STRING(TT) \
+  class TT;                \
+  inline const char* typeToString(const TT*) { return #TT; }
+#define BASE_TO_STRING(TT) \
+  inline const char* typeToString(const TT*) { return #TT; }
 
-inline const char* typeToString(const  unsigned int*) {
-    return "unsigned int";
-}
-
-inline const char* typeToString(const long*) {
-    return "long";
-}
+TYPE_TO_STRING(Json)
+TYPE_TO_STRING(TimerMsg)
+TYPE_TO_STRING(UdpMsg)
+BASE_TO_STRING(std::vector<uint8_t>)
+BASE_TO_STRING(bool)
+BASE_TO_STRING(int)
+BASE_TO_STRING(unsigned int)
+BASE_TO_STRING(long)
+BASE_TO_STRING(float)
+BASE_TO_STRING(double)
+BASE_TO_STRING(std::string)
+BASE_TO_STRING( char*)
 
 
-inline const char* typeToString(const unsigned long*) {
-    return "unsigned long";
+inline std::string toString(bool b) { return b ? "true" : "false"; }
+
+inline std::string toString(const float f) {
+  char buffer[32];
+  sprintf_(buffer, "%f", f);
+  return buffer;
+}
+inline std::string toString(const int& t) {
+  char buffer[32];
+  sprintf_(buffer, "%d", t);
+  return buffer;
+}
+inline std::string toString(const unsigned int t) {
+  char buffer[32];
+  sprintf_(buffer, "%u", t);
+  return buffer;
+}
+inline std::string toString(const unsigned int& t) {
+  char buffer[32];
+  sprintf_(buffer, "%u", t);
+  return buffer;
+}
+inline std::string toString(const unsigned long long& t) {
+#ifdef ESP8266_RTOS_SDK
+  std::string s = stringFormat("%llu", t);
+  return s;
+#else
+  char buffer[32];
+  sprintf_(buffer, "%llu", t);
+  return buffer;
+#endif
 }
 
-inline const char* typeToString(const long long*) {
-    return "long long";
+inline std::string toString(const unsigned long& t) {
+  char buffer[32];
+  sprintf_(buffer, "%lu", t);
+  return buffer;
 }
-
-inline const char* typeToString(const unsigned long long*) {
-    return "unsigned long long";
+inline std::string toString(const long& t) {
+  char buffer[32];
+  sprintf_(buffer, "%ld", t);
+  return buffer;
 }
-
-inline const char* typeToString(const float) {
-    return "float";
+inline std::string toString(const char* t) { return std::string(t); }
+inline std::string toString(const std::string& t) {
+  std::string s = "\"" + t + "\"";
+  return s;
 }
-
-inline const char* typeToString(const double*) {
-    return "double";
-}
-
-inline const char* typeToString(const std::string*) {
-    return "std::string";
-}
-
-inline const char* typeToString(const char**) {
-    return "const char*";
-}
-
-inline const char* typeToString(char**) {
-    return "char*";
-}
-
-inline const char* typeToString(char*) {
-    return "char";
-}
-
-inline const char* typeToString(unsigned char*) {
-    return "unsigned char";
-}
-
-inline const char* typeToString(void**) {
-    return "void*";
-}
-
-
-
-inline std::string toString(bool b)
-{
-    return b?"true":"false";
-}
-
-inline std::string toString(const float f){
-    char buffer[32];
-    sprintf_(buffer, "%f", f);
-    return buffer;
-}
-inline std::string toString(const int &t)
-{
-    char buffer[32];
-    sprintf_(buffer, "%d", t);
-    return buffer;
-}
-inline std::string toString(const unsigned int t)
-{
-    char buffer[32];
-    sprintf_(buffer, "%u", t);
-    return buffer;
-}
-inline std::string toString(const unsigned int &t)
-{
-    char buffer[32];
-    sprintf_(buffer, "%u", t);
-    return buffer;
-}
-inline std::string toString(const unsigned long long &t)
-{
-    #ifdef ESP8266_RTOS_SDK
-    std::string s = stringFormat("%llu", t);
-    return s;
-    #else
-    char buffer[32];
-    sprintf_(buffer, "%llu", t);
-    return buffer;
-    #endif
-    
-}
-
-
-inline std::string toString(const unsigned long &t)
-{
-    char buffer[32];
-    sprintf_(buffer, "%lu", t);
-    return buffer;
-}
-inline std::string toString(const  long &t)
-{
-    char buffer[32];
-    sprintf_(buffer, "%ld", t);
-    return buffer;
-}
-inline std::string toString(const char *t)
-{
-    return std::string(t);
-}
-inline std::string toString(const std::string &t)
-{
-    std::string s ="\"" + t + "\"";
-    return s;
-}
-inline std::string toString(const char *t, size_t len)
-{
-    return std::string(t, len);
+inline std::string toString(const char* t, size_t len) {
+  return std::string(t, len);
 }
 
 #endif
