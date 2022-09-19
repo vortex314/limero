@@ -159,6 +159,12 @@ void Thread::createQueue() {
 
 void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
 
+void Thread::delTimer(TimerSource *ts) { 
+  auto pos = std::find(_timers.begin(), _timers.end(), ts);
+  if ( pos != _timers.end() )  _timers.erase(pos);
+ }
+
+
 void SetThreadName(std::thread *thread, const char *threadName) {
   auto handle = thread->native_handle();
   pthread_setname_np(handle, threadName);
@@ -198,15 +204,19 @@ void Thread::run() {
     int32_t waitTime = (expTime - now);
     if (waitTime > 0) {
       int rc = waitInvoker(waitTime);
-      if (rc == ETIMEDOUT && expiredTimer) {
-        expiredTimer->request();
+      if (rc == ETIMEDOUT && expiredTimer) {  // check timer is still valid
+        if (std::find(_timers.begin(), _timers.end(), expiredTimer) !=
+            _timers.end())
+          expiredTimer->request();
       }
     } else {
       if (expiredTimer) {
         if (-waitTime > 100)
-          INFO("Timer[%X] already expired by %u msec on thread '%s'.",
+          INFO("Timer[%lX] already expired by %u msec on thread '%s'.",
                expiredTimer, -waitTime, name());
-        expiredTimer->request();
+        if (std::find(_timers.begin(), _timers.end(), expiredTimer) !=
+            _timers.end())
+          expiredTimer->request();
       }
     }
   }

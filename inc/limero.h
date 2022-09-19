@@ -489,6 +489,7 @@ class Thread : public Named {
   void run();
   void loop();
   void addTimer(TimerSource *);
+  void delTimer(TimerSource *);
   static void loopAll();
 };
 
@@ -542,6 +543,7 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
   uint32_t _interval = UINT32_MAX;
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
+  Thread& _thr;
 
   void setNewExpireTime() {
     uint64_t now = Sys::millis();
@@ -550,19 +552,19 @@ class TimerSource : public Source<TimerMsg>, public Requestable {
   }
 
  public:
-  TimerSource(Thread &thr, uint32_t __interval = UINT32_MAX, bool __repeat = false,
-              const char *label = "unknownTimer1") {
+  TimerSource(Thread &thr, uint32_t __interval = UINT32_MAX,
+              bool __repeat = false, const char *label = "unknownTimer1"):_thr(thr) {
     Source::name(
         stringFormat("TimerSource %s : %d msec", label, __interval).c_str());
     _interval = __interval;
     _repeat = __repeat;
     if (_repeat) start();
-    thr.addTimer(this);
+    _thr.addTimer(this);
   }
 
   const char *name() { return Source::name(); }
 
-  ~TimerSource() { WARN(" timer destructor. Really ? "); }
+  ~TimerSource() { _thr.delTimer(this); }
 
   // void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
@@ -617,10 +619,7 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg> {
 
  public:
   Cache(Thread &thr, uint32_t minimum, uint32_t maximum)
-      : _thread(thr),
-        _minimum(minimum),
-        _maximum(maximum),
-        _timerSource(thr) {
+      : _thread(thr), _minimum(minimum), _maximum(maximum), _timerSource(thr) {
     _timerSource.interval(minimum);
     _timerSource.start();
     _timerSource.subscribe(this);

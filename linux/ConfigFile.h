@@ -1,4 +1,5 @@
 #ifndef __CONFIG_FILE_H__
+#define __CONFIG_FILE_H__
 #include <ArduinoJson.h>
 #include <Json.h>
 #include <Log.h>
