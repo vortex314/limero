@@ -26,6 +26,8 @@ BASE_TO_STRING(float)
 BASE_TO_STRING(double)
 BASE_TO_STRING(std::string)
 BASE_TO_STRING( char*)
+BASE_TO_STRING( long long unsigned int)
+
 
 
 inline std::string toString(bool b) { return b ? "true" : "false"; }

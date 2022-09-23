@@ -22,15 +22,16 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
   connected = false;
   rxdCbor.async(thread());
   txdCbor.async(thread());
-  
+
   rxdCbor >> [&](const Bytes &bs)
   {
     _cborIn.reset();
     _cborIn.put_bytes(bs);
-    std::string cmd;
     if (_cborIn.rewind().read('[').read("pub").ok())
     {
       pubArrived.on(true);
+    } else {
+      INFO(" unknown message");
     }
   };
 
@@ -43,7 +44,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
       if (cnt & 1)
       {
         CborEncoder cborOut(128);
-        cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
+        cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::millis()).write(']').end();
         sendCbor(cborOut);
       }
       else
@@ -55,7 +56,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
     else
     {
       CborEncoder cborOut(128);
-      cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::micros()).write(']').end();
+      cborOut.start().write('[').write("pub").write(_loopbackTopic).write(Sys::millis()).write(']').end();
       sendCbor(cborOut);
     }
   };
@@ -71,7 +72,9 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
   {
     connected = true;
     _state = READY;
-    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::micros() - in).write(']').end();
+    INFO("%d", Sys::millis()-in);
+
+    _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::millis() - in).write(']').end();
     sendCbor(_cborOut);
     _connectionWatchdog.reset();
   };
