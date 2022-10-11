@@ -1062,7 +1062,7 @@ const char *sLogicalPin[] = {"TXD", "RXD", "SCL", "SDA",
 
 PhysicalPin Uext::toPin(uint32_t logicalPin)
 {
-  DEBUG(" UEXT%d %s[%d] => GPIO_%d", _connectorIdx, sLogicalPin[logicalPin],
+  INFO(" UEXT%d %s[%d] => GPIO_%d", _connectorIdx, sLogicalPin[logicalPin],
         logicalPin, _physicalPins[logicalPin]);
   return _physicalPins[logicalPin];
 }

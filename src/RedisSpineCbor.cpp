@@ -72,8 +72,6 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
   {
     connected = true;
     _state = READY;
-    INFO("%d", Sys::millis()-in);
-
     _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::millis() - in).write(']').end();
     sendCbor(_cborOut);
     _connectionWatchdog.reset();

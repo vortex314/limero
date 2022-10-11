@@ -1,12 +1,12 @@
 #ifndef SRC_SPINE_H_
 #define SRC_SPINE_H_
 
-#include "limero.h"
-#include <Stringify.h>
 #include <Cbor.h>
+#include <Stringify.h>
 
-class RedisSpineCbor : public Actor
-{
+#include "limero.h"
+
+class RedisSpineCbor : public Actor {
   CborEncoder _cborOut;
   CborDecoder _cborIn;
 
@@ -18,14 +18,10 @@ class RedisSpineCbor : public Actor
   std::string _subscribePattern;
   TimerSource _loopbackTimer;
   TimerSource _connectionWatchdog;
-  enum
-  {
-    CONNECTING,
-    READY
-  } _state;
+  enum { CONNECTING, READY } _state;
   void setNode(const char *);
 
-public:
+ public:
   ZeroFlow<Bytes> rxdBytes;
   QueueFlow<Bytes> rxdCbor;
   QueueFlow<Bytes> txdCbor;
@@ -41,29 +37,30 @@ public:
   void subscribe(const char *pattern);
 
   template <typename T>
-  void publish(const char *topic, T t)
-  {
-    _cborOut.start().write('[').write("pub").write(topic).write(t).write(']').end();
+  void publish(const char *topic, T t) {
+    _cborOut.start()
+        .write('[')
+        .write("pub")
+        .write(topic)
+        .write(t)
+        .write(']')
+        .end();
     sendCbor(_cborOut);
   }
 
   template <typename T>
-  Sink<T> &publisher(std::string topic)
-  {
+  Sink<T> &publisher(std::string topic) {
     std::string absTopic = srcPrefix + topic;
     if (topic.rfind("src/", 0) == 0 || topic.rfind("dst/", 0) == 0)
       absTopic = topic;
-    SinkFunction<T> *sf =
-        new SinkFunction<T>([&, absTopic](const T &t)
-                            { 
-                              if ( _state==READY ) 
-                              publish(absTopic.c_str(), t); });
+    SinkFunction<T> *sf = new SinkFunction<T>([&, absTopic](const T &t) {
+      if (_state == READY) publish(absTopic.c_str(), t);
+    });
     return *sf;
   }
 
   template <typename T>
-  Source<T> &subscriber(std::string topic)
-  {
+  Source<T> &subscriber(std::string topic) {
     std::string absTopic;
 
     if (topic.rfind("src/", 0) == 0 || topic.rfind("dst/", 0) == 0)
@@ -71,14 +68,12 @@ public:
     else
       absTopic = dstPrefix + topic;
     auto vf = new ValueFlow<T>();
-    pubArrived >> [&, absTopic, vf](const bool &)
-    {
+    pubArrived >> [&, absTopic, vf](const bool &) {
       std::string rcvTopic, cmd;
       T value;
-      if (_cborIn.rewind().readArrayStart().read(cmd).read(rcvTopic).ok() && absTopic == rcvTopic)
-      {
-        if (_cborIn.read(value).ok())
-          vf->emit(value);
+      if (_cborIn.rewind().readArrayStart().read(cmd).read(rcvTopic).ok() &&
+          absTopic == rcvTopic) {
+        if (_cborIn.read(value).ok()) vf->emit(value);
       }
     };
     return *vf;

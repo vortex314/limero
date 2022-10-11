@@ -27,6 +27,7 @@ BASE_TO_STRING(double)
 BASE_TO_STRING(std::string)
 BASE_TO_STRING( char*)
 BASE_TO_STRING( long long unsigned int)
+BASE_TO_STRING(void);
 
 
 
