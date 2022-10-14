@@ -110,9 +110,7 @@ public:
     return s;
   }
 #else
-  inline void clear()
-  {
-  }
+  inline void clear(){}
   inline void push(Named *) {} // avoid code overhead
   inline void pop() {}
 #endif
@@ -360,13 +358,13 @@ public:
 
 #if defined(STM32)
 #define INDEX_TYPE uint32_t
-template <typename T, size_t cache_line_size = 32>
+template <typename T, size_t cache_line_size = 4>
 #elif defined(ESP32_IDF)
 #include <malloc.h>
 #define INDEX_TYPE uint32_t
 template <typename T, size_t cache_line_size = 4>
 #else
-template <typename T, size_t cache_line_size = 64>
+template <typename T, size_t cache_line_size = 8>
 #define INDEX_TYPE uint64_t
 #endif
 
@@ -400,9 +398,6 @@ public:
         m_head(0),
         m_tail(0)
 #else
-      // m_items(static_cast<Item*>(aligned_alloc(cache_line_size,sizeof(Item) *
-      // capacity ))),
-      //      m_capacity(capacity), m_head(0), m_tail(0)
       : m_capacity(reserve),
         m_head(0),
         m_tail(0)
@@ -570,7 +565,6 @@ template <class T>
 class RefSource : public Source<T>
 {
   T &_t;
-  //  bool _pass = true;
 
 public:
   RefSource(T &t) : _t(t){};
@@ -578,10 +572,8 @@ public:
   void operator=(T t)
   {
     _t = t;
-    //   if (_pass)
     this->emit(_t);
   }
-  //  void pass(bool p) { _pass = p; }
   T &operator()() { return _t; }
 };
 
@@ -596,11 +588,7 @@ public:
 //	start : restart timer from now+interval
 //_______________________________________________________________ TimerSource
 //
-class TimerMsg
-{
-public:
-  TimerSource *source;
-};
+typedef TimerSource* TimerMsg;
 
 class TimerSource : public Source<TimerMsg>, public Requestable
 {
