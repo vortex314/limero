@@ -297,7 +297,7 @@ int I2C_ESP32::write(uint8_t *data, uint32_t size)
                               ACK_CHECK_EN),i2c_cmd_link_delete(cmd););
   CHECK_CLEAN(i2c_master_write(cmd, data, size, ACK_CHECK_EN),i2c_cmd_link_delete(cmd););
   CHECK_CLEAN(i2c_master_stop(cmd),i2c_cmd_link_delete(cmd););
-  CHECK_CLEAN(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS),i2c_cmd_link_delete(cmd););
+  CHECK_CLEAN(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_PERIOD_MS),i2c_cmd_link_delete(cmd););
   i2c_cmd_link_delete(cmd);
   return 0;
 }
@@ -320,7 +320,7 @@ int I2C_ESP32::read(uint8_t *data, uint32_t size)
   }
   CHECK_CLEAN(i2c_master_read_byte(cmd, data + size - 1, (i2c_ack_type_t)NACK_VAL),i2c_cmd_link_delete(cmd););
   CHECK_CLEAN(i2c_master_stop(cmd),i2c_cmd_link_delete(cmd););
-  CHECK_CLEAN(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_RATE_MS),i2c_cmd_link_delete(cmd);
+  CHECK_CLEAN(i2c_master_cmd_begin(_port, cmd, 1000 / portTICK_PERIOD_MS),i2c_cmd_link_delete(cmd);
   );
   i2c_cmd_link_delete(cmd);
   return 0;
@@ -471,7 +471,7 @@ public:
     {
       int voltage;
       esp_err_t r =
-          adc2_get_raw((adc2_channel_t)_channel, ADC_WIDTH_10Bit, &voltage);
+          adc2_get_raw((adc2_channel_t)_channel, ADC_WIDTH_BIT_10, &voltage);
       if (r == ESP_OK)
       {
         return voltage;
@@ -877,7 +877,7 @@ public:
     for (;;)
     {
       // Waiting for UART event.
-      if (xQueueReceive(_queue, (void *)&event, (portTickType)portMAX_DELAY))
+      if (xQueueReceive(_queue, (void *)&event, portMAX_DELAY))
       {
         bzero(dtmp, RX_BUF_SIZE);
         switch (event.type)

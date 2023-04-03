@@ -53,13 +53,14 @@ Log &Log::tfl(const char *lvl, const char *file, const uint32_t line)
   uint32_t sec = msec / 1000;
   uint32_t min = sec / 60;
   uint32_t hr = min / 60;
+  uint32_t ms = msec % 1000;
   offset = snprintf(_buffer, _bufferSize,
-                    "%s %2.2u:%2.2d:%2.2d.%3.3lld | %15.15s:%4u | ", lvl,
-                    hr % 24,
-                    min % 60,
-                    sec % 60,
-                    msec % 1000,
-                    file, line);
+                    "%s %2.2d:%2.2d:%2.2d.%3.3d | %15.15s:%4u | ", lvl,
+                    (int)hr % 24,
+                    (int)min % 60,
+                    (int)sec % 60,
+                    (int)ms,
+                    file, (unsigned int)line);
   return *this;
 }
 

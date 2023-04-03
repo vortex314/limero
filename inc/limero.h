@@ -110,7 +110,9 @@ public:
     return s;
   }
 #else
-  inline void clear(){}
+  inline void clear()
+  {
+  }
   inline void push(Named *) {} // avoid code overhead
   inline void pop() {}
 #endif
@@ -232,7 +234,7 @@ public:
   {
     if (_subscriptions.empty())
     {
-      WARN("no subscribers in %s for %s", this->name(),typeToString(&t));
+      WARN("no subscribers in %s for %s", this->name(), typeToString(&t));
       return;
     }
     for (auto sub : _subscriptions)
@@ -588,13 +590,17 @@ public:
 //	start : restart timer from now+interval
 //_______________________________________________________________ TimerSource
 //
-typedef TimerSource* TimerMsg;
+class TimerMsg
+{
+  public:
+  TimerSource *_timer;
+};
 
 class TimerSource : public Source<TimerMsg>, public Requestable
 {
   bool _repeat = false;
   uint64_t _expireTime = UINT64_MAX;
-  Thread& _thr;
+  Thread &_thr;
   uint32_t _interval;
 
   void setNewExpireTime()
@@ -605,14 +611,16 @@ class TimerSource : public Source<TimerMsg>, public Requestable
       _expireTime = now + _interval;
   }
 
- public:
+public:
   TimerSource(Thread &thr, uint32_t __interval = UINT32_MAX,
-              bool __repeat = false, const char *label = "unknownTimer1"):_thr(thr) {
+              bool __repeat = false, const char *label = "unknownTimer1") : _thr(thr)
+  {
     Source::name(
         stringFormat("TimerSource %s : %d msec", label, __interval).c_str());
     _interval = __interval;
     _repeat = __repeat;
-    if (_repeat) start();
+    if (_repeat)
+      start();
     _thr.addTimer(this);
   }
 
@@ -680,7 +688,8 @@ class Cache : public Flow<T, T>, public Sink<TimerMsg>
 
 public:
   Cache(Thread &thr, uint32_t minimum, uint32_t maximum)
-      : _thread(thr), _minimum(minimum), _maximum(maximum), _timerSource(thr) {
+      : _thread(thr), _minimum(minimum), _maximum(maximum), _timerSource(thr)
+  {
     _timerSource.interval(minimum);
     _timerSource.start();
     _timerSource.subscribe(this);
@@ -782,6 +791,7 @@ public:
     T value;
     while (_queue.pop(value))
     {
+      INFO("QueueFlow '%s' pop", name());
       uint64_t now = Sys::millis();
       this->emit(value);
       uint32_t delta = Sys::millis() - now;

@@ -83,7 +83,7 @@ void Thread::run() {
     int32_t waitTime =
         (expTime - now);  // ESP_OPEN_RTOS seems to double sleep time ?
 
-    //		INFO(" waitTime : %d ",waitTime);
+    INFO(" waitTime : %d ",waitTime);
     if (noWaits % 1000 == 999)
       WARN(" noWaits : %d in thread %s waitTime %d ", noWaits, name(),
            waitTime);
@@ -93,6 +93,7 @@ void Thread::run() {
       if (tickWaits == 0) noWaits++;
       if (xQueueReceive(_workQueue, &prq, tickWaits) == pdPASS) {
         uint64_t start = Sys::millis();
+        INFO("Invoker[%X] request on thread '%s'.", prq, name());
         prq->invoke();
         uint32_t delta = Sys::millis() - start;
         if (delta > 50)
@@ -108,6 +109,7 @@ void Thread::run() {
           INFO("Timer[%X] already expired by %u msec on thread '%s'.",
                expiredTimer, -waitTime, name());
         uint64_t start = Sys::millis();
+        INFO("Timer[%X] request on thread '%s'.", expiredTimer, name());
         expiredTimer->request();
         uint32_t deltaExec = Sys::millis() - start;
         if (deltaExec > 50)

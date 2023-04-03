@@ -54,6 +54,7 @@ void Sys::delay(uint32_t msec)
 #include <stdint.h>
 #include <sys/time.h>
 #include "esp_mac.h"
+#include "esp_timer.h"
 //#include <espressif/esp_wifi.h>
 
 uint32_t Sys::getSerialId()
@@ -112,12 +113,12 @@ void Sys::hostname(const char *h) { strncpy(_hostname, h, strlen(h) + 1); }
 
 void Sys::setHostname(const char *h) { strncpy(_hostname, h, strlen(h) + 1); }
 
-void Sys::delay(unsigned int delta)
+/*void Sys::delay(unsigned int delta)
 {
     uint32_t end = Sys::millis() + delta;
     while (Sys::millis() < end)
     {
     };
-}
+}*/
 
 extern "C" uint64_t SysMillis() { return Sys::millis(); }
