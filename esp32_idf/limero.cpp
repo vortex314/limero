@@ -14,7 +14,8 @@ std::unordered_map<void *, std::forward_list<Subscription *> *>
 */
 int Thread::_id = 0;
 
-Thread::Thread(const char *name) : Named(name) {
+Thread::Thread(const char *name) : Named(name)
+{
   _priority = tskIDLE_PRIORITY + 1;
   _queueSize = 20;
 }
@@ -27,18 +28,25 @@ Thread::Thread(ThreadProperties props)
 
 void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
 
-void Thread::delTimer(TimerSource *ts) { 
+void Thread::delTimer(TimerSource *ts)
+{
   auto pos = std::find(_timers.begin(), _timers.end(), ts);
-  if ( pos != _timers.end() )  _timers.erase(pos);
- }
-
-void Thread::createQueue() {
-  _workQueue = xQueueCreate(_queueSize ? _queueSize : 20, sizeof(Invoker *));
-  if (_workQueue == NULL) WARN("Queue creation failed ");
+  if (pos != _timers.end())
+    _timers.erase(pos);
 }
 
-void Thread::start() {
-  xTaskCreate([](void *task) { ((Thread *)task)->run(); }, name(),
+void Thread::createQueue()
+{
+  _workQueue = xQueueCreate(_queueSize ? _queueSize : 20, sizeof(Invoker *));
+  if (_workQueue == NULL)
+    WARN("Queue creation failed ");
+}
+
+void Thread::start()
+{
+  xTaskCreate([](void *task)
+              { ((Thread *)task)->run(); },
+              name(),
               _stackSize ? _stackSize : 10000, this, _priority, NULL);
   /*
       xTaskCreatePinnedToCore([](void* task) {
@@ -46,18 +54,41 @@ void Thread::start() {
       }, _name.c_str(), 20000, this, 17, NULL, PRO_CPU);*/
 }
 
-int Thread::enqueue(Invoker *invoker) {
+int Thread::enqueue(Invoker *invoker)
+{
   //	INFO("Thread '%s' >>> '%s'",_name.c_str(),symbols(invoker));
   if (_workQueue)
-    if (xQueueSend(_workQueue, &invoker, (TickType_t)0) != pdTRUE) {
+    if (xQueueSend(_workQueue, &invoker, (TickType_t)0) != pdTRUE)
+    {
       WARN("Thread '%s' queue overflow [%X]", name(), invoker);
       return ENOBUFS;
     }
   return 0;
 };
-int Thread::enqueueFromIsr(Invoker *invoker) {
-  if (_workQueue) {
-    if (xQueueSendFromISR(_workQueue, &invoker, (TickType_t)0) != pdTRUE) {
+
+class DummyInvoker : public Invoker
+{
+public:
+  void invoke(){};
+};
+
+DummyInvoker NO_MESSAGE;
+DummyInvoker *NO_MESSAGE_PTR = &NO_MESSAGE;
+
+void Thread::wake()
+{
+  if (_workQueue)
+    if (xQueueSend(_workQueue, &NO_MESSAGE_PTR, (TickType_t)0) != pdTRUE)
+    {
+      WARN("Thread '%s' queue overflow [%X]", name(), NULL);
+    }
+}
+int Thread::enqueueFromIsr(Invoker *invoker)
+{
+  if (_workQueue)
+  {
+    if (xQueueSendFromISR(_workQueue, &invoker, (TickType_t)0) != pdTRUE)
+    {
       //  WARN("queue overflow"); // cannot log here concurency issue
       return ENOBUFS;
     }
@@ -65,57 +96,61 @@ int Thread::enqueueFromIsr(Invoker *invoker) {
   return 0;
 };
 
-void Thread::run() {
+void timeExec(const char *name, std::function<void()> f, uint32_t warn)
+{
+  uint64_t start = Sys::millis();
+  f();
+  uint32_t delta = Sys::millis() - start;
+  if (delta > warn)
+    WARN("Execution %s took %d msec", name, delta);
+}
+
+void Thread::run()
+{
   INFO("Thread '%s' prio : %d started ", name(), uxTaskPriorityGet(NULL));
   createQueue();
-  uint32_t noWaits = 0;
-  while (true) {
+  while (true)
+  {
     uint64_t now = Sys::millis();
-    uint64_t expTime = now + 5000;
-    TimerSource *expiredTimer = 0;
+    uint64_t soonestExpiration = now + 5000;
     // find next expired timer if any within 5 sec
-    for (auto timer : _timers) {
-      if (timer->expireTime() < expTime) {
-        expTime = timer->expireTime();
-        expiredTimer = timer;
+    for (auto timer : _timers)
+    {
+      if (timer->expireTime() != UINT64_MAX)
+      {
+        if (timer->expireTime() <= now)
+        {
+ //         INFO(" TimerSource [%X] execution", timer);
+          timeExec(
+              "Timer request", [timer]()
+              { timer->request(); },
+              10);
+          if (timer->expireTime() == UINT64_MAX)
+          {
+//            INFO(" TimerSource [%X] is disabled", timer);
+            continue;
+          }
+//          else
+//            INFO(" TimerSource [%X] next expiration %llu msec", timer, timer->expireTime() - now);
+        }
+        if (timer->expireTime() <= soonestExpiration)
+        {
+          soonestExpiration = timer->expireTime();
+//          INFO(" TimerSource [%X] next expiration %llu msec", timer, timer->expireTime() - now);
+        }
       }
     }
-    int32_t waitTime =
-        (expTime - now);  // ESP_OPEN_RTOS seems to double sleep time ?
 
-    INFO(" waitTime : %d ",waitTime);
-    if (noWaits % 1000 == 999)
-      WARN(" noWaits : %d in thread %s waitTime %d ", noWaits, name(),
-           waitTime);
-    if (waitTime > 0) {
-      Invoker *prq;
-      TickType_t tickWaits = pdMS_TO_TICKS(waitTime);
-      if (tickWaits == 0) noWaits++;
-      if (xQueueReceive(_workQueue, &prq, tickWaits) == pdPASS) {
-        uint64_t start = Sys::millis();
-        INFO("Invoker[%X] request on thread '%s'.", prq, name());
-        prq->invoke();
-        uint32_t delta = Sys::millis() - start;
-        if (delta > 50)
-          WARN("Invoker [%X] slow %d msec invoker on thread '%s'.", prq, delta,
-               name());
-      } else {
-        noWaits = 0;
-      }
-    } else {
-      noWaits++;
-      if (expiredTimer) {
-        if (-waitTime > 100)
-          INFO("Timer[%X] already expired by %u msec on thread '%s'.",
-               expiredTimer, -waitTime, name());
-        uint64_t start = Sys::millis();
-        INFO("Timer[%X] request on thread '%s'.", expiredTimer, name());
-        expiredTimer->request();
-        uint32_t deltaExec = Sys::millis() - start;
-        if (deltaExec > 50)
-          WARN("Timer [%X] request slow %d msec on thread '%s'", expiredTimer,
-               deltaExec, name());
-      }
+    Invoker *prq;
+    uint32_t wait = soonestExpiration - now;
+    TickType_t tickWaits = pdMS_TO_TICKS(wait);
+//    INFO("Thread '%s' tickWaits %d", name(), wait);
+    if (xQueueReceive(_workQueue, &prq, tickWaits) == pdPASS)
+    {
+      timeExec(
+          "Invoker", [prq]()
+          { prq->invoke(); },
+          10);
     }
   }
 }

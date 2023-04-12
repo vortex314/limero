@@ -266,7 +266,7 @@ public:
 //___________________________________________________________________________
 // lockfree buffer, isr ready
 //
-//#define BUSY (1 << 15) // busy read or write ptr
+// #define BUSY (1 << 15) // busy read or write ptr
 
 #if defined(ESP_OPEN_RTOS) || defined(ESP8266_RTOS_SDK)
 // Set Interrupt Level
@@ -289,7 +289,7 @@ public:
 #else
 
 #endif
-//#pragma GCC diagnostic ignored "-Warray-bounds"
+// #pragma GCC diagnostic ignored "-Warray-bounds"
 
 #ifdef NO_ATOMIC
 template <class T>
@@ -540,6 +540,7 @@ public:
   Thread(const char *name = "noname");
   Thread(ThreadProperties props);
   void start();
+  void wake();
   int enqueue(Invoker *invoker);
   int enqueueFromIsr(Invoker *invoker);
   void run();
@@ -592,7 +593,7 @@ public:
 //
 class TimerMsg
 {
-  public:
+public:
   TimerSource *_timer;
 };
 
@@ -630,35 +631,47 @@ public:
 
   // void attach(Thread &thr) { thr.addTimer(this); }
   void reset() { start(); }
-  void start() { _expireTime = Sys::millis() + _interval; }
+  void start()
+  {
+//    INFO("TimerSource [%X] started", this);
+    _expireTime = Sys::millis() + _interval;
+    _thr.wake();
+  }
   void start(uint32_t __interval)
   {
-    _interval = __interval;
+    interval(__interval);
+
     start();
   }
-  void stop() { _expireTime = UINT64_MAX; }
+  void stop()
+  {
+ //   INFO("TimerSource [%X] stopped", this);
+    _expireTime = UINT64_MAX;
+  }
   void request()
   {
-    if (Sys::millis() >= _expireTime)
-    {
-      if (_repeat)
-        setNewExpireTime();
-      else
-        _expireTime = Sys::millis() + UINT32_MAX;
-      TimerMsg tm = {this};
-      uint64_t now = Sys::millis();
-      logStack.clear();
-      logStack.push(this);
-      this->emit(tm);
-      uint32_t diff = Sys::millis() - now;
-      if (diff > 10)
-        WARN(" timer %s took %d ms to emit ", this->name(), diff);
-    }
+
+    if (_repeat)
+      setNewExpireTime();
+    else
+      stop();
+    TimerMsg tm = {this};
+    uint64_t now = Sys::millis();
+    logStack.clear();
+    logStack.push(this);
+    this->emit(tm);
+    uint32_t diff = Sys::millis() - now;
+    if (diff > 50)
+      WARN(" timer %s took %d ms to emit ", this->name(), diff);
   }
   void repeat(bool r) { _repeat = r; };
   uint64_t expireTime() { return _expireTime; }
   uint32_t interval() { return _interval; }
-  void interval(uint32_t i) { _interval = i; }
+  void interval(uint32_t i)
+  {
+    _interval = i;
+    _thr.wake();
+  }
 };
 //____________________________________  SINK ______________________
 
@@ -676,7 +689,7 @@ public:
   };
 };
 // -------------------------------------------------------- Cache
-template <class T>
+/*template <class T>
 class Cache : public Flow<T, T>, public Sink<TimerMsg>
 {
   Thread &_thread;
@@ -730,7 +743,7 @@ public:
     auto cache = new Cache<T>(t, min, max);
     return *cache;
   }
-};
+};*/
 //_____________________________________________________________________________
 //
 template <class T>
