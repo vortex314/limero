@@ -5,11 +5,11 @@
 
 Redis::Redis(Thread &thread, JsonObject config)
     : Actor(thread),
-      _request(100, "Redis:request"),
-      _response(100, "Redis:response"),
-      _connectionTimer(thread, 10000, true, "connectionTimer") {
-  _request.async(thread);
-  _response.async(thread);
+      _request(thread,100, "Redis:request"),
+      _response(thread,100, "Redis:response"),
+      _connectionTimer( 10000, true, true,"connectionTimer"),
+      _command(thread, "Redis:command"),
+      _connected(thread, "Redis:connected") {
   _redisHost = config["host"] | "localhost";
   _redisPort = config["port"] | 6379;
   JsonArray cmds = config["initCommands"];
@@ -33,7 +33,7 @@ Redis::Redis(Thread &thread, JsonObject config)
   _request >> [](const Json &request) {
     std::string str;
     serializeJson(request, str);
-    DEBUG("Redis request: '%s'", str.c_str());
+    INFO("Redis request: '%s'", str.c_str());
   };
 
   if (config["ignoreReplies"].is<JsonArray>()) {
@@ -45,7 +45,7 @@ Redis::Redis(Thread &thread, JsonObject config)
   }
   _ac = 0;
 
-  _jsonToRedis = new SinkFunction<Json>([&](const Json &docIn) {
+  _jsonToRedis = new Sink<Json>([&](const Json &docIn) {
     //    if (!_connected()) return; // otherwise first message lost
     if (!_connected() && _connectionStatus == CS_DISCONNECTED) {
       responseFailure(ENOTCONN, "Not Connected");
@@ -78,7 +78,7 @@ Redis::Redis(Thread &thread, JsonObject config)
       reconnect();
     }
   });
-  _request >> _jsonToRedis;
+  _request >> *_jsonToRedis;
 
   _command >> [&](std::string cmd) {
     if (!_connected()) {
@@ -95,7 +95,7 @@ Redis::Redis(Thread &thread, JsonObject config)
     }
   };
 
-  _connectionTimer >> [&](const TimerMsg &) {
+  _connectionTimer >> [&](const Timer& timer) {
     if (_connectionStatus == CS_DISCONNECTED) {
       reconnect();
     }
@@ -253,7 +253,7 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
   };
   redisReplyToJson(replyInJson.as<JsonVariant>(), reply);
   if (redis->_addReplyContext && redisReplyContext &&
-      !isPsubscribe(replyInJson) && !isPmessage(replyInJson)) {
+      !isPsubscribe(replyInJson.as<JsonVariant>()) && !isPmessage(replyInJson.as<JsonVariant>())) {
     envelope[0] = redisReplyContext->command;
     envelope[1] = replyInJson;
     redis->_response.on(envelope);
@@ -345,7 +345,7 @@ DynamicJsonDocument replyToJson(redisReply *reply) {
   uint32_t size = 10240;
   while (size < 10000000) {
     DynamicJsonDocument doc(size);
-    redisReplyToJson(doc, reply);
+    redisReplyToJson(doc.as<JsonVariant>(), reply);
     if (!doc.overflowed()) {
       doc.shrinkToFit();
       return doc;

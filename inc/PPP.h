@@ -21,7 +21,7 @@ class PppDeframer : public Flow<Bytes, Bytes>,public Actor
   bool _escFlag;
 
 public:
-  ValueFlow<Bytes> garbage;
+  Source<Bytes> garbage;
   PppDeframer(Thread&,size_t maxFrameLength);
   bool checkCrc(Bytes &bs);
   void on(const Bytes &in);
@@ -32,9 +32,9 @@ class PPP : public Actor {
   size_t _maxFrameLength;
   Bytes _buffer;
 
-  LambdaFlow<Bytes, Bytes> _frame;
+  Flow<Bytes, Bytes> _frame;
   PppDeframer *_deframe;
-  ValueFlow<Bytes> _garbage;
+  Source<Bytes> _garbage;
 
  public:
   PPP(Thread&,size_t);

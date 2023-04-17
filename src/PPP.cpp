@@ -39,7 +39,7 @@ class Fcs
 
 public:
   Fcs() { _fcs = 0xFFFF; }
-  bool hasSpace(int ) { return true; };
+  bool hasSpace(int) { return true; };
   bool write(uint8_t b)
   {
     _fcs = (_fcs >> 8) ^ fcsTable[(_fcs & 0xFF) ^ b];
@@ -83,7 +83,7 @@ void PppDeframer::on(const Bytes &in)
       else
       {
         if (_buffer.size() > 0)
-          garbage.on(_buffer);
+          garbage.emit(_buffer);
       }
       _buffer.clear();
       break;
@@ -128,8 +128,8 @@ void PPP::addEscaped(Bytes &out, uint8_t c)
 
 PPP::PPP(Thread &thrd, size_t maxFrameLength) : Actor(thrd), _maxFrameLength(maxFrameLength)
 {
-  _frame = *new LambdaFlow<Bytes, Bytes>([&](Bytes &out, const Bytes &in)
-                                         {
+  _frame = *new Flow<Bytes, Bytes>([&](Bytes &out, const Bytes &in)
+                                   {
     Fcs fcs;
     out.clear();
     out.push_back(PPP_FLAG_CHAR);

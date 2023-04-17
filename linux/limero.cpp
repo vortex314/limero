@@ -9,10 +9,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <algorithm>
-
-std::unordered_map<void *, std::forward_list<Subscription *> *>
-    Subscription::_subscriptionsPerSource;
-LogStack logStack;
+#include <thread>
 
 /*
  _____ _                        _
@@ -21,75 +18,97 @@ LogStack logStack;
   | | | | | | | |  __/ (_| | (_| |
   |_| |_| |_|_|  \___|\__,_|\__,_|
 */
-int Thread::_id = 0;
 
-void Thread::buildFdSet() {
+Thread::Thread(const char *__name) : Named(__name)
+{
+  _readPipe = -1;
+  _writePipe = -1;
+  _maxFd = 0;
+  createQueue();
+}
+
+void Thread::buildFdSet()
+{
   FD_ZERO(&_rfds);
   FD_ZERO(&_wfds);
   FD_ZERO(&_efds);
   _maxFd = _readPipe;
   FD_SET(_readPipe, &_rfds);
   FD_SET(_readPipe, &_efds);
-  for (const auto &myPair : _readInvokers) {
+  for (const auto &myPair : _readInvokers)
+  {
     int fd = myPair.first;
     FD_SET(fd, &_rfds);
-    if (fd > _maxFd) _maxFd = fd;
+    if (fd > _maxFd)
+      _maxFd = fd;
   }
-  for (const auto &myPair : _errorInvokers) {
+  for (const auto &myPair : _errorInvokers)
+  {
     int fd = myPair.first;
     FD_SET(fd, &_efds);
-    if (fd > _maxFd) _maxFd = fd;
+    if (fd > _maxFd)
+      _maxFd = fd;
   }
-  for (const auto &myPair : _writeInvokers) {
+  for (const auto &myPair : _writeInvokers)
+  {
     int fd = myPair.first;
     FD_SET(fd, &_wfds);
-    if (fd > _maxFd) _maxFd = fd;
+    if (fd > _maxFd)
+      _maxFd = fd;
   }
   _maxFd += 1;
 }
 
-void Thread::addReadInvoker(int fd, void *arg, CallbackFunction fn) {
+void Thread::addReadInvoker(int fd, void *arg, CallbackFunction fn)
+{
   Callback cb = {fn, arg};
   _readInvokers.emplace(fd, cb);
   //  _readInvokers[fd] = {fn, arg};
   buildFdSet();
 }
 
-void Thread::delReadInvoker(const int fd) {
+void Thread::delReadInvoker(const int fd)
+{
   _readInvokers.erase(fd);
   buildFdSet();
 }
 
-void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn) {
+void Thread::addWriteInvoker(int fd, void *arg, CallbackFunction fn)
+{
   Callback cb = {fn, arg};
   _writeInvokers.emplace(fd, cb);
   buildFdSet();
 }
 
-void Thread::delWriteInvoker(const int fd) {
+void Thread::delWriteInvoker(const int fd)
+{
   _writeInvokers.erase(fd);
   buildFdSet();
 }
 
-void Thread::addErrorInvoker(int fd, void *arg, CallbackFunction fn) {
+void Thread::addErrorInvoker(int fd, void *arg, CallbackFunction fn)
+{
   Callback cb = {fn, arg};
   _errorInvokers.emplace(fd, cb);
   buildFdSet();
 }
 
-void Thread::delErrorInvoker(const int fd) {
+void Thread::delErrorInvoker(const int fd)
+{
   _errorInvokers.erase(fd);
   buildFdSet();
 }
 
-void Thread::delAllInvoker(int fd) {
+void Thread::delAllInvoker(int fd)
+{
   _readInvokers.erase(fd);
   _errorInvokers.erase(fd);
   _writeInvokers.erase(fd);
   buildFdSet();
 }
 
-int Thread::waitInvoker(uint32_t timeout) {
+int Thread::waitInvoker(uint32_t timeout)
+{
   fd_set rfds = _rfds;
   fd_set wfds = _wfds;
   fd_set efds = _efds;
@@ -101,123 +120,177 @@ int Thread::waitInvoker(uint32_t timeout) {
 
   int rc = select(_maxFd, &rfds, &wfds, &efds, &tv);
 
-  if (rc < 0) {
+  if (rc < 0)
+  {
     WARN(" select() : error : %s (%d)", strerror(errno), errno);
     return rc;
-  } else if (rc > 0) {  // one of the fd was set
-    for (auto &myPair : _writeInvokers) {
-      if (myPair.first > 100) WARN(" fd out of range ");
+  }
+  else if (rc > 0)
+  { // one of the fd was set
+    for (auto &myPair : _writeInvokers)
+    {
+      if (myPair.first > 100)
+        WARN(" fd out of range ");
     }
-    if (FD_ISSET(_readPipe, &rfds)) {
-      ::read(_readPipe, &invoker, sizeof(Invoker *));  // read 1 event handler
+    if (FD_ISSET(_readPipe, &rfds))
+    {
+      ::read(_readPipe, &invoker, sizeof(Invoker *)); // read 1 event handler
       invoker->invoke();
     }
 
-    for (auto &myPair : _readInvokers) {
-      if (FD_ISSET(myPair.first, &rfds)) {
+    for (auto &myPair : _readInvokers)
+    {
+      if (FD_ISSET(myPair.first, &rfds))
+      {
         myPair.second.fn(myPair.second.arg);
         break;
       }
     }
-    for (auto &myPair : _writeInvokers) {
-      if (FD_ISSET(myPair.first, &wfds)) {
-        myPair.second.fn(myPair.second.arg);  // can impact _writeInvokers
+    for (auto &myPair : _writeInvokers)
+    {
+      if (FD_ISSET(myPair.first, &wfds))
+      {
+        myPair.second.fn(myPair.second.arg); // can impact _writeInvokers
         break;
       }
     }
-    for (auto &myPair : _errorInvokers) {
-      if (FD_ISSET(myPair.first, &efds)) {
+    for (auto &myPair : _errorInvokers)
+    {
+      if (FD_ISSET(myPair.first, &efds))
+      {
         myPair.second.fn(myPair.second.arg);
         break;
       }
     }
-    if (FD_ISSET(_readPipe, &efds)) {
+    if (FD_ISSET(_readPipe, &efds))
+    {
       WARN("pipe  error : %s (%d)", strerror(errno), errno);
       return ECOMM;
     }
     return 0;
-  } else {
+  }
+  else
+  {
     DEBUG(" timeout %llu", Sys::millis());
     return ETIMEDOUT;
   }
   return ECOMM;
 }
 
-Thread::Thread(const char *name) : Named(name) {
-  createQueue();
-  INFO(" thread %s timers:%d", name, _timers.size());
-}
-
-void Thread::createQueue() {
+void Thread::createQueue()
+{
   int rc = pipe(_pipeFd);
   _writePipe = _pipeFd[1];
   _readPipe = _pipeFd[0];
-  if (rc < 0) WARN("Queue creation failed %d %s ", errno, strerror(errno));
-  if (fcntl(_writePipe, F_SETFL, O_NONBLOCK) < 0) {
+  if (rc < 0)
+    WARN("Queue creation failed %d %s ", errno, strerror(errno));
+  if (fcntl(_writePipe, F_SETFL, O_NONBLOCK) < 0)
+  {
     WARN("Failed to set pipe blocking mode: %s (%d)", strerror(errno), errno);
   }
 }
-
-void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
-
-void Thread::delTimer(TimerSource *ts) {
-  auto pos = std::find(_timers.begin(), _timers.end(), ts);
-  if (pos != _timers.end()) _timers.erase(pos);
+Timer &Thread::createTimer(uint32_t interval, bool repeat, bool active, const char *__name)
+{
+  Timer *timer = new Timer(interval, repeat, active, __name);
+  THREAD_LOCK(this);
+  _timers.push_back(timer);
+  return *timer;
 }
+/*
+void Thread::delTimer(TimerSource *ts)
+{
+  auto pos = std::find(_timers.begin(), _timers.end(), ts);
+  if (pos != _timers.end())
+    _timers.erase(pos);
+}*/
 
-void SetThreadName(std::thread *thread, const char *threadName) {
+void SetThreadName(std::thread *thread, const char *threadName)
+{
   auto handle = thread->native_handle();
   pthread_setname_np(handle, threadName);
 }
 
-void Thread::start() {
+void Thread::start()
+{
   INFO("Thread %s started", name());
   std::thread *thr = new std::thread(&Thread::run, this);
   SetThreadName(thr, name());
 }
 
-int Thread::enqueue(Invoker *invoker) {
+int Thread::queue(Invoker *invoker)
+{
   //  INFO("Thread '%s' >>> '%lX", _name.c_str(), invoker);
   if (_writePipe)
-    if (write(_writePipe, (const char *)&invoker, sizeof(Invoker *)) == -1) {
+    if (write(_writePipe, (const char *)&invoker, sizeof(Invoker *)) == -1)
+    {
       WARN("Thread '%s' queue overflow [%X]", name(), invoker);
       return ENOBUFS;
     }
   return 0;
 };
-int Thread::enqueueFromIsr(Invoker *invoker) { return enqueue(invoker); };
-
-void Thread::run() {
-  INFO("Thread '%s' started ", name());
-  buildFdSet();
-  while (true) {
-    uint64_t now = Sys::millis();
-    uint64_t expTime = now + 5000;
-    TimerSource *expiredTimer = 0;
-    // find next expired timer if any within 5 sec
-    for (auto timer : _timers) {
-      if (timer->expireTime() < expTime) {
-        expTime = timer->expireTime();
-        expiredTimer = timer;
-      }
-    }
-    int32_t waitTime = (expTime - now);
-    if (waitTime > 0) {
-      int rc = waitInvoker(waitTime);
-      if (rc == ETIMEDOUT && expiredTimer) {  // check timer is still valid
-        if (std::find(_timers.begin(), _timers.end(), expiredTimer) !=
-            _timers.end())
-          expiredTimer->request();
-      }
-    } else {
-      if (expiredTimer) {
-        if (-waitTime > 100)
-          INFO("Timer[%lX] already expired by %u msec on thread '%s'.",
-               expiredTimer, -waitTime, name());
-        if (std::find(_timers.begin(), _timers.end(), expiredTimer) !=
-            _timers.end())
-          expiredTimer->request();
-      }
+/*
+void Thread::wake() {
+  if (_writePipe) {
+    Invoker *invoker = new Invoker();
+    if (write(_writePipe, (const char *)&invoker, sizeof(Invoker *)) == -1) {
+      WARN("Thread '%s' queue overflow [%X]", name(), invoker);
     }
   }
+}
+*/
+void Thread::run()
+/*
+{
+  while (true)
+  {
+    uint32_t min_wait = 1; // cycle fast on lock
+    if (try_lock())
+    {
+      // read all invokers
+      Invoker *invoker;
+      while (_invokers.pop(invoker))
+      {
+        invoker->invoke();
+      }
+
+      // check all timers
+      for (Timer *timer : _timers)
+      {
+        if (timer->isExpired())
+          timer->invoke();
+      }
+      min_wait = minWait();
+    }
+    wait(minWait());
+  }
+} */
+{
+  INFO("Thread '%s' started ", name());
+  buildFdSet();
+  while (true)
+  {
+    for (Timer *timer : _timers)
+    {
+      if (timer->isExpired())
+        timer->invoke();
+    }
+    int32_t waitTime = minWait();
+    int rc = waitInvoker(waitTime);
+  }
+}
+
+uint32_t Thread::minWait()
+{
+
+  uint32_t waitTime = 10000;
+  uint64_t now = Sys::millis();
+  for (Timer *timer : _timers)
+  {
+    if (timer->expiresAt() < now)
+      return 0;
+    uint32_t delta = timer->expiresAt() - now;
+    if (delta < waitTime)
+      waitTime = delta;
+  }
+  return waitTime;
 }

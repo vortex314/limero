@@ -12,7 +12,7 @@ class BytesToFrame : public Flow<Bytes, Bytes>
   uint32_t _frameTimeout = 1000;
 
 public:
-  ValueFlow<Bytes> logs;
+  Flow<Bytes,Bytes> logs;
   BytesToFrame();
   void on(const Bytes &bs);
   void toStdout(const Bytes &bs);
@@ -20,7 +20,7 @@ public:
   void handleRxd(const Bytes &bs);
   void request();
 };
-class FrameToBytes : public LambdaFlow<Bytes, Bytes>
+class FrameToBytes : public Flow<Bytes, Bytes>
 {
 public:
   FrameToBytes();
