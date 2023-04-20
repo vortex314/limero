@@ -11,22 +11,18 @@ int token(JsonVariant v);
 
 class Redis;
 
-struct RedisReplyContext
-{
+struct RedisReplyContext {
   std::string command;
   Redis *me;
   RedisReplyContext(const std::string &command, Redis *me)
-      : command(command), me(me)
-  {
+      : command(command), me(me) {
     //  INFO("new RedisReplyContext %X : %s", this,command.c_str());
   }
-  ~RedisReplyContext()
-  { /*INFO("delete RedisReplyContext %X", this);*/
+  ~RedisReplyContext() { /*INFO("delete RedisReplyContext %X", this);*/
   }
 };
 
-class Redis : public Actor
-{
+class Redis : public Actor {
   QueueFlow<Json> _request;
   QueueFlow<Json> _response;
   ValueFlow<String> _command;
@@ -41,16 +37,11 @@ class Redis : public Actor
   Sink<Json> *_jsonToRedis;
   std::vector<std::string> _ignoreReplies;
   std::vector<std::string> _subscribedChannels;
-  enum
-  {
-    CS_DISCONNECTED,
-    CS_CONNECTED,
-    CS_CONNECTING
-  } _connectionStatus;
-  Timer _connectionTimer;
+  enum { CS_DISCONNECTED, CS_CONNECTED, CS_CONNECTING } _connectionStatus;
+  TimerSource _connectionTimer;
   std::vector<std::string> _initCommands;
 
-public:
+ public:
   Redis(Thread &thread, JsonObject config);
   ~Redis();
 
@@ -81,11 +72,9 @@ public:
   static void cleanupFd(void *pv);
 
   template <typename T>
-  Source<T> &subscriber(std::string pattern)
-  {
+  Source<T> &subscriber(std::string pattern) {
     subscribe(pattern);
-    auto lf = new Flow<Json, T>([&, pattern](T &t, const Json &msg)
-                                {
+    auto lf = new Flow<Json, T>([&, pattern](T &t, const Json &msg) {
       std::string s;
       serializeJson(msg, s);
       if (msg[0] == "pmessage" && msg[1] == pattern) {
@@ -99,21 +88,21 @@ public:
                msg[3].as<std::string>().c_str());
         }
       }
-      return false; });
+      return false;
+    });
     lf->name(pattern);
     _response >> *lf;
     return *lf;
   }
   template <typename T>
-  Sink<T> &publisher(std::string topic)
-  {
-    auto &sf = *new Sink<T>([&, topic](const T &t)
-                            {
+  Sink<T> &publisher(std::string topic) {
+    auto &sf = *new Sink<T>([&, topic](const T &t) {
       std::string s;
       Json valueJson(1024);
       valueJson.as<JsonVariant>().set(t);
       serializeJson(valueJson, s);
-      publish(topic, s); });
+      publish(topic, s);
+    });
     sf.name(topic);
     return sf;
   }

@@ -1,23 +1,11 @@
 #include "limero.h"
-
 #include <algorithm>
-
-std::unordered_map<void *, std::forward_list<Subscription *> *>
-    Subscription::_subscriptionsPerSource;
-
-/*
- _____ _                        _
-|_   _| |__  _ __ ___  __ _  __| |
-  | | | '_ \| '__/ _ \/ _` |/ _` |
-  | | | | | | | |  __/ (_| | (_| |
-  |_| |_| |_|_|  \___|\__,_|\__,_|
-*/
-int Thread::_id = 0;
 
 Thread::Thread(const char *name) : Named(name)
 {
   _priority = tskIDLE_PRIORITY + 1;
   _queueSize = 20;
+  _stackSize = 1024;
 }
 
 Thread::Thread(ThreadProperties props)
@@ -26,11 +14,15 @@ Thread::Thread(ThreadProperties props)
       _stackSize(props.stackSize),
       _priority(props.priority) {}
 
-void Thread::addTimer(TimerSource *ts) { _timers.push_back(ts); }
-
-void Thread::delTimer(TimerSource *ts)
+TimerSource &Thread::createTimer(uint32_t interval, bool repeat, bool active, const char *__name)
 {
-  auto pos = std::find(_timers.begin(), _timers.end(), ts);
+  TimerSource *timer = new TimerSource(interval, repeat, active, __name);
+  _timers.push_back(timer);
+  return *timer;
+}
+void Thread::deleteTimer(TimerSource &ts)
+{
+  auto pos = std::find(_timers.begin(), _timers.end(), &ts);
   if (pos != _timers.end())
     _timers.erase(pos);
 }
@@ -54,7 +46,7 @@ void Thread::start()
       }, _name.c_str(), 20000, this, 17, NULL, PRO_CPU);*/
 }
 
-int Thread::enqueue(Invoker *invoker)
+int Thread::queue(Invoker *invoker)
 {
   //	INFO("Thread '%s' >>> '%s'",_name.c_str(),symbols(invoker));
   if (_workQueue)
@@ -83,7 +75,7 @@ void Thread::wake()
       WARN("Thread '%s' queue overflow [%X]", name(), NULL);
     }
 }
-int Thread::enqueueFromIsr(Invoker *invoker)
+int Thread::queueFromISR(Invoker *invoker)
 {
   if (_workQueue)
   {
@@ -111,46 +103,22 @@ void Thread::run()
   createQueue();
   while (true)
   {
-    uint64_t now = Sys::millis();
-    uint64_t soonestExpiration = now + 5000;
-    // find next expired timer if any within 5 sec
-    for (auto timer : _timers)
-    {
-      if (timer->expireTime() != UINT64_MAX)
+      uint32_t min_wait = 1; // cycle fast on lock
+      // check all timers
+      for (TimerSource *timer : _timers)
       {
-        if (timer->expireTime() <= now)
-        {
- //         INFO(" TimerSource [%X] execution", timer);
-          timeExec(
-              "Timer request", [timer]()
-              { timer->request(); },
-              10);
-          if (timer->expireTime() == UINT64_MAX)
-          {
-//            INFO(" TimerSource [%X] is disabled", timer);
-            continue;
-          }
-//          else
-//            INFO(" TimerSource [%X] next expiration %llu msec", timer, timer->expireTime() - now);
-        }
-        if (timer->expireTime() <= soonestExpiration)
-        {
-          soonestExpiration = timer->expireTime();
-//          INFO(" TimerSource [%X] next expiration %llu msec", timer, timer->expireTime() - now);
-        }
+        if (timer->isExpired())
+          timer->invoke();
       }
-    }
+      min_wait = minWait();
 
-    Invoker *prq;
-    uint32_t wait = soonestExpiration - now;
-    TickType_t tickWaits = pdMS_TO_TICKS(wait);
-//    INFO("Thread '%s' tickWaits %d", name(), wait);
-    if (xQueueReceive(_workQueue, &prq, tickWaits) == pdPASS)
+    Invoker *invoker;
+
+    TickType_t tickWaits = pdMS_TO_TICKS(min_wait);
+    INFO("Thread '%s' tickWaits %d", name(), min_wait);
+    while (xQueueReceive(_workQueue, &invoker, tickWaits) == pdPASS)
     {
-      timeExec(
-          "Invoker", [prq]()
-          { prq->invoke(); },
-          10);
+      invoker->invoke();
     }
   }
 }

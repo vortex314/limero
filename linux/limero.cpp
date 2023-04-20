@@ -189,20 +189,19 @@ void Thread::createQueue()
     WARN("Failed to set pipe blocking mode: %s (%d)", strerror(errno), errno);
   }
 }
-Timer &Thread::createTimer(uint32_t interval, bool repeat, bool active, const char *__name)
+TimerSource &Thread::createTimer(uint32_t interval, bool repeat, bool active, const char *__name)
 {
-  Timer *timer = new Timer(interval, repeat, active, __name);
-  THREAD_LOCK(this);
+  TimerSource *timer = new TimerSource(interval, repeat, active, __name);
   _timers.push_back(timer);
   return *timer;
 }
-/*
-void Thread::delTimer(TimerSource *ts)
+
+void Thread::deleteTimer(TimerSource &ts)
 {
-  auto pos = std::find(_timers.begin(), _timers.end(), ts);
+  auto pos = std::find(_timers.begin(), _timers.end(), &ts);
   if (pos != _timers.end())
     _timers.erase(pos);
-}*/
+}
 
 void SetThreadName(std::thread *thread, const char *threadName)
 {
@@ -254,7 +253,7 @@ void Thread::run()
       }
 
       // check all timers
-      for (Timer *timer : _timers)
+      for (TimerSource *timer : _timers)
       {
         if (timer->isExpired())
           timer->invoke();
@@ -269,7 +268,7 @@ void Thread::run()
   buildFdSet();
   while (true)
   {
-    for (Timer *timer : _timers)
+    for (TimerSource *timer : _timers)
     {
       if (timer->isExpired())
         timer->invoke();
@@ -284,7 +283,7 @@ uint32_t Thread::minWait()
 
   uint32_t waitTime = 10000;
   uint64_t now = Sys::millis();
-  for (Timer *timer : _timers)
+  for (TimerSource *timer : _timers)
   {
     if (timer->expiresAt() < now)
       return 0;

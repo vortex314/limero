@@ -5,9 +5,9 @@
 
 Redis::Redis(Thread &thread, JsonObject config)
     : Actor(thread),
-      _request(thread,100, "Redis:request"),
-      _response(thread,100, "Redis:response"),
-      _connectionTimer( 10000, true, true,"connectionTimer"),
+      _request(thread, 100, "Redis:request"),
+      _response(thread, 100, "Redis:response"),
+      _connectionTimer(10000, true, true, "connectionTimer"),
       _command(thread, "Redis:command"),
       _connected(thread, "Redis:connected") {
   _redisHost = config["host"] | "localhost";
@@ -27,13 +27,13 @@ Redis::Redis(Thread &thread, JsonObject config)
   _response >> [](const Json &response) {
     std::string str;
     serializeJson(response, str);
-    INFO("Redis response: '%s'", str.c_str());
+    DEBUG("Redis response: '%s'", str.c_str());
   };
 
   _request >> [](const Json &request) {
     std::string str;
     serializeJson(request, str);
-    INFO("Redis request: '%s'", str.c_str());
+    DEBUG("Redis request: '%s'", str.c_str());
   };
 
   if (config["ignoreReplies"].is<JsonArray>()) {
@@ -95,7 +95,7 @@ Redis::Redis(Thread &thread, JsonObject config)
     }
   };
 
-  _connectionTimer >> [&](const Timer& timer) {
+  _connectionTimer >> [&](const TimerSource &timer) {
     if (_connectionStatus == CS_DISCONNECTED) {
       reconnect();
     }
@@ -253,7 +253,8 @@ void Redis::replyHandler(redisAsyncContext *ac, void *repl, void *pv) {
   };
   redisReplyToJson(replyInJson.as<JsonVariant>(), reply);
   if (redis->_addReplyContext && redisReplyContext &&
-      !isPsubscribe(replyInJson.as<JsonVariant>()) && !isPmessage(replyInJson.as<JsonVariant>())) {
+      !isPsubscribe(replyInJson.as<JsonVariant>()) &&
+      !isPmessage(replyInJson.as<JsonVariant>())) {
     envelope[0] = redisReplyContext->command;
     envelope[1] = replyInJson;
     redis->_response.on(envelope);

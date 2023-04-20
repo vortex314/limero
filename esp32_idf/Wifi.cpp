@@ -12,8 +12,11 @@
   } while (0);
 
 Wifi::Wifi(Thread &thr)
-    : Actor(thr), password(S(WIFI_PASS)), prefix(S(WIFI_SSID))
+    : Actor(thr), connected(thr), rssi(thr), ipAddress(thr), ssid(thr), mac(thr),, macAddress(thr), password(thr), prefix(thr)
+
 {
+  password = S(WIFI_PASS);
+  prefix = S(WIFI_SSID);
   INFO(" WiFi credentials %s:%s", prefix().c_str(), password().c_str());
   rssi = 0;
 }
@@ -32,8 +35,8 @@ void Wifi::init()
   if (esp_read_mac(macBytes, ESP_MAC_WIFI_STA) != ESP_OK)
     WARN(" esp_base_mac_addr_get() failed.");
   ;
-  std::string macs = stringFormat( "%02X:%02X:%02X:%02X:%02X:%02X", macBytes[5], macBytes[4],
-                macBytes[3], macBytes[2], macBytes[1], macBytes[0]);
+  std::string macs = stringFormat("%02X:%02X:%02X:%02X:%02X:%02X", macBytes[5], macBytes[4],
+                                  macBytes[3], macBytes[2], macBytes[1], macBytes[0]);
   macAddress = macs;
   mac = macInt;
   connected = false;
