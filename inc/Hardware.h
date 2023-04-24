@@ -2,6 +2,7 @@
 #define HARDWARE_H
 #include <stdint.h>
 #include <string>
+#include <vector>
 
 typedef void (*FunctionPointer)(void *);
 
@@ -48,7 +49,7 @@ public:
 
     virtual int write(const uint8_t *data, uint32_t length) = 0;
     virtual int write(uint8_t b) = 0;
-    virtual int read(std::string &bytes) = 0;
+    virtual int read(std::vector<uint8_t> &bytes) = 0;
     virtual uint8_t read() = 0;
     virtual void onRxd(FunctionPointer, void *) = 0;
     virtual void onTxd(FunctionPointer, void *) = 0;

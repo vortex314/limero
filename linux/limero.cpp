@@ -212,8 +212,9 @@ void SetThreadName(std::thread *thread, const char *threadName)
 void Thread::start()
 {
   INFO("Thread %s started", name());
-  std::thread *thr = new std::thread(&Thread::run, this);
-  SetThreadName(thr, name());
+  _thread = new std::thread(&Thread::run, this);
+
+  SetThreadName(_thread, name());
 }
 
 int Thread::queue(Invoker *invoker)
@@ -222,7 +223,7 @@ int Thread::queue(Invoker *invoker)
   if (_writePipe)
     if (write(_writePipe, (const char *)&invoker, sizeof(Invoker *)) == -1)
     {
-      WARN("Thread '%s' queue overflow [%X]", name(), invoker);
+      WARN("Thread '%s' queue overflow [%X] : [%d] %s ", name(), invoker, errno, strerror(errno));
       return ENOBUFS;
     }
   return 0;
@@ -292,4 +293,9 @@ uint32_t Thread::minWait()
       waitTime = delta;
   }
   return waitTime;
+}
+
+bool Thread::inThread()
+{
+  return _thread->get_id() == std::this_thread::get_id();
 }

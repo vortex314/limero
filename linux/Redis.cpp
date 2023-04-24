@@ -45,7 +45,7 @@ Redis::Redis(Thread &thread, JsonObject config)
   }
   _ac = 0;
 
-  _jsonToRedis = new Sink<Json>([&](const Json &docIn) {
+  _jsonToRedis = new SinkFunction<Json>([&](const Json &docIn) {
     //    if (!_connected()) return; // otherwise first message lost
     if (!_connected() && _connectionStatus == CS_DISCONNECTED) {
       responseFailure(ENOTCONN, "Not Connected");

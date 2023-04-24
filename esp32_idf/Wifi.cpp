@@ -12,13 +12,14 @@
   } while (0);
 
 Wifi::Wifi(Thread &thr)
-    : Actor(thr), connected(thr), rssi(thr), ipAddress(thr), ssid(thr), mac(thr),, macAddress(thr), password(thr), prefix(thr)
+    : Actor(thr), connected(thr), rssi(thr), ipAddress(thr), ssid(thr), mac(thr), macAddress(thr), password(thr), prefix(thr)
 
 {
-  password = S(WIFI_PASS);
-  prefix = S(WIFI_SSID);
-  INFO(" WiFi credentials %s:%s", prefix().c_str(), password().c_str());
-  rssi = 0;
+  password= S(WIFI_PASS);
+  prefix=S(WIFI_SSID);
+  rssi= -200;
+    INFO(" WiFi credentials %s:%s", prefix().c_str(), password().c_str());
+
 }
 
 Wifi::~Wifi() {}
@@ -160,7 +161,7 @@ bool Wifi::scanDoneHandler()
     {
       strongestAP = i;
       rssi = apRecords[i].rssi;
-    }
+    } 
   }
   if (strongestAP == -1)
   {

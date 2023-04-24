@@ -828,11 +828,11 @@ public:
     return 0;
   }
 
-  int read(std::string &bytes)
+  int read(std::vector<uint8_t> &bytes)
   {
     while (_rxdBuf.size())
     {
-      bytes += _rxdBuf.front();
+      bytes.push_back(_rxdBuf.front());
       _rxdBuf.pop_front();
     }
     return 0;

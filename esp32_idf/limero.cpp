@@ -1,18 +1,25 @@
 #include "limero.h"
 #include <algorithm>
+#include <assert.h>
 
 Thread::Thread(const char *name) : Named(name)
 {
   _priority = tskIDLE_PRIORITY + 1;
   _queueSize = 20;
-  _stackSize = 1024;
+  _stackSize = 5000;
+  createQueue();
+  _taskHandle = xTaskGetCurrentTaskHandle();
 }
 
 Thread::Thread(ThreadProperties props)
     : Named(props.name),
       _queueSize(props.queueSize),
       _stackSize(props.stackSize),
-      _priority(props.priority) {}
+      _priority(props.priority)
+{
+  createQueue();
+  _taskHandle = xTaskGetCurrentTaskHandle();
+}
 
 TimerSource &Thread::createTimer(uint32_t interval, bool repeat, bool active, const char *__name)
 {
@@ -36,10 +43,13 @@ void Thread::createQueue()
 
 void Thread::start()
 {
-  xTaskCreate([](void *task)
-              { ((Thread *)task)->run(); },
-              name(),
-              _stackSize ? _stackSize : 10000, this, _priority, NULL);
+  if (xTaskCreate([](void *task)
+                  { ((Thread *)task)->run(); },
+                  name(),
+                  _stackSize ? _stackSize : 10000, this, _priority, &_taskHandle) != pdPASS)
+  {
+    WARN("Thread '%s' creation failed ", name());
+  }
   /*
       xTaskCreatePinnedToCore([](void* task) {
               ((Thread*)task)->run();
@@ -97,28 +107,54 @@ void timeExec(const char *name, std::function<void()> f, uint32_t warn)
     WARN("Execution %s took %d msec", name, delta);
 }
 
+bool Thread::inThread()
+{
+  return xTaskGetCurrentTaskHandle() == _taskHandle;
+}
+
 void Thread::run()
 {
   INFO("Thread '%s' prio : %d started ", name(), uxTaskPriorityGet(NULL));
-  createQueue();
+  assert(this->inThread());
   while (true)
   {
-      uint32_t min_wait = 1; // cycle fast on lock
-      // check all timers
-      for (TimerSource *timer : _timers)
-      {
-        if (timer->isExpired())
-          timer->invoke();
-      }
-      min_wait = minWait();
+    uint32_t min_wait = 1; // cycle fast on lock
+    // check all timers
+    for (TimerSource *timer : _timers)
+    {
+      if (timer->isExpired())
+        timer->invoke();
+    }
+    min_wait = minWait();
 
     Invoker *invoker;
 
     TickType_t tickWaits = pdMS_TO_TICKS(min_wait);
-    INFO("Thread '%s' tickWaits %d", name(), min_wait);
+  //  INFO("Thread '%s' tickWaits %d", name(), min_wait);
     while (xQueueReceive(_workQueue, &invoker, tickWaits) == pdPASS)
     {
       invoker->invoke();
     }
   }
+}
+
+void Thread::stop()
+{
+  // TODO
+}
+
+uint32_t Thread::minWait()
+{
+
+  uint32_t waitTime = 10000;
+  uint64_t now = Sys::millis();
+  for (TimerSource *timer : _timers)
+  {
+    if (timer->expiresAt() < now)
+      return 0;
+    uint32_t delta = timer->expiresAt() - now;
+    if (delta < waitTime)
+      waitTime = delta;
+  }
+  return waitTime;
 }

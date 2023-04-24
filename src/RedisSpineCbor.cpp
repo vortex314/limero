@@ -12,16 +12,17 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
     : Actor(thr),
       _cborOut(256), // initial size of the buffer
       _cborIn(256),
-      _loopbackTimer(thr, 950, true, "loopbackTimer"),
-      _connectionWatchdog(thr, 6000, true, "connectTimer"),
-      rxdCbor(5, "Redis:rxdCbor"),
-      txdCbor(5, "Redis:txdCbor")
+      _loopbackTimer(thr.createTimer( 950, true,true, "loopbackTimer")),
+      _connectionWatchdog(thr.createTimer( 6000, true,true, "connectTimer")),
+      rxdBytes(thr,"Redis:rxdBytes"),
+      rxdCbor(thr,5, "Redis:rxdCbor"),
+      txdCbor(thr,5, "Redis:txdCbor"),
+      pubArrived(thr, "Redis:pubArrived"),
+      connected(thr, "Redis:connected")
 {
   setNode(nodeName);
   _state = CONNECTING;
   connected = false;
-  rxdCbor.async(thread());
-  txdCbor.async(thread());
 
   rxdCbor >> [&](const Bytes &bs)
   {
@@ -35,7 +36,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
     }
   };
 
-  _loopbackTimer >> [&](const TimerMsg &)
+  _loopbackTimer >> [&](const TimerSource &)
   {
     static int cnt = 0;
     cnt++;
@@ -61,7 +62,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
     }
   };
 
-  _connectionWatchdog >> [this](const TimerMsg &)
+  _connectionWatchdog >> [this](const TimerSource &)
   {
     INFO("WDT connection")
     connected = false;
@@ -74,7 +75,7 @@ RedisSpineCbor::RedisSpineCbor(Thread &thr, const char *nodeName)
     _state = READY;
     _cborOut.start().write('[').write("pub").write(_latencyTopic).write(Sys::millis() - in).write(']').end();
     sendCbor(_cborOut);
-    _connectionWatchdog.reset();
+    _connectionWatchdog.start();
   };
 };
 

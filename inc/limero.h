@@ -13,6 +13,9 @@
 
 typedef std::string String;
 typedef std::vector<uint8_t> Bytes;
+#ifdef LINUX
+#include <thread>
+#endif
 #ifdef ESP32_IDF
 #define FREERTOS
 #include <freertos/FreeRTOS.h>
@@ -278,7 +281,6 @@ class Source;
 template <typename T>
 class Sink : public Named
 {
-  std::function<void(const T &)> _handler;
   std::vector<Source<T> *> _sources;
   Sink(const Sink &) = delete; // forbid copy
 
@@ -286,15 +288,8 @@ public:
   Sink(const char *nm = "Sink")
   {
     name(nm);
-    _handler = [](const T &t)
-    { INFO("Default Sink handler called ?? "); };
+    INFO("Sink()");
   }
-  Sink(std::function<void(const T &)> f)
-  {
-    name("SinkFunction");
-    _handler = f;
-  }
-
   ~Sink()
   {
     INFO("~Sink()");
@@ -303,12 +298,35 @@ public:
       source->unsubscribe(this);
     }
   }
-  void handler(std::function<void(const T &)> f) { _handler = f; }
 
   void addSource(Source<T> *source) { _sources.push_back(source); }
 
-  virtual void on(const T &value) { _handler(value); }
+  virtual void on(const T &value) = 0;
 };
+//============================================================================
+template <typename T>
+class SinkFunction : public Sink<T>
+{
+  std::function<void(const T &)> _handler;
+
+public:
+  SinkFunction(const char *nm = "SinkFunction")
+  {
+    this->name(nm);
+    _handler = [](const T &t)
+    { INFO("Default Sink handler called ?? "); };
+  }
+  SinkFunction(std::function<void(const T &)> f, const char *nm = "SinkFunction")
+  {
+    this->name(nm);
+    _handler = f;
+  }
+
+  void handler(std::function<void(const T &)> f) { _handler = f; }
+
+  void on(const T &value) { _handler(value); }
+};
+
 //============================================================================
 
 template <typename T>
@@ -342,7 +360,7 @@ public:
   void operator>>(Sink<T> &sink) { subscribe(&sink); }
   void operator>>(std::function<void(const T &)> f)
   {
-    Sink<T> *sink = new Sink<T>(f);
+    Sink<T> *sink = new SinkFunction<T>(f, "lambda");
     subscribe(sink);
   }
 };
@@ -422,9 +440,10 @@ public:
   void stop() { _active = false; }
   void invoke()
   {
+    //   INFO("%s expired at %llu", name(), _expireTime);
     emit(*this);
     if (_active)
-      _expireTime = Sys::millis() + _interval;
+      _expireTime += _interval;
     else
       _expireTime = UINT64_MAX;
   };
@@ -446,8 +465,7 @@ struct ThreadProperties
 
 class Thread : public Named
 {
-  //  ArrayQueue<Invoker *> _invokers;
-  std::vector<TimerSource *> _timers;
+
 #ifdef LINUX
   int _pipeFd[2]; // pipe for thread wakeup and invoker queue
   int _writePipe = 0;
@@ -456,6 +474,7 @@ class Thread : public Named
   fd_set _wfds;
   fd_set _efds;
   int _maxFd;
+  std::thread *_thread;
   std::unordered_map<int, Callback> _writeInvokers;
   std::unordered_map<int, Callback> _readInvokers;
   std::unordered_map<int, Callback> _errorInvokers;
@@ -471,12 +490,14 @@ public:
   void delAllInvoker(int);
   int waitInvoker(uint32_t timeout);
 #endif
-#if defined(FREERTOS)
+
+#ifdef FREERTOS
 private:
   QueueHandle_t _workQueue = 0; // queue for thread wakeup and invoker queue
   int _queueSize = 10;
   int _stackSize = 1024;
   int _priority = tskIDLE_PRIORITY + 1;
+  TaskHandle_t _taskHandle = 0;
 
 public:
   Thread(ThreadProperties props);
@@ -484,49 +505,51 @@ public:
   //    void createQueue(int queueSize = 10, int stackSize = 1024, int priority
   //    = 1);
   int queueFromISR(Invoker *invoker);
-
 #endif
+  std::vector<TimerSource *> _timers;
+  //  ArrayQueue<Invoker *> _invokers;
 
 public:
   Thread(const char *_name = "Thread");
+  bool inThread();
+  void wake();
+  void wait(uint32_t timeout);
+  void createQueue();
+  uint32_t minWait();
   // bool try_lock() { return thread_mutex.try_lock(); }
   void run();
   void stop();
   void start();
-  void wake();
-  void wait(uint32_t timeout);
   int queue(Invoker *invoker);
-  void createQueue();
-  uint32_t minWait();
   TimerSource &createTimer(uint32_t interval, bool repeat, bool active = true,
                            const char *__name = "Timer");
   void deleteTimer(TimerSource &timer);
 };
 //============================================================================
-
 class Actor : public Named
 {
   Thread &_thread;
 
 public:
   Actor(Thread &thr) : _thread(thr) { name("Actor"); }
-
   virtual void run() { INFO(" Default run of actor !"); }
-
   Thread &thread() { return _thread; }
 };
 //============================================================================
 
 //============================================================================
 template <typename T>
+class ValueFlow;
+template <typename T>
 class QueueFlow : public Flow<T, T>, public Invoker
 {
+  friend class ValueFlow<T>;
   Thread &_thread;
   ArrayQueue<T> _queue;
   T _t;
 
 public:
-  QueueFlow<T>(Thread thread, size_t size = 1,const char *__name = "QueueFlow"): _thread(thread), _queue(size)
+  QueueFlow(Thread &thread, size_t size = 1, const char *__name = "QueueFlow") : _thread(thread), _queue(size)
   {
     ((Flow<T, T> *)this)->name(__name);
   }
@@ -544,17 +567,32 @@ public:
   }
   T &last() { return _t; }
 };
+//============================================================================
 template <typename T>
 class ValueFlow : public QueueFlow<T>
 {
 public:
-  ValueFlow<T>(Thread &thread, const char *__name = "ValueFlow")
+  ValueFlow(Thread &thread, const char *__name = "ValueFlow")
       : QueueFlow<T>(thread, 1, __name)
   {
     ((Flow<T, T> *)this)->name(__name);
   }
   const T &operator()() { return this->last(); }
-  void operator=(const T &t) { this->on(t); }
+  void operator=(const T &t) { this->_t = t; }
+};
+//============================================================================
+template <typename T>
+class ZeroFlow : public Flow<T, T>
+{
+public:
+  ZeroFlow(const char *__name = "ZeroFlow")
+  {
+    ((Flow<T, T> *)this)->name(__name);
+  }
+  void on(const T &t) // from other thread or same thread
+  {
+    this->emit(t);
+  }
 };
 
 #endif

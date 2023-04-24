@@ -10,21 +10,21 @@ class RedisSpineCbor : public Actor {
   CborEncoder _cborOut;
   CborDecoder _cborIn;
 
-  ZeroFlow<bool> pubArrived;
 
   std::string _loopbackTopic;
   std::string _latencyTopic;
   std::string _aliveTopic;
   std::string _subscribePattern;
-  TimerSource _loopbackTimer;
-  TimerSource _connectionWatchdog;
+  TimerSource& _loopbackTimer;
+  TimerSource& _connectionWatchdog;
   enum { CONNECTING, READY } _state;
   void setNode(const char *);
 
  public:
-  ZeroFlow<Bytes> rxdBytes;
+  ValueFlow<Bytes> rxdBytes;
   QueueFlow<Bytes> rxdCbor;
   QueueFlow<Bytes> txdCbor;
+  ValueFlow<bool> pubArrived;
   ValueFlow<bool> connected;
   std::string dstPrefix;
   std::string srcPrefix;
@@ -67,7 +67,7 @@ class RedisSpineCbor : public Actor {
       absTopic = topic;
     else
       absTopic = dstPrefix + topic;
-    auto vf = new ValueFlow<T>();
+    auto vf = new ValueFlow<T>(thread(), "vf");
     pubArrived >> [&, absTopic, vf](const bool &) {
       std::string rcvTopic, cmd;
       T value;
