@@ -1,14 +1,17 @@
 #ifndef __LIMERO_H__
 #define __LIMERO_H__
+
 #include <Log.h>
 #include <Sys.h>
 #include <stdio.h>
 
+#include <algorithm>
 #include <forward_list>
 #include <functional>
 #include <iostream>
 #include <mutex>
 #include <queue>
+#include <unordered_map>
 #include <vector>
 
 typedef std::string String;
@@ -38,16 +41,14 @@ typedef std::vector<uint8_t> Bytes;
 // level 15 will disable ALL interrupts,
 // level 0 will enable ALL interrupts
 //
-#define xt_rsil(level)                               \
-  (__extension__({                                   \
-    uint32_t state;                                  \
-    __asm__ __volatile__("rsil %0," STRINGIFY(level) \
-                         : "=a"(state));             \
-    state;                                           \
+#define xt_rsil(level)                                               \
+  (__extension__({                                                   \
+    uint32_t state;                                                  \
+    __asm__ __volatile__("rsil %0," STRINGIFY(level) : "=a"(state)); \
+    state;                                                           \
   }))
-#define xt_wsr_ps(state)                               \
-  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) \
-                       : "memory")
+#define xt_wsr_ps(state) \
+  __asm__ __volatile__("wsr %0,ps; isync" ::"a"(state) : "memory")
 #define interrupts() xt_rsil(0)
 #define noInterrupts() xt_rsil(15)
 #else
@@ -57,28 +58,24 @@ typedef std::vector<uint8_t> Bytes;
 
 #ifdef NO_ATOMIC
 template <class T>
-class ArrayQueue : public AbstractQueue<T>
-{
+class ArrayQueue : public AbstractQueue<T> {
   T *_array;
   int _size;
   int _readPtr;
   int _writePtr;
   inline int next(int idx) { return (idx + 1) % _size; }
 
-public:
-  ArrayQueue(int size) : _size(size)
-  {
+ public:
+  ArrayQueue(int size) : _size(size) {
     _readPtr = _writePtr = 0;
     _array = (T *)new T[size];
   }
-  bool push(const T &t)
-  {
+  bool push(const T &t) {
     //   INFO("push %X", (unsigned int)this);
     noInterrupts();
     int expected = _writePtr;
     int desired = next(expected);
-    if (desired == _readPtr)
-    {
+    if (desired == _readPtr) {
       interrupts();
       //      WARN("ArrayQueue sz %d rd %d wr %d ", size(), _readPtr,
       //      _writePtr);
@@ -90,13 +87,11 @@ public:
     return true;
   }
 
-  bool pop(T &t)
-  {
+  bool pop(T &t) {
     noInterrupts();
     int expected = _readPtr;
     int desired = next(expected);
-    if (expected == _writePtr)
-    {
+    if (expected == _writePtr) {
       interrupts();
       return false;
     }
@@ -106,8 +101,7 @@ public:
     return true;
   }
   size_t capacity() const { return _size; }
-  size_t size() const
-  {
+  size_t size() const {
     if (_writePtr >= _readPtr)
       return _writePtr - _readPtr;
     else
@@ -134,18 +128,15 @@ template <typename T, size_t cache_line_size = 8>
 #define INDEX_TYPE uint64_t
 #endif
 
-class ArrayQueue
-{
-private:
-  struct alignas(cache_line_size) Item
-  {
+class ArrayQueue {
+ private:
+  struct alignas(cache_line_size) Item {
     T value;
     std::atomic<INDEX_TYPE> version;
   };
 
   struct alignas(cache_line_size) AlignedAtomicU64
-      : public std::atomic<INDEX_TYPE>
-  {
+      : public std::atomic<INDEX_TYPE> {
     using std::atomic<INDEX_TYPE>::atomic;
   };
 
@@ -156,7 +147,7 @@ private:
   AlignedAtomicU64 m_head;
   AlignedAtomicU64 m_tail;
 
-public:
+ public:
   explicit ArrayQueue(size_t reserve)
 #if defined(OPENCM3) || defined(ESP8266_RTOS_SDK) || PIOFRAMWORK == libopenCM3
       : m_items(static_cast<Item *>(malloc(sizeof(Item) * reserve))),
@@ -170,8 +161,7 @@ public:
 #endif
   {
     m_items = new Item[reserve];
-    for (size_t i = 0; i < reserve; ++i)
-    {
+    for (size_t i = 0; i < reserve; ++i) {
       m_items[i].version = i;
     }
   }
@@ -184,19 +174,16 @@ public:
   ArrayQueue<T> &operator=(const ArrayQueue<T> &) = delete;
   ArrayQueue<T> &operator=(const ArrayQueue<T> &&) = delete;
 
-  bool push(const T &value)
-  {
+  bool push(const T &value) {
     INDEX_TYPE tail = m_tail.load(std::memory_order_relaxed);
 
     if (m_items[tail % m_capacity].version.load(std::memory_order_acquire) !=
-        tail)
-    {
+        tail) {
       return false;
     }
 
     if (!m_tail.compare_exchange_strong(tail, tail + 1,
-                                        std::memory_order_relaxed))
-    {
+                                        std::memory_order_relaxed)) {
       return false;
     }
 
@@ -210,21 +197,18 @@ public:
     return true;
   }
 
-  bool pop(T &out)
-  {
+  bool pop(T &out) {
     INDEX_TYPE head = m_head.load(std::memory_order_relaxed);
 
     // Acquire here makes sure read of m_data[head].value is not reordered
     // before this Also makes sure side effects in try_enqueue are visible here
     if (m_items[head % m_capacity].version.load(std::memory_order_acquire) !=
-        (head + 1))
-    {
+        (head + 1)) {
       return false;
     }
 
     if (!m_head.compare_exchange_strong(head, head + 1,
-                                        std::memory_order_relaxed))
-    {
+                                        std::memory_order_relaxed)) {
       return false;
     }
     out = m_items[head % m_capacity].value;
@@ -242,28 +226,24 @@ public:
 
 #endif
 
-class Invoker
-{
-public:
+class Invoker {
+ public:
   virtual void invoke() = 0;
 };
 typedef void (*CallbackFunction)(void *);
-typedef struct
-{
+typedef struct {
   CallbackFunction fn;
   void *arg;
 } Callback;
 
 //============================================================================
-class Named
-{
+class Named {
   std::string _name;
 
-public:
+ public:
   Named(const char *nm = "no-name") { _name = nm; };
   const char *name() { return _name.c_str(); };
-  void name(const char *pref)
-  {
+  void name(const char *pref) {
     char buffer[60];
 #ifdef LINUX
     snprintf(buffer, sizeof(buffer), "%s[%lX]", pref, (uint64_t)this);
@@ -279,22 +259,18 @@ template <typename T>
 class Source;
 
 template <typename T>
-class Sink : public Named
-{
+class Sink : public Named {
   std::vector<Source<T> *> _sources;
-  Sink(const Sink &) = delete; // forbid copy
+  Sink(const Sink &) = delete;  // forbid copy
 
-public:
-  Sink(const char *nm = "Sink")
-  {
+ public:
+  Sink(const char *nm = "Sink") {
     name(nm);
     INFO("Sink()");
   }
-  ~Sink()
-  {
+  ~Sink() {
     INFO("~Sink()");
-    for (auto &source : _sources)
-    {
+    for (auto &source : _sources) {
       source->unsubscribe(this);
     }
   }
@@ -305,19 +281,16 @@ public:
 };
 //============================================================================
 template <typename T>
-class SinkFunction : public Sink<T>
-{
+class SinkFunction : public Sink<T> {
   std::function<void(const T &)> _handler;
 
-public:
-  SinkFunction(const char *nm = "SinkFunction")
-  {
+ public:
+  SinkFunction(const char *nm = "SinkFunction") {
     this->name(nm);
-    _handler = [](const T &t)
-    { INFO("Default Sink handler called ?? "); };
+    _handler = [](const T &t) { INFO("Default Sink handler called ?? "); };
   }
-  SinkFunction(std::function<void(const T &)> f, const char *nm = "SinkFunction")
-  {
+  SinkFunction(std::function<void(const T &)> f,
+               const char *nm = "SinkFunction") {
     this->name(nm);
     _handler = f;
   }
@@ -330,74 +303,66 @@ public:
 //============================================================================
 
 template <typename T>
-class Source : public Named
-{
+class Source : public Named {
   std::vector<Sink<T> *> _sinks;
-  Source(const Source &) = delete; // forbid copy
+  Source(const Source &) = delete;  // forbid copy
 
-public:
+ public:
   Source(const char *nm = "Source") { name(nm); }
   ~Source() { INFO("~Source()"); }
-  void emit(const T &value)
-  {
-    for (auto &sink : _sinks)
-    {
+  void emit(const T &value) {
+    for (auto &sink : _sinks) {
       sink->on(value);
     }
   };
-  void subscribe(Sink<T> *sink)
-  {
+  void subscribe(Sink<T> *sink) {
     INFO("%s >> %s", name(), sink->name());
     sink->addSource(this);
     _sinks.push_back(sink);
   }
-  void unsubscribe(Sink<T> *sink)
-  {
+  void unsubscribe(Sink<T> *sink) {
     INFO("%s >> %s Delete", this->name(), sink->name());
-    std::remove(_sinks.begin(), _sinks.end(), sink);
+   /* _sinks.erase(std::remove_if(_sinks.begin(), _sinks.end(),
+                                [](const &Sink<T> *x) {
+                                  return x == sink;  // put your condition here
+                                }),
+                 _sinks.end());*/
+     std::remove(_sinks.begin(), _sinks.end(), sink);
   }
 
   void operator>>(Sink<T> &sink) { subscribe(&sink); }
-  void operator>>(std::function<void(const T &)> f)
-  {
+  void operator>>(std::function<void(const T &)> f) {
     Sink<T> *sink = new SinkFunction<T>(f, "lambda");
     subscribe(sink);
   }
 };
 //============================================================================
 template <typename IN, typename OUT>
-class Flow : public Sink<IN>, public Source<OUT>
-{
+class Flow : public Sink<IN>, public Source<OUT> {
   std::function<bool(OUT &, const IN &)> _func;
 
-public:
+ public:
   Flow(
       std::function<bool(OUT &, const IN &)> func =
-          [](OUT &, const IN &)
-      {
-        INFO("no handler here");
-        return false;
-      },
+          [](OUT &, const IN &) {
+            INFO("no handler here");
+            return false;
+          },
       const char *__name = "Flow")
-      : _func(func)
-  {
+      : _func(func) {
     name(__name);
   }
-  void name(const char *__name)
-  {
+  void name(const char *__name) {
     Sink<IN>::name(__name);
     Source<OUT>::name(__name);
   }
-  void on(const IN &in)
-  {
+  void on(const IN &in) {
     OUT _out;
-    if (_func(_out, in))
-      this->emit(_out);
+    if (_func(_out, in)) this->emit(_out);
   }
 };
 template <typename IN, typename OUT>
-Source<OUT> &operator>>(Source<IN> &source, Flow<IN, OUT> &flow)
-{
+Source<OUT> &operator>>(Source<IN> &source, Flow<IN, OUT> &flow) {
   source.subscribe(&flow);
   return flow;
 }
@@ -405,18 +370,16 @@ Source<OUT> &operator>>(Source<IN> &source, Flow<IN, OUT> &flow)
 
 //============================================================================
 
-class TimerSource : public Source<TimerSource>, public Invoker
-{
+class TimerSource : public Source<TimerSource>, public Invoker {
   uint64_t _expireTime = UINT64_MAX;
   uint32_t _interval = 5000;
   bool _repeat = false;
   bool _active = true;
 
-public:
+ public:
   TimerSource(uint32_t intv, bool repeat, bool active = true,
               const char *__name = "Timer")
-      : Source<TimerSource>(__name)
-  {
+      : Source<TimerSource>(__name) {
     _interval = intv;
     _repeat = repeat, _active = active;
     _expireTime = Sys::millis() + _interval;
@@ -424,22 +387,19 @@ public:
   void interval(uint32_t interv) { _interval = interv; };
   void repeat(bool b) { _repeat = true; };
 
-  uint64_t expiresAt()
-  {
+  uint64_t expiresAt() {
     if (_active)
       return _expireTime;
     else
       return UINT64_MAX;
   }
   bool isExpired() { return (_active && _expireTime < Sys::millis()); }
-  void start()
-  {
+  void start() {
     _active = true;
     _expireTime = Sys::millis() + _interval;
   }
   void stop() { _active = false; }
-  void invoke()
-  {
+  void invoke() {
     //   INFO("%s expired at %llu", name(), _expireTime);
     emit(*this);
     if (_active)
@@ -454,8 +414,7 @@ public:
 #define THREAD_LOCK_TRY(__thread__) __thread__->thread_mutex.try_lock()
 */
 #ifdef FREERTOS
-struct ThreadProperties
-{
+struct ThreadProperties {
   const char *name;
   int stackSize;
   int queueSize;
@@ -463,11 +422,9 @@ struct ThreadProperties
 };
 #endif
 
-class Thread : public Named
-{
-
+class Thread : public Named {
 #ifdef LINUX
-  int _pipeFd[2]; // pipe for thread wakeup and invoker queue
+  int _pipeFd[2];  // pipe for thread wakeup and invoker queue
   int _writePipe = 0;
   int _readPipe = 0;
   fd_set _rfds;
@@ -480,7 +437,7 @@ class Thread : public Named
   std::unordered_map<int, Callback> _errorInvokers;
   void buildFdSet();
 
-public:
+ public:
   void addReadInvoker(int, void *, CallbackFunction);
   void addWriteInvoker(int, void *, CallbackFunction);
   void addErrorInvoker(int, void *, CallbackFunction);
@@ -492,14 +449,14 @@ public:
 #endif
 
 #ifdef FREERTOS
-private:
-  QueueHandle_t _workQueue = 0; // queue for thread wakeup and invoker queue
+ private:
+  QueueHandle_t _workQueue = 0;  // queue for thread wakeup and invoker queue
   int _queueSize = 10;
   int _stackSize = 1024;
   int _priority = tskIDLE_PRIORITY + 1;
   TaskHandle_t _taskHandle = 0;
 
-public:
+ public:
   Thread(ThreadProperties props);
 
   //    void createQueue(int queueSize = 10, int stackSize = 1024, int priority
@@ -509,7 +466,7 @@ public:
   std::vector<TimerSource *> _timers;
   //  ArrayQueue<Invoker *> _invokers;
 
-public:
+ public:
   Thread(const char *_name = "Thread");
   bool inThread();
   void wake();
@@ -526,11 +483,10 @@ public:
   void deleteTimer(TimerSource &timer);
 };
 //============================================================================
-class Actor : public Named
-{
+class Actor : public Named {
   Thread &_thread;
 
-public:
+ public:
   Actor(Thread &thr) : _thread(thr) { name("Actor"); }
   virtual void run() { INFO(" Default run of actor !"); }
   Thread &thread() { return _thread; }
@@ -541,26 +497,24 @@ public:
 template <typename T>
 class ValueFlow;
 template <typename T>
-class QueueFlow : public Flow<T, T>, public Invoker
-{
+class QueueFlow : public Flow<T, T>, public Invoker {
   friend class ValueFlow<T>;
   Thread &_thread;
   ArrayQueue<T> _queue;
   T _t;
 
-public:
-  QueueFlow(Thread &thread, size_t size = 1, const char *__name = "QueueFlow") : _thread(thread), _queue(size)
-  {
+ public:
+  QueueFlow(Thread &thread, size_t size = 1, const char *__name = "QueueFlow")
+      : _thread(thread), _queue(size) {
     ((Flow<T, T> *)this)->name(__name);
   }
-  void invoke() // from owning thread
+  void invoke()  // from owning thread
   {
-    while (_queue.pop(_t))
-    {
+    while (_queue.pop(_t)) {
       this->emit(_t);
     }
   }
-  void on(const T &t) // from other thread or same thread
+  void on(const T &t)  // from other thread or same thread
   {
     _queue.push(t);
     _thread.queue(this);
@@ -569,12 +523,10 @@ public:
 };
 //============================================================================
 template <typename T>
-class ValueFlow : public QueueFlow<T>
-{
-public:
+class ValueFlow : public QueueFlow<T> {
+ public:
   ValueFlow(Thread &thread, const char *__name = "ValueFlow")
-      : QueueFlow<T>(thread, 3, __name)
-  {
+      : QueueFlow<T>(thread, 3, __name) {
     ((Flow<T, T> *)this)->name(__name);
   }
   const T &operator()() { return this->last(); }
@@ -582,14 +534,12 @@ public:
 };
 //============================================================================
 template <typename T>
-class ZeroFlow : public Flow<T, T>
-{
-public:
-  ZeroFlow(const char *__name = "ZeroFlow")
-  {
+class ZeroFlow : public Flow<T, T> {
+ public:
+  ZeroFlow(const char *__name = "ZeroFlow") {
     ((Flow<T, T> *)this)->name(__name);
   }
-  void on(const T &t) // from other thread or same thread
+  void on(const T &t)  // from other thread or same thread
   {
     this->emit(t);
   }

@@ -90,20 +90,20 @@ class Redis : public Actor {
       }
       return false;
     });
-    lf->name(pattern);
+    lf->name(pattern.c_str());
     _response >> *lf;
     return *lf;
   }
   template <typename T>
   Sink<T> &publisher(std::string topic) {
-    auto &sf = *new Sink<T>([&, topic](const T &t) {
+    auto &sf = *new SinkFunction<T>([&, topic](const T &t) {
       std::string s;
       Json valueJson(1024);
       valueJson.as<JsonVariant>().set(t);
       serializeJson(valueJson, s);
       publish(topic, s);
     });
-    sf.name(topic);
+    sf.name(topic.c_str());
     return sf;
   }
 };
