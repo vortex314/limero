@@ -573,7 +573,7 @@ class ValueFlow : public QueueFlow<T>
 {
 public:
   ValueFlow(Thread &thread, const char *__name = "ValueFlow")
-      : QueueFlow<T>(thread, 1, __name)
+      : QueueFlow<T>(thread, 3, __name)
   {
     ((Flow<T, T> *)this)->name(__name);
   }

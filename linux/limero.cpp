@@ -171,7 +171,7 @@ int Thread::waitInvoker(uint32_t timeout)
   }
   else
   {
-    DEBUG(" timeout %llu", Sys::millis());
+    DEBUG(" timeout %lu", timeout );
     return ETIMEDOUT;
   }
   return ECOMM;
